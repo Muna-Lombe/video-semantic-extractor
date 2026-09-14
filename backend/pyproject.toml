@@ -1,0 +1,37 @@
+# @type configuration
+# @purpose Define the Python package, runtime dependencies, and test tooling.
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "video-semantic-extractor"
+version = "1.0.0"
+description = "Create compact semantic VideoCapsules from video files"
+requires-python = ">=3.10"
+dependencies = [
+  "fastapi>=0.110,<1",
+  "numpy>=1.24,<3",
+  "opencv-python-headless>=4.8,<5",
+  "pydantic>=2.6,<3",
+  "requests>=2.31,<3",
+  "uvicorn[standard]>=0.27,<1",
+]
+
+[project.optional-dependencies]
+dev = ["httpx>=0.27,<1", "pytest>=8,<9", "ruff>=0.6,<1"]
+models = ["openai-whisper>=20231117"]
+
+[project.scripts]
+video-capsule = "video_semantic_extractor.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["video_semantic_extractor*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

@@ -1,0 +1,3 @@
+# @type configuration
+# @purpose Provide a pip-compatible production dependency entry point.
+-e .

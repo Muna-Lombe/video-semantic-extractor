@@ -1,0 +1,8 @@
+# @type configuration
+# @purpose Configure deployment of the semantic capsule gateway.
+name = "video-semantic-extractor-worker"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+[vars]
+UPSTREAM_API_URL = "https://api.example.com/capsule"

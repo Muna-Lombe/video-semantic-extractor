@@ -1,0 +1,45 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "duration_sec": 22.5,
+    "width": 1920,
+    "height": 1080,
+    "source_file": "lesson.mp4",
+    "has_audio": true
+  },
+  "transcript": {
+    "language": "en",
+    "summary": {
+      "abstract": "The teacher contrasts can, must, and should.",
+      "keywords": ["modal verbs", "can", "must", "should"],
+      "method": "extractive_prefix",
+      "truncated": false
+    },
+    "segments": [
+      { "start_sec": 10.2, "end_sec": 22.5, "text": "Can is ability; must is obligation." }
+    ]
+  },
+  "keyframes": [
+    {
+      "id": 0,
+      "timestamp_sec": 12.3,
+      "features": { "brightness": 128.2, "edge_density": 0.034 },
+      "objects": [],
+      "actions": [],
+      "text_in_frame": [],
+      "analyzer": "basic_cv",
+      "embedding_int8": null
+    }
+  ],
+  "timeline": [
+    {
+      "start_sec": 10.2,
+      "end_sec": 22.5,
+      "event_type": "speech",
+      "description": "Can is ability; must is obligation.",
+      "evidence": ["transcript.segments[0]"]
+    }
+  ],
+  "scene_graph": { "entities": [], "relations": [] },
+  "warnings": []
+}
