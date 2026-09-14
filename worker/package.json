@@ -10,8 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260912.0",
+    "@cloudflare/workers-types": "^4.20260702.1",
     "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
+    "vitest": "^5.0.0"
   }
 }
