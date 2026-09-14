@@ -1,0 +1,12 @@
+# @type configuration
+# @purpose Exclude generated Python, Node, model, and media artifacts.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+node_modules/
+.wrangler/
+dist/
+*.wav
+*.mp4
+video_capsule.json
