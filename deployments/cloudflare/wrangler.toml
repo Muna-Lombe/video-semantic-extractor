@@ -1,0 +1,18 @@
+name = "video-semantic-extractor-container"
+main = "../../worker/src/container.ts"
+compatibility_date = "2026-09-01"
+
+# Build and push the image from the repository root before deploying. Cloudflare
+# then pulls this fully qualified image reference.
+[[containers]]
+class_name = "VideoSemanticExtractorContainer"
+image = "registry.cloudflare.com/REPLACE_WITH_ACCOUNT_ID/video-semantic-extractor:latest"
+instance_type = "basic"
+
+[[durable_objects.bindings]]
+name = "VIDEO_CONTAINER"
+class_name = "VideoSemanticExtractorContainer"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["VideoSemanticExtractorContainer"]

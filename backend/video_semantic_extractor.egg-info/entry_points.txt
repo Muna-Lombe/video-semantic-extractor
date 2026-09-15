@@ -1,0 +1,2 @@
+[console_scripts]
+video-capsule = video_semantic_extractor.cli:main

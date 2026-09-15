@@ -1,0 +1,583 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "duration_sec": 74.138,
+    "width": 720,
+    "height": 1280,
+    "source_file": "video.mp4",
+    "has_audio": true
+  },
+  "transcript": {
+    "language": "en",
+    "summary": {
+      "abstract": "Look at this freaking stores right here. Would you believe that everything you to ever want to know about making 10 grand a month selling stickers, printables and other digital products can all be reversed engineered on Etsy? Here's exactly how to do that and then how to copy them to make your own money on Etsy. Number one, run a search for things like this, this, this or this. Number two, then click here to look at what their best sellers are by number of reviews. And then here Etsy will literally tell you how many products they're selling. Do this with one or two dozen stores, take inspiration from that and then start making products just like that. Here's exactly how you're going to do it. Here's the big secret. No person is designing this stuff. It's all AI driven. You're going to skip…",
+      "keywords": [],
+      "method": "extractive_prefix",
+      "truncated": true
+    },
+    "segments": [
+      {
+        "start_sec": 0.0,
+        "end_sec": 1.4000000000000001,
+        "text": "Look at this freaking stores right here.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 1.4000000000000001,
+        "end_sec": 6.0,
+        "text": "Would you believe that everything you to ever want to know about making 10 grand a month selling stickers,",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 6.0,
+        "end_sec": 9.8,
+        "text": "printables and other digital products can all be reversed engineered on Etsy?",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 9.8,
+        "end_sec": 13.200000000000001,
+        "text": "Here's exactly how to do that and then how to copy them to make your own money on Etsy.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 13.200000000000001,
+        "end_sec": 16.2,
+        "text": "Number one, run a search for things like this, this, this or this.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 16.2,
+        "end_sec": 20.0,
+        "text": "Number two, then click here to look at what their best sellers are by number of reviews.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 20.0,
+        "end_sec": 23.2,
+        "text": "And then here Etsy will literally tell you how many products they're selling.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 23.2,
+        "end_sec": 28.3,
+        "text": "Do this with one or two dozen stores, take inspiration from that and then start making products just like that.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 28.3,
+        "end_sec": 29.8,
+        "text": "Here's exactly how you're going to do it.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 29.8,
+        "end_sec": 30.6,
+        "text": "Here's the big secret.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 30.6,
+        "end_sec": 32.4,
+        "text": "No person is designing this stuff.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 32.4,
+        "end_sec": 33.6,
+        "text": "It's all AI driven.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 33.6,
+        "end_sec": 37.6,
+        "text": "You're going to skip the whole Photoshop tutorials stuff and go right to something like Pixar.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 37.6,
+        "end_sec": 40.7,
+        "text": "Go to Pixar's AI tools, type in what you want and boom.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 40.7,
+        "end_sec": 44.4,
+        "text": "Stickers, planners, printables, coloring pages, all in four seconds.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 44.4,
+        "end_sec": 47.6,
+        "text": "They could spend hours tweaking these one by one making him perfect.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 47.6,
+        "end_sec": 50.400000000000006,
+        "text": "But no, just use the batch editor feature on Pixar.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 50.400000000000006,
+        "end_sec": 53.3,
+        "text": "You can resize, recolor and customize everything at once.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 53.3,
+        "end_sec": 55.8,
+        "text": "More speed equals more listings equals more sales.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 55.8,
+        "end_sec": 60.599999999999994,
+        "text": "Once the designs are done, list them on Etsy, Shopify, Gumroad, or any of these other options.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 60.599999999999994,
+        "end_sec": 64.39999999999999,
+        "text": "No shipping, no inventory, just a digital product that makes money while you sleep.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 64.39999999999999,
+        "end_sec": 65.6,
+        "text": "Don't over-complicate business.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 65.6,
+        "end_sec": 69.39999999999999,
+        "text": "You need AI, automation, a little bit of reverse engineering and creativity.",
+        "speaker": null,
+        "intent": null
+      },
+      {
+        "start_sec": 69.39999999999999,
+        "end_sec": 74.0,
+        "text": "Try this for yourself with this promo code for 15% off with Pixar Pro, link in the bio.",
+        "speaker": null,
+        "intent": null
+      }
+    ]
+  },
+  "keyframes": [
+    {
+      "id": 0,
+      "timestamp_sec": 0.0,
+      "features": {
+        "brightness": 147.67,
+        "edge_density": 0.0077
+      },
+      "objects": [],
+      "actions": [],
+      "text_in_frame": [],
+      "analyzer": "basic_cv",
+      "embedding_int8": null
+    },
+    {
+      "id": 1,
+      "timestamp_sec": 0.0,
+      "features": {
+        "brightness": 128.2,
+        "edge_density": 0.0186
+      },
+      "objects": [],
+      "actions": [],
+      "text_in_frame": [],
+      "analyzer": "basic_cv",
+      "embedding_int8": null
+    },
+    {
+      "id": 2,
+      "timestamp_sec": 0.0,
+      "features": {
+        "brightness": 126.68,
+        "edge_density": 0.0186
+      },
+      "objects": [],
+      "actions": [],
+      "text_in_frame": [],
+      "analyzer": "basic_cv",
+      "embedding_int8": null
+    },
+    {
+      "id": 3,
+      "timestamp_sec": 0.001,
+      "features": {
+        "brightness": 127.68,
+        "edge_density": 0.0172
+      },
+      "objects": [],
+      "actions": [],
+      "text_in_frame": [],
+      "analyzer": "basic_cv",
+      "embedding_int8": null
+    },
+    {
+      "id": 4,
+      "timestamp_sec": 0.001,
+      "features": {
+        "brightness": 181.94,
+        "edge_density": 0.0337
+      },
+      "objects": [],
+      "actions": [],
+      "text_in_frame": [],
+      "analyzer": "basic_cv",
+      "embedding_int8": null
+    },
+    {
+      "id": 5,
+      "timestamp_sec": 0.001,
+      "features": {
+        "brightness": 197.93,
+        "edge_density": 0.0499
+      },
+      "objects": [],
+      "actions": [],
+      "text_in_frame": [],
+      "analyzer": "basic_cv",
+      "embedding_int8": null
+    },
+    {
+      "id": 6,
+      "timestamp_sec": 0.001,
+      "features": {
+        "brightness": 202.59,
+        "edge_density": 0.0466
+      },
+      "objects": [],
+      "actions": [],
+      "text_in_frame": [],
+      "analyzer": "basic_cv",
+      "embedding_int8": null
+    },
+    {
+      "id": 7,
+      "timestamp_sec": 0.001,
+      "features": {
+        "brightness": 216.2,
+        "edge_density": 0.0642
+      },
+      "objects": [],
+      "actions": [],
+      "text_in_frame": [],
+      "analyzer": "basic_cv",
+      "embedding_int8": null
+    },
+    {
+      "id": 8,
+      "timestamp_sec": 0.001,
+      "features": {
+        "brightness": 131.23,
+        "edge_density": 0.015
+      },
+      "objects": [],
+      "actions": [],
+      "text_in_frame": [],
+      "analyzer": "basic_cv",
+      "embedding_int8": null
+    },
+    {
+      "id": 9,
+      "timestamp_sec": 0.001,
+      "features": {
+        "brightness": 196.29,
+        "edge_density": 0.0466
+      },
+      "objects": [],
+      "actions": [],
+      "text_in_frame": [],
+      "analyzer": "basic_cv",
+      "embedding_int8": null
+    },
+    {
+      "id": 10,
+      "timestamp_sec": 0.002,
+      "features": {
+        "brightness": 125.68,
+        "edge_density": 0.0119
+      },
+      "objects": [],
+      "actions": [],
+      "text_in_frame": [],
+      "analyzer": "basic_cv",
+      "embedding_int8": null
+    },
+    {
+      "id": 11,
+      "timestamp_sec": 0.002,
+      "features": {
+        "brightness": 126.94,
+        "edge_density": 0.0139
+      },
+      "objects": [],
+      "actions": [],
+      "text_in_frame": [],
+      "analyzer": "basic_cv",
+      "embedding_int8": null
+    },
+    {
+      "id": 12,
+      "timestamp_sec": 0.002,
+      "features": {
+        "brightness": 118.33,
+        "edge_density": 0.0476
+      },
+      "objects": [],
+      "actions": [],
+      "text_in_frame": [],
+      "analyzer": "basic_cv",
+      "embedding_int8": null
+    }
+  ],
+  "timeline": [
+    {
+      "start_sec": 0.0,
+      "end_sec": 1.4000000000000001,
+      "event_type": "speech",
+      "description": "Look at this freaking stores right here.",
+      "evidence": [
+        "transcript.segments[0]"
+      ]
+    },
+    {
+      "start_sec": 1.4000000000000001,
+      "end_sec": 6.0,
+      "event_type": "speech",
+      "description": "Would you believe that everything you to ever want to know about making 10 grand a month selling stickers,",
+      "evidence": [
+        "transcript.segments[1]"
+      ]
+    },
+    {
+      "start_sec": 6.0,
+      "end_sec": 9.8,
+      "event_type": "speech",
+      "description": "printables and other digital products can all be reversed engineered on Etsy?",
+      "evidence": [
+        "transcript.segments[2]"
+      ]
+    },
+    {
+      "start_sec": 9.8,
+      "end_sec": 13.200000000000001,
+      "event_type": "speech",
+      "description": "Here's exactly how to do that and then how to copy them to make your own money on Etsy.",
+      "evidence": [
+        "transcript.segments[3]"
+      ]
+    },
+    {
+      "start_sec": 13.200000000000001,
+      "end_sec": 16.2,
+      "event_type": "speech",
+      "description": "Number one, run a search for things like this, this, this or this.",
+      "evidence": [
+        "transcript.segments[4]"
+      ]
+    },
+    {
+      "start_sec": 16.2,
+      "end_sec": 20.0,
+      "event_type": "speech",
+      "description": "Number two, then click here to look at what their best sellers are by number of reviews.",
+      "evidence": [
+        "transcript.segments[5]"
+      ]
+    },
+    {
+      "start_sec": 20.0,
+      "end_sec": 23.2,
+      "event_type": "speech",
+      "description": "And then here Etsy will literally tell you how many products they're selling.",
+      "evidence": [
+        "transcript.segments[6]"
+      ]
+    },
+    {
+      "start_sec": 23.2,
+      "end_sec": 28.3,
+      "event_type": "speech",
+      "description": "Do this with one or two dozen stores, take inspiration from that and then start making products just like that.",
+      "evidence": [
+        "transcript.segments[7]"
+      ]
+    },
+    {
+      "start_sec": 28.3,
+      "end_sec": 29.8,
+      "event_type": "speech",
+      "description": "Here's exactly how you're going to do it.",
+      "evidence": [
+        "transcript.segments[8]"
+      ]
+    },
+    {
+      "start_sec": 29.8,
+      "end_sec": 30.6,
+      "event_type": "speech",
+      "description": "Here's the big secret.",
+      "evidence": [
+        "transcript.segments[9]"
+      ]
+    },
+    {
+      "start_sec": 30.6,
+      "end_sec": 32.4,
+      "event_type": "speech",
+      "description": "No person is designing this stuff.",
+      "evidence": [
+        "transcript.segments[10]"
+      ]
+    },
+    {
+      "start_sec": 32.4,
+      "end_sec": 33.6,
+      "event_type": "speech",
+      "description": "It's all AI driven.",
+      "evidence": [
+        "transcript.segments[11]"
+      ]
+    },
+    {
+      "start_sec": 33.6,
+      "end_sec": 37.6,
+      "event_type": "speech",
+      "description": "You're going to skip the whole Photoshop tutorials stuff and go right to something like Pixar.",
+      "evidence": [
+        "transcript.segments[12]"
+      ]
+    },
+    {
+      "start_sec": 37.6,
+      "end_sec": 40.7,
+      "event_type": "speech",
+      "description": "Go to Pixar's AI tools, type in what you want and boom.",
+      "evidence": [
+        "transcript.segments[13]"
+      ]
+    },
+    {
+      "start_sec": 40.7,
+      "end_sec": 44.4,
+      "event_type": "speech",
+      "description": "Stickers, planners, printables, coloring pages, all in four seconds.",
+      "evidence": [
+        "transcript.segments[14]"
+      ]
+    },
+    {
+      "start_sec": 44.4,
+      "end_sec": 47.6,
+      "event_type": "speech",
+      "description": "They could spend hours tweaking these one by one making him perfect.",
+      "evidence": [
+        "transcript.segments[15]"
+      ]
+    },
+    {
+      "start_sec": 47.6,
+      "end_sec": 50.400000000000006,
+      "event_type": "speech",
+      "description": "But no, just use the batch editor feature on Pixar.",
+      "evidence": [
+        "transcript.segments[16]"
+      ]
+    },
+    {
+      "start_sec": 50.400000000000006,
+      "end_sec": 53.3,
+      "event_type": "speech",
+      "description": "You can resize, recolor and customize everything at once.",
+      "evidence": [
+        "transcript.segments[17]"
+      ]
+    },
+    {
+      "start_sec": 53.3,
+      "end_sec": 55.8,
+      "event_type": "speech",
+      "description": "More speed equals more listings equals more sales.",
+      "evidence": [
+        "transcript.segments[18]"
+      ]
+    },
+    {
+      "start_sec": 55.8,
+      "end_sec": 60.599999999999994,
+      "event_type": "speech",
+      "description": "Once the designs are done, list them on Etsy, Shopify, Gumroad, or any of these other options.",
+      "evidence": [
+        "transcript.segments[19]"
+      ]
+    },
+    {
+      "start_sec": 60.599999999999994,
+      "end_sec": 64.39999999999999,
+      "event_type": "speech",
+      "description": "No shipping, no inventory, just a digital product that makes money while you sleep.",
+      "evidence": [
+        "transcript.segments[20]"
+      ]
+    },
+    {
+      "start_sec": 64.39999999999999,
+      "end_sec": 65.6,
+      "event_type": "speech",
+      "description": "Don't over-complicate business.",
+      "evidence": [
+        "transcript.segments[21]"
+      ]
+    },
+    {
+      "start_sec": 65.6,
+      "end_sec": 69.39999999999999,
+      "event_type": "speech",
+      "description": "You need AI, automation, a little bit of reverse engineering and creativity.",
+      "evidence": [
+        "transcript.segments[22]"
+      ]
+    },
+    {
+      "start_sec": 69.39999999999999,
+      "end_sec": 74.0,
+      "event_type": "speech",
+      "description": "Try this for yourself with this promo code for 15% off with Pixar Pro, link in the bio.",
+      "evidence": [
+        "transcript.segments[23]"
+      ]
+    }
+  ],
+  "scene_graph": {
+    "entities": [],
+    "relations": []
+  },
+  "warnings": []
+}

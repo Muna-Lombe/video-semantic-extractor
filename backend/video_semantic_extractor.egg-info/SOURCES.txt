@@ -1,0 +1,15 @@
+README.md
+pyproject.toml
+tests/test_api.py
+tests/test_schema.py
+video_semantic_extractor/__init__.py
+video_semantic_extractor/api.py
+video_semantic_extractor/cli.py
+video_semantic_extractor/pipeline.py
+video_semantic_extractor/schema.py
+video_semantic_extractor.egg-info/PKG-INFO
+video_semantic_extractor.egg-info/SOURCES.txt
+video_semantic_extractor.egg-info/dependency_links.txt
+video_semantic_extractor.egg-info/entry_points.txt
+video_semantic_extractor.egg-info/requires.txt
+video_semantic_extractor.egg-info/top_level.txt

@@ -1,0 +1,14 @@
+fastapi<1,>=0.110
+numpy<3,>=1.24
+opencv-python-headless<5,>=4.8
+pydantic<3,>=2.6
+requests<3,>=2.31
+uvicorn[standard]<1,>=0.27
+
+[dev]
+httpx<1,>=0.27
+pytest<9,>=8
+ruff<1,>=0.6
+
+[models]
+openai-whisper>=20231117

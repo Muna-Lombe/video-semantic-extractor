@@ -1,0 +1,17 @@
+Metadata-Version: 2.4
+Name: video-semantic-extractor
+Version: 1.0.0
+Summary: Create compact semantic VideoCapsules from video files
+Requires-Python: >=3.10
+Requires-Dist: fastapi<1,>=0.110
+Requires-Dist: numpy<3,>=1.24
+Requires-Dist: opencv-python-headless<5,>=4.8
+Requires-Dist: pydantic<3,>=2.6
+Requires-Dist: requests<3,>=2.31
+Requires-Dist: uvicorn[standard]<1,>=0.27
+Provides-Extra: dev
+Requires-Dist: httpx<1,>=0.27; extra == "dev"
+Requires-Dist: pytest<9,>=8; extra == "dev"
+Requires-Dist: ruff<1,>=0.6; extra == "dev"
+Provides-Extra: models
+Requires-Dist: openai-whisper>=20231117; extra == "models"

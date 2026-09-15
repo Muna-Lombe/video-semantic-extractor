@@ -1,0 +1,23 @@
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile
+    image: video-semantic-extractor:latest
+    environment:
+      CAPSULE_MAX_DOWNLOAD_BYTES: "500000000"
+      CAPSULE_DOWNLOAD_TIMEOUT_SEC: "120"
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8000/health').read()
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
