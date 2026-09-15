@@ -17,6 +17,7 @@ COPY backend/pyproject.toml backend/requirements.txt ./backend/
 COPY backend/video_semantic_extractor ./backend/video_semantic_extractor
 
 RUN python -m pip install --upgrade pip \
+    && python -m pip install --index-url https://download.pytorch.org/whl/cpu torch \
     && python -m pip install ./backend[models]
 
 RUN useradd --create-home --uid 10001 appuser \

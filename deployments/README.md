@@ -61,6 +61,10 @@ Python dependencies, so the Cloudflare deployment has the same prerequisite
 guarantee as Compose. Docker is required locally or in CI to build the image;
 Wrangler only deploys the pushed image.
 
+The image installs the CPU-only PyTorch wheel because Cloudflare Containers do
+not provide a CUDA runtime. This avoids pulling the much larger NVIDIA runtime
+packages and keeps the image suitable for the available container environment.
+
 The Worker entry point in `worker/src/container.ts` is intentionally separate
 from the existing `worker/src/index.ts` gateway. Use the existing Worker when
 the Python API is hosted elsewhere; use this configuration when Cloudflare

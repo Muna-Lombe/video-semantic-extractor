@@ -6,7 +6,7 @@ compatibility_date = "2026-09-01"
 # then pulls this fully qualified image reference.
 [[containers]]
 class_name = "VideoSemanticExtractorContainer"
-image = "registry.cloudflare.com/REPLACE_WITH_ACCOUNT_ID/video-semantic-extractor:latest"
+image = "registry.cloudflare.com/d1b9378e2318376153f529443af41b25/video-semantic-extractor:latest"
 instance_type = "basic"
 
 [[durable_objects.bindings]]
