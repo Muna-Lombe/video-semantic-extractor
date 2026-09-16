@@ -2,6 +2,8 @@
 @purpose Define the stable, validated VideoCapsule ingestion contract.
 """
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -59,6 +61,9 @@ class Keyframe(StrictModel):
     text_in_frame: list[str] = Field(default_factory=list)
     analyzer: str = "basic_cv"
     embedding_int8: list[int] | None = None
+    sampling_reasons: list[Literal["first", "scene_change", "interval", "near_final"]] = Field(
+        default_factory=list
+    )
 
 
 class TimelineEvent(StrictModel):

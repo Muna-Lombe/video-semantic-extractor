@@ -10,8 +10,9 @@ import json
 import subprocess
 import tempfile
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Literal, Protocol
 
 import cv2
 import numpy as np
@@ -35,6 +36,18 @@ class ExtractionError(RuntimeError):
 
 class Transcriber(Protocol):
     def __call__(self, audio_path: Path) -> dict[str, object]: ...
+
+
+SamplingReason = Literal["first", "scene_change", "interval", "near_final"]
+
+
+@dataclass(frozen=True)
+class FrameCandidate:
+    """An extracted frame with its zero-based timestamp and sampling provenance."""
+
+    path: Path
+    timestamp_sec: float
+    sampling_reasons: tuple[SamplingReason, ...]
 
 
 def _run(command: list[str]) -> subprocess.CompletedProcess[str]:
@@ -95,14 +108,17 @@ def extract_audio(input_path: Path, output_path: Path) -> None:
     )
 
 
-def extract_keyframes(
-    input_path: Path, output_dir: Path, scene_threshold: float, max_keyframes: int
-) -> list[tuple[Path, float]]:
-    """Extract scene changes and recover exact timestamps from ffmpeg filenames."""
+def _extract_frame_candidates(
+    input_path: Path,
+    output_dir: Path,
+    select_expression: str,
+    reason: SamplingReason,
+) -> list[FrameCandidate]:
+    """Extract one class of candidates with zero-based microsecond timestamps."""
     output_dir.mkdir(parents=True, exist_ok=True)
     pattern = output_dir / "frame_%06d_%013d.jpg"
     # The second filename token is presentation time in microseconds.
-    filter_expr = f"select='eq(n,0)+gt(scene,{scene_threshold})',settb=AVTB"
+    filter_expr = f"setpts=PTS-STARTPTS,select='{select_expression}',settb=AVTB"
     _run(
         [
             "ffmpeg",
@@ -122,18 +138,110 @@ def extract_keyframes(
             str(pattern),
         ]
     )
-    frames = sorted(
+    paths = sorted(
         output_dir.glob("frame_*.jpg"),
         key=lambda frame: int(frame.stem.rsplit("_", 1)[1]),
     )
-    if len(frames) > max_keyframes:
-        indexes = np.linspace(0, len(frames) - 1, max_keyframes, dtype=int)
-        frames = [frames[index] for index in indexes]
-    output: list[tuple[Path, float]] = []
-    for frame in frames:
+    output: list[FrameCandidate] = []
+    for frame in paths:
         timestamp_us = int(frame.stem.rsplit("_", 1)[1])
-        output.append((frame, timestamp_us / 1_000_000))
+        timestamp_sec = timestamp_us / 1_000_000
+        candidate_reason: SamplingReason = "first" if timestamp_us == 0 else reason
+        output.append(FrameCandidate(frame, timestamp_sec, (candidate_reason,)))
     return output
+
+
+def select_frame_candidates(
+    candidates: list[FrameCandidate],
+    max_keyframes: int,
+    dedupe_tolerance_sec: float = 0.001,
+) -> list[FrameCandidate]:
+    """Deduplicate candidates and cap optional scenes without weakening coverage."""
+    merged: list[FrameCandidate] = []
+    reason_order: tuple[SamplingReason, ...] = (
+        "first",
+        "scene_change",
+        "interval",
+        "near_final",
+    )
+    for candidate in sorted(candidates, key=lambda value: value.timestamp_sec):
+        if merged and candidate.timestamp_sec - merged[-1].timestamp_sec <= dedupe_tolerance_sec:
+            previous = merged[-1]
+            combined_reasons = tuple(
+                reason
+                for reason in reason_order
+                if reason in previous.sampling_reasons or reason in candidate.sampling_reasons
+            )
+            merged[-1] = FrameCandidate(
+                previous.path,
+                min(previous.timestamp_sec, candidate.timestamp_sec),
+                combined_reasons,
+            )
+        else:
+            merged.append(candidate)
+
+    coverage = [
+        candidate
+        for candidate in merged
+        if any(
+            reason in candidate.sampling_reasons for reason in ("first", "interval", "near_final")
+        )
+    ]
+    if len(coverage) > max_keyframes:
+        raise ExtractionError(
+            f"max_keyframes={max_keyframes} cannot retain the {len(coverage)} frames "
+            "required for configured temporal coverage"
+        )
+    optional_scenes = [candidate for candidate in merged if candidate not in coverage]
+    remaining = max_keyframes - len(coverage)
+    if len(optional_scenes) > remaining:
+        indexes = np.linspace(0, len(optional_scenes) - 1, remaining, dtype=int)
+        optional_scenes = [optional_scenes[index] for index in indexes]
+    return sorted([*coverage, *optional_scenes], key=lambda value: value.timestamp_sec)
+
+
+def extract_keyframes(
+    input_path: Path,
+    output_dir: Path,
+    scene_threshold: float,
+    max_keyframes: int,
+    sampling_interval_sec: float = 5.0,
+    duration_sec: float | None = None,
+) -> list[FrameCandidate]:
+    """Merge scene, interval, and near-final frames into a covered sample set."""
+    if duration_sec is None:
+        duration_sec = probe_video(input_path).duration_sec
+    scene_candidates = _extract_frame_candidates(
+        input_path,
+        output_dir / "scene",
+        f"eq(n,0)+gt(scene,{scene_threshold})",
+        "scene_change",
+    )
+    interval_candidates = _extract_frame_candidates(
+        input_path,
+        output_dir / "interval",
+        f"eq(n,0)+gte(t-prev_selected_t,{sampling_interval_sec})",
+        "interval",
+    )
+    near_final_start = max(0.0, duration_sec - min(0.5, sampling_interval_sec / 2))
+    final_candidates = _extract_frame_candidates(
+        input_path,
+        output_dir / "near-final",
+        f"gte(t,{near_final_start})",
+        "near_final",
+    )
+    # The final expression selects a short tail window. Keeping its last decoded
+    # frame guarantees the strongest available end-of-video evidence.
+    if final_candidates:
+        final_candidates = [final_candidates[-1]]
+        final_candidate = final_candidates[0]
+        if final_candidate.sampling_reasons == ("first",):
+            final_candidates[0] = FrameCandidate(
+                final_candidate.path, final_candidate.timestamp_sec, ("first", "near_final")
+            )
+    return select_frame_candidates(
+        [*scene_candidates, *interval_candidates, *final_candidates], max_keyframes
+    )
 
 
 def analyze_frame(frame_path: Path, frame_id: int, timestamp: float) -> Keyframe:
@@ -207,13 +315,18 @@ class CapsuleBuilder:
         frame_analyzer: Callable[[Path, int, float], Keyframe] = analyze_frame,
         scene_threshold: float = 0.3,
         max_keyframes: int = 80,
+        sampling_interval_sec: float = 5.0,
     ) -> None:
-        if not 0 <= scene_threshold <= 1 or max_keyframes < 1:
-            raise ValueError("scene_threshold must be 0..1 and max_keyframes must be positive")
+        if not 0 <= scene_threshold <= 1 or max_keyframes < 1 or sampling_interval_sec <= 0:
+            raise ValueError(
+                "scene_threshold must be 0..1, max_keyframes must be positive, "
+                "and sampling_interval_sec must be positive"
+            )
         self.transcriber = transcriber or whisper_transcriber("tiny")
         self.frame_analyzer = frame_analyzer
         self.scene_threshold = scene_threshold
         self.max_keyframes = max_keyframes
+        self.sampling_interval_sec = sampling_interval_sec
 
     def build(self, input_path: str | Path) -> VideoCapsule:
         """Build a capsule from a readable local video file."""
@@ -224,11 +337,20 @@ class CapsuleBuilder:
             temp_path = Path(temp)
             metadata = probe_video(source)
             keyframe_files = extract_keyframes(
-                source, temp_path / "frames", self.scene_threshold, self.max_keyframes
+                source,
+                temp_path / "frames",
+                self.scene_threshold,
+                self.max_keyframes,
+                self.sampling_interval_sec,
+                metadata.duration_sec,
             )
             keyframes = [
-                self.frame_analyzer(path, index, min(timestamp, metadata.duration_sec))
-                for index, (path, timestamp) in enumerate(keyframe_files)
+                self.frame_analyzer(
+                    candidate.path,
+                    index,
+                    min(candidate.timestamp_sec, metadata.duration_sec),
+                ).model_copy(update={"sampling_reasons": list(candidate.sampling_reasons)})
+                for index, candidate in enumerate(keyframe_files)
             ]
             warnings: list[str] = []
             result: dict[str, object] = {"text": "", "segments": []}

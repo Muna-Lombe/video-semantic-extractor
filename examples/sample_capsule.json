@@ -28,7 +28,8 @@
       "actions": [],
       "text_in_frame": [],
       "analyzer": "basic_cv",
-      "embedding_int8": null
+      "embedding_int8": null,
+      "sampling_reasons": ["interval"]
     }
   ],
   "timeline": [

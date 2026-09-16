@@ -51,3 +51,24 @@ benchmark Whisper or transcription accuracy.
 
 The debug extractor retains images, FFmpeg logs, and a CSV manifest mapping filename
 tokens to `showinfo` timestamps.
+
+## Frame-sampling comparison
+
+Compare scene-only, five-second fixed-interval, and hybrid selection against the
+source video and an existing capsule transcript:
+
+```bash
+./scripts/diagnostics/compare-frame-sampling.py \
+  sample_video.mp4 \
+  /tmp/frame-sampling \
+  --capsule backend/capsule.json
+```
+
+The output includes a JSON metrics report, timestamp manifests, extracted frames,
+and a labeled contact sheet for each strategy. The hybrid manifest records whether
+each frame came from first-frame, scene-change, interval, or near-final selection.
+Temporal gaps include the unsampled tail of the video. Near-duplicate counts use
+adjacent 64-bit difference hashes with a Hamming-distance threshold of four; they
+are a review aid, not a semantic-quality score. OCR change measurement is reported
+as unavailable until an OCR analyzer is introduced rather than inferred from image
+differences.
