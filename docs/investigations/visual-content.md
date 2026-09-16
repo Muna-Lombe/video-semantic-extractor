@@ -99,11 +99,11 @@ within the first few milliseconds. Its visual observations contain brightness an
 edge density only. Object, action, OCR, embedding, entity, and relation outputs are
 empty.
 
-The original `video.mp4` is not present in the working tree or elsewhere under the
-workspace. It is ignored by repository policy. Until it is supplied, the exact
-capsule cannot be reproduced or visually graded. A generated diagnostic fixture may
-validate the extraction machinery, but it is not a substitute for evaluating the
-original content.
+The original source was temporarily recovered from the upload commit for local
+diagnostics, but it is intentionally not included in this change pending a correct
+GitHub upload. Its SHA-256 digest is
+`bc14db678d642d02ae769c92a234ddd53c611a6bdf88ca93da97fb166bbfaa1b`.
+The source is a 74.138-second, 720 by 1280 H.264 video with AAC audio.
 
 The environment initially lacked FFmpeg, FFprobe, and Docker. Repository scripts
 under `scripts/` are the canonical entry points for installing prerequisites,
@@ -146,3 +146,22 @@ Docker is also unavailable on this host, so Compose image construction remains a
 environment-limited validation. Host-local setup follows the Dockerfile's Python
 version, package metadata, and system-media dependencies, but must not be described
 as a successful container build.
+
+## Source-video diagnostic results
+
+The scene-change extractor selected 13 frames from the supplied source at 0.0,
+1.633333, 16.166667, 20.533333, 37.066667, 37.766667, 39.1, 40.666667,
+44.433333, 47.966667, 50.566667, 57.466667, and 69.3 seconds. These timestamps
+confirm that preserving the filter time base fixes the earlier millisecond-scale
+collapse on the real video as well as on the generated fixture.
+
+The source also exposed a second timestamp defect. FFmpeg's numeric format width is
+a minimum, so filenames for timestamps of ten seconds or more have a longer first
+numeric token. Lexicographic path sorting consequently placed 16.166667 seconds
+before 1.633333 seconds. Keyframes are now sorted by the parsed microsecond token,
+and the regression test includes both sides of that field-width boundary.
+
+Scene-only sampling leaves a 16.533334-second maximum gap and does not retain a
+frame from the final 4.838458 seconds. The next sampling-quality iteration should
+compare fixed-interval and hybrid selection against these baseline results before
+adding OCR or object models.

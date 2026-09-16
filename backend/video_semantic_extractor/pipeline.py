@@ -122,7 +122,10 @@ def extract_keyframes(
             str(pattern),
         ]
     )
-    frames = sorted(output_dir.glob("frame_*.jpg"))
+    frames = sorted(
+        output_dir.glob("frame_*.jpg"),
+        key=lambda frame: int(frame.stem.rsplit("_", 1)[1]),
+    )
     if len(frames) > max_keyframes:
         indexes = np.linspace(0, len(frames) - 1, max_keyframes, dtype=int)
         frames = [frames[index] for index in indexes]
