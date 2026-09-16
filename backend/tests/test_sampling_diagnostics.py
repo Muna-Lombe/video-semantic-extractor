@@ -2,6 +2,7 @@
 @purpose Verify frame-sampling comparison expressions and coverage metrics.
 """
 
+import csv
 import importlib.util
 import sys
 from pathlib import Path
@@ -57,3 +58,17 @@ def test_metrics_include_video_boundaries_and_transcript_distance(tmp_path: Path
     assert metrics.unique_file_hashes == 2
     assert metrics.transcript_mean_distance_sec == 1.5
     assert metrics.transcript_max_distance_sec == 2.0
+
+
+def test_manifest_preserves_nested_hybrid_frame_path(tmp_path: Path) -> None:
+    """Keep candidate subdirectories so downstream diagnostics can reopen frames."""
+    frame = tmp_path / "hybrid" / "frames" / "scene" / "frame.jpg"
+    frame.parent.mkdir(parents=True)
+    frame.touch()
+    manifest = tmp_path / "hybrid" / "manifest.csv"
+
+    sampling.write_manifest(manifest, [(frame, 1.0)])
+
+    with manifest.open(newline="", encoding="utf-8") as handle:
+        row = next(csv.DictReader(handle))
+    assert row["filename"] == "scene/frame.jpg"

@@ -205,3 +205,34 @@ This supersedes the first hybrid prototype, which used a single scene-or-elapsed
 expression. That prototype happened to leave only a 4.838458-second tail on this
 sample, but it did not guarantee near-final evidence, preserve sampling provenance,
 or prevent `max_keyframes` reduction from reopening temporal gaps.
+
+## OCR diagnostic results
+
+The first lightweight-semantic diagnostic uses the system Tesseract 5.3.4 CLI and
+its English data rather than adding a Python model runtime. The installed language
+data occupies approximately 15 MB and the shared OCR library approximately 3.1 MB,
+well below the 4 GB model-artifact constraint. Word-level TSV output preserves a
+confidence score and pixel-space region for every accepted observation.
+
+The generated fixture now has three timestamped ground-truth labels. At the default
+0.5 confidence threshold, original images, two-times grayscale images, and two-times
+Otsu-thresholded images each achieved 1.0 mean expected-word recall on sampled
+frames. Preprocessing therefore showed no benefit on this intentionally clean input.
+The more important distinction was sampling coverage: scene and hybrid sampling
+each detected all three labels at least once, while five-second fixed sampling saw
+only two of three. OCR evaluation must consequently report both recognition quality
+on sampled frames and ground-truth label coverage; perfect per-frame recall does not
+prove that the sampler retained every text state.
+
+On the supplied source, original-image OCR produced text above the same confidence
+threshold in 9 of 13 scene frames, 13 of 15 fixed frames, and 23 of 28 hybrid frames.
+The corresponding adjacent OCR-change counts were 11, 14, and 26. These are useful
+evidence that on-screen text changes frequently, but there is no source-video ground
+truth yet, so they are not accuracy measurements and do not justify production OCR
+integration on their own. The next OCR iteration should label representative source
+frames, score false positives as well as recall, and test small and stylized text.
+
+The diagnostic also exposed an artifact-integrity defect: hybrid manifests stored
+only basenames even though production candidates live in `scene`, `interval`, and
+`near-final` subdirectories. Manifests now preserve paths relative to the strategy's
+frame root so downstream diagnostics can reopen the exact retained image.

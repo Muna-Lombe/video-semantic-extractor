@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 # @type script
-# @purpose Install host media tools required by the local extraction pipeline.
+# @purpose Install host media and OCR tools required by local diagnostics.
 set -eu
 
 if [ "$(id -u)" -ne 0 ]; then
@@ -13,9 +13,13 @@ apt-get update
 apt-get install --no-install-recommends --yes \
     ca-certificates \
     ffmpeg \
-    python3-venv
+    python3-venv \
+    tesseract-ocr \
+    tesseract-ocr-eng
 
 command -v ffmpeg
 command -v ffprobe
+command -v tesseract
 ffmpeg -version | sed -n '1p'
 ffprobe -version | sed -n '1p'
+tesseract --version | sed -n '1p'

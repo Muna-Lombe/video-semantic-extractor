@@ -176,12 +176,13 @@ def write_manifest(
     provenance: dict[Path, tuple[str, ...]] | None = None,
 ) -> None:
     """Write an auditable mapping from extracted files to decoded timestamps."""
+    frames_root = output_path.parent / "frames"
     with output_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
         writer.writerow(["filename", "timestamp_sec", "sampling_reasons"])
         writer.writerows(
             (
-                path.name,
+                path.relative_to(frames_root).as_posix(),
                 f"{timestamp:.6f}",
                 "+".join(provenance.get(path, ())) if provenance else "not_recorded",
             )
