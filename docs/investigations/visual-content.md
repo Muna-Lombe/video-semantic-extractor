@@ -165,3 +165,43 @@ Scene-only sampling leaves a 16.533334-second maximum gap and does not retain a
 frame from the final 4.838458 seconds. The next sampling-quality iteration should
 compare fixed-interval and hybrid selection against these baseline results before
 adding OCR or object models.
+
+## Sampling-quality results
+
+The reproducible sampling comparison uses a five-second interval and the existing
+0.3 scene threshold. Coverage metrics include the leading and trailing boundaries,
+not only gaps between selected frames. Transcript proximity is measured from each
+of the 24 existing segment midpoints to its nearest selected frame. Exact SHA-256
+and adjacent 64-bit difference-hash comparisons provide duplicate triage, while OCR
+change detection is explicitly reported as unavailable until an OCR analyzer exists.
+
+| Strategy | Frames | Maximum gap | Mean transcript distance | Maximum transcript distance | Adjacent near-duplicates |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Scene only | 13 | 16.533334 s | 3.015278 s | 8.016667 s | 0 |
+| Fixed interval | 15 | 5.000000 s | 1.312500 s | 2.500000 s | 0 |
+| Hybrid | 28 | 5.000000 s | 1.136111 s | 2.500000 s | 1 |
+
+Contact-sheet review shows why the numeric coverage improvement alone is not enough:
+fixed sampling captures the video's progression but can miss short application-screen
+transitions. Scene sampling retains those transitions but undersamples long talking-head
+sections. Hybrid sampling retains every scene-selected transition, the independent
+five-second interval sequence, and a frame at 74.0 seconds near the end. It therefore
+provides the best evidence set of the three, at a cost of 13 frames over fixed sampling
+and 15 over scene-only. The single perceptual near-duplicate is retained because it
+comes from distinct timestamps and may contain changing speech text.
+
+The production extractor now merges three independently extracted candidate sets:
+scene changes, fixed intervals, and the final decoded frame in a short tail window.
+Candidates within one millisecond are deduplicated and their sampling reasons are
+combined. Source timestamps are normalized with `PTS-STARTPTS`, and all candidates
+are sorted numerically. The interval is configurable on `CapsuleBuilder`.
+
+The existing 80-frame cap is applied only after coverage candidates have been
+established. Optional scene frames are reduced first. If the cap is too small to
+retain the first, interval, and near-final frames, extraction fails explicitly rather
+than silently violating the requested coverage bound.
+
+This supersedes the first hybrid prototype, which used a single scene-or-elapsed-time
+expression. That prototype happened to leave only a 4.838458-second tail on this
+sample, but it did not guarantee near-final evidence, preserve sampling provenance,
+or prevent `max_keyframes` reduction from reopening temporal gaps.

@@ -2,5 +2,5 @@
 # Backend tests
 
 Run `python -m pytest`. Tests cover schema strictness, deterministic transcript
-compression, URL safety, and API health without downloading model weights.
-
+compression, frame timestamp and sampling behavior, URL safety, and API health
+without downloading model weights.

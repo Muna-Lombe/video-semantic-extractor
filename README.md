@@ -15,7 +15,7 @@ language model without sending the source video.
 ```text
 video URL -> Cloudflare Worker -> FastAPI -> extractor -> VideoCapsule JSON
                                          |-> ffprobe/ffmpeg metadata + audio
-                                         |-> scene-change keyframes + CV features
+                                         |-> hybrid scene/interval frames + CV features
                                          `-> Whisper transcript
 ```
 
@@ -70,7 +70,9 @@ optional bearer token.
 The contract is versioned as `1.0`. Times are seconds from the beginning of the
 video. Visual observations clearly identify the analyzer that generated them;
 empty `objects`, `actions`, or `text_in_frame` values mean “not analyzed,” not
-“confirmed absent.” See [`examples/sample_capsule.json`](examples/sample_capsule.json).
+“confirmed absent.” Keyframes also record whether they were selected as the first
+frame, a scene change, an interval sample, or near-final evidence. See
+[`examples/sample_capsule.json`](examples/sample_capsule.json).
 
 Recommended ingestion prompt:
 

@@ -23,8 +23,9 @@ def main() -> None:
     timestamps = [float(frame["timestamp_sec"]) for frame in keyframes]
     monotonic = timestamps == sorted(timestamps)
     duration = float(metadata["duration_sec"])
+    coverage_boundaries = [0.0, *timestamps, duration]
     max_gap = max(
-        (right - left for left, right in pairwise(timestamps)),
+        (right - left for left, right in pairwise(coverage_boundaries)),
         default=duration,
     )
 
@@ -36,12 +37,14 @@ def main() -> None:
     print(f"keyframe_first_sec={timestamps[0] if timestamps else 'none'}")
     print(f"keyframe_last_sec={timestamps[-1] if timestamps else 'none'}")
     print(f"keyframe_max_gap_sec={max_gap}")
+    for reason in ("first", "scene_change", "interval", "near_final"):
+        count = sum(reason in frame.get("sampling_reasons", []) for frame in keyframes)
+        print(f"keyframes_sampling_reason_{reason}={count}")
     print(f"objects={sum(len(frame['objects']) for frame in keyframes)}")
     print(f"actions={sum(len(frame['actions']) for frame in keyframes)}")
     print(f"text_in_frame={sum(len(frame['text_in_frame']) for frame in keyframes)}")
     print(
-        "embeddings="
-        f"{sum(frame['embedding_int8'] is not None for frame in keyframes)}"
+        f"embeddings={sum(frame['embedding_int8'] is not None for frame in keyframes)}"
     )
     print(f"entities={len(payload['scene_graph']['entities'])}")
     print(f"relations={len(payload['scene_graph']['relations'])}")
