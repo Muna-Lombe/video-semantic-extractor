@@ -115,6 +115,8 @@ def extract_keyframes(
             filter_expr,
             "-fps_mode",
             "vfr",
+            "-enc_time_base",
+            "filter",
             "-frame_pts",
             "1",
             str(pattern),
