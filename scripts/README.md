@@ -72,3 +72,23 @@ adjacent 64-bit difference hashes with a Hamming-distance threshold of four; the
 are a review aid, not a semantic-quality score. OCR change measurement is reported
 as unavailable until an OCR analyzer is introduced rather than inferred from image
 differences.
+
+## OCR evaluation
+
+Evaluate the retained frames from every sampling strategy with word confidence and
+pixel-space regions. The generated fixture has timestamped ground truth so the
+report also includes expected-word recall:
+
+```bash
+./scripts/diagnostics/evaluate-frame-ocr.py \
+  /tmp/frame-sampling \
+  /tmp/frame-sampling/ocr-report.json \
+  --ground-truth scripts/fixtures/diagnostic-ocr-ground-truth.json
+```
+
+The diagnostic calls the system `tesseract` executable installed by the setup
+script. `--preprocess grayscale` and `--preprocess threshold` provide repeatable
+alternatives for investigation; the original retained images remain unchanged.
+Run these modes as separate reports rather than selecting a winner from a single
+frame. A confidence threshold filters reported words, while raw frame-level results
+remain auditable in the JSON report.
