@@ -31,10 +31,30 @@ def test_parse_tesseract_tsv_retains_regions_and_filters_confidence() -> None:
     ]
 
 
+def test_parse_tesseract_tsv_treats_literal_quotes_as_text() -> None:
+    """Do not let an OCR quote merge independent physical TSV records."""
+    payload = TSV_HEADER + (
+        '5\t1\t1\t1\t1\t1\t1\t2\t10\t5\t99\t"coloring\n'
+        "5\t1\t1\t1\t1\t2\t12\t2\t10\t5\t98\tpages\n"
+    )
+
+    assert ocr.parse_tesseract_tsv(payload, 0.5) == [
+        ocr.TextObservation('"coloring', 0.99, (1, 2, 10, 5)),
+        ocr.TextObservation("pages", 0.98, (12, 2, 10, 5)),
+    ]
+
+
 def test_word_recall_is_case_and_punctuation_insensitive() -> None:
     """Score labeled words without requiring OCR punctuation or case to match."""
     assert ocr.word_recall("Shop now!", "SHOP, later") == 0.5
     assert ocr.word_recall("", "unexpected") is None
+
+
+def test_word_precision_penalizes_unsupported_observations() -> None:
+    """Count OCR guesses that are absent from exhaustive ground truth."""
+    assert ocr.word_precision("Shop now!", "SHOP later") == 0.5
+    assert ocr.word_precision("Shop now!", "") is None
+    assert ocr.harmonic_mean(0.5, 0.5) == 0.5
 
 
 def test_evaluate_strategy_scores_manifest_frames(tmp_path: Path) -> None:
@@ -56,6 +76,8 @@ def test_evaluate_strategy_scores_manifest_frames(tmp_path: Path) -> None:
         ocr_runner=lambda _path: payload,
     )
     assert report["mean_word_recall"] == 1.0
+    assert report["mean_word_precision"] == 1.0
+    assert report["mean_word_f1"] == 1.0
     assert report["ground_truth_label_recall"] == 1.0
     assert report["frames_with_any_text"] == 1
     assert report["frames"][0]["observations"][0]["region"] == (1, 2, 10, 5)

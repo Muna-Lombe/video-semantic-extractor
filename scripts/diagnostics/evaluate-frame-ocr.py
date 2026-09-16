@@ -46,7 +46,9 @@ def run_tesseract(image_path: Path) -> str:
 def parse_tesseract_tsv(payload: str, minimum_confidence: float) -> list[TextObservation]:
     """Parse word-level TSV output, discarding blanks and low-confidence guesses."""
     observations: list[TextObservation] = []
-    for row in csv.DictReader(payload.splitlines(), delimiter="\t"):
+    # Tesseract does not escape text as CSV. A recognized literal quote can begin
+    # a word, so csv quote handling would merge several physical TSV rows.
+    for row in csv.DictReader(payload.splitlines(), delimiter="\t", quoting=csv.QUOTE_NONE):
         text = (row.get("text") or "").strip()
         try:
             confidence = float(row.get("conf", "-1")) / 100
@@ -87,6 +89,29 @@ def word_recall(expected: str, observed: str) -> float | None:
     return round(matched / len(expected_words), 4)
 
 
+def word_precision(expected: str, observed: str) -> float | None:
+    """Measure the share of observed words supported by a labeled frame."""
+    expected_words = normalize_words(expected)
+    observed_words = normalize_words(observed)
+    if not expected_words or not observed_words:
+        return None
+    matched = 0
+    for word in observed_words:
+        if word in expected_words:
+            matched += 1
+            expected_words.remove(word)
+    return round(matched / len(observed_words), 4)
+
+
+def harmonic_mean(precision: float | None, recall: float | None) -> float | None:
+    """Return an F1 score when both word metrics are defined."""
+    if precision is None or recall is None:
+        return None
+    if precision + recall == 0:
+        return 0.0
+    return round(2 * precision * recall / (precision + recall), 4)
+
+
 def preprocess(image_path: Path, output_path: Path, mode: str) -> Path:
     """Create a repeatable OCR input while retaining the original sampled image."""
     if mode == "original":
@@ -114,6 +139,8 @@ def evaluate_strategy(
         manifest = list(csv.DictReader(handle))
     frames: list[dict[str, object]] = []
     recalls: list[float] = []
+    precisions: list[float] = []
+    f1_scores: list[float] = []
     detected_labels: set[int] = set()
     previous_text: str | None = None
     changes = 0
@@ -130,8 +157,14 @@ def evaluate_strategy(
             timestamp = float(row["timestamp_sec"])
             expected = expected_text(labels, timestamp)
             recall = word_recall(expected, observed)
+            precision = word_precision(expected, observed)
+            f1_score = harmonic_mean(precision, recall)
             if recall is not None:
                 recalls.append(recall)
+            if precision is not None:
+                precisions.append(precision)
+            if f1_score is not None:
+                f1_scores.append(f1_score)
             for label_index, label in enumerate(labels):
                 if (
                     float(label["start_sec"]) <= timestamp < float(label["end_sec"])
@@ -148,14 +181,20 @@ def evaluate_strategy(
                     "timestamp_sec": timestamp,
                     "expected_text": expected or None,
                     "observed_text": observed,
+                    "word_precision": precision,
                     "word_recall": recall,
+                    "word_f1": f1_score,
                     "observations": [asdict(item) for item in observations],
                 }
             )
     return {
         "frame_count": len(frames),
         "labeled_frame_count": len(recalls),
+        "mean_word_precision": (
+            round(sum(precisions) / len(precisions), 4) if precisions else None
+        ),
         "mean_word_recall": round(sum(recalls) / len(recalls), 4) if recalls else None,
+        "mean_word_f1": round(sum(f1_scores) / len(f1_scores), 4) if f1_scores else None,
         "ground_truth_labels_detected": len(detected_labels) if labels else None,
         "ground_truth_label_recall": (
             round(len(detected_labels) / len(labels), 4) if labels else None

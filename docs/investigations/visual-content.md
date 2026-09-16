@@ -236,3 +236,30 @@ The diagnostic also exposed an artifact-integrity defect: hybrid manifests store
 only basenames even though production candidates live in `scene`, `interval`, and
 `near-final` subdirectories. Manifests now preserve paths relative to the strategy's
 frame root so downstream diagnostics can reopen the exact retained image.
+
+## OCR scoring integrity results
+
+The next diagnostic pass added word precision and F1 alongside recall so exhaustive
+labels can expose unsupported OCR output rather than rewarding detection alone.
+Precision remains undefined for unlabeled frames and for labeled frames where the
+engine returned no words; this avoids treating incomplete source-video annotations
+as evidence of false positives.
+
+On the generated fixture, original-image OCR achieved 1.0 mean word precision,
+recall, and F1 for all three strategies. Scene and hybrid sampling again covered all
+three ground-truth text states, while fixed sampling covered two of three. These
+perfect recognition scores apply only to sampled, labeled frames; the 0.6667 fixed
+label-coverage score remains the evidence that recognition quality cannot recover a
+text state the sampler omitted.
+
+Running the source diagnostic also exposed a parser defect on the 40.666667-second
+frame. Tesseract recognized a literal leading quote in `"coloring`, but its TSV is
+not CSV-escaped. Python's default CSV quote handling consequently joined multiple
+physical word rows and leaked raw TSV fields into the observed text. The parser now
+disables quote semantics and a regression test preserves each physical TSV row.
+
+Source-video OCR precision is still intentionally unreported because there is not
+yet exhaustive text ground truth for representative frames. The next annotation
+pass must record all visible words in each scored frame, including captions, user
+interface labels, and clothing text; partial labels are suitable for recall but
+would make precision misleading.

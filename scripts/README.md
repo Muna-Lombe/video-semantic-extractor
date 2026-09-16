@@ -77,7 +77,7 @@ differences.
 
 Evaluate the retained frames from every sampling strategy with word confidence and
 pixel-space regions. The generated fixture has timestamped ground truth so the
-report also includes expected-word recall:
+report also includes expected-word precision, recall, and F1:
 
 ```bash
 ./scripts/diagnostics/evaluate-frame-ocr.py \
@@ -91,4 +91,6 @@ script. `--preprocess grayscale` and `--preprocess threshold` provide repeatable
 alternatives for investigation; the original retained images remain unchanged.
 Run these modes as separate reports rather than selecting a winner from a single
 frame. A confidence threshold filters reported words, while raw frame-level results
-remain auditable in the JSON report.
+remain auditable in the JSON report. Precision is scored only on labeled frames
+whose expected text is treated as exhaustive; unlabeled source frames must not be
+used to make false-positive claims.
