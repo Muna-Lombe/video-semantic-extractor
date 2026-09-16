@@ -42,3 +42,21 @@ artifacts relocatable without flattening distinct candidate directories.
 
 💡 **Prevention:** Exercise every generated manifest by reopening its referenced
 files in an independent downstream diagnostic.
+
+### Treat Tesseract TSV as unquoted tabular output
+
+**Date learned:** 2026-09-16
+**Category:** OCR diagnostics
+
+⚠️ **Problem:** Tesseract can recognize a literal quote at the beginning of a word,
+but its TSV output does not escape that quote as CSV. Default CSV parsing then joins
+unrelated physical rows and reports embedded TSV fields as recognized text.
+
+✓ **Solution:** Parse with tab delimiters and `csv.QUOTE_NONE`, preserving each
+physical Tesseract row independently.
+
+📄 **Affected files:** `scripts/diagnostics/evaluate-frame-ocr.py`,
+`backend/tests/test_ocr_diagnostics.py`
+
+💡 **Prevention:** Include punctuation-led OCR words in parser fixtures and retain
+raw frame-level observations in diagnostic reports.
