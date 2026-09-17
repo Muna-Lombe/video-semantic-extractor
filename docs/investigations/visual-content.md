@@ -18,8 +18,12 @@ understanding, and natural-language visual descriptions remain explicitly
 unsupported.
 
 The investigation should therefore continue as evaluation work rather than by
-adding OCR or object output to the capsule schema. No model default should be chosen
-from the current single-video evidence.
+adding OCR or object output to the capsule schema. Four additional supplied videos
+now broaden the diagnostic inputs, but they are not exhaustively annotated and
+therefore provide sampling and detector-activity evidence, not accuracy evidence or
+a basis for selecting a model default. The supplied source is `youtube.com`, and the
+stated license permits sharing but prohibits commercial use; individual source URLs
+are not recorded.
 
 ### Current readiness
 
@@ -29,7 +33,7 @@ from the current single-video evidence.
 | Frame sampling | Ready | Hybrid selection guarantees first, interval, scene, and near-final candidates with a five-second maximum gap on the source | Keep hybrid sampling and fail when the frame cap cannot preserve coverage |
 | Evidence provenance | Ready for current diagnostics | Manifests retain resolvable relative paths; sampling reports and annotation fixtures enforce source SHA-256 identity | Preserve these checks in every subsequent evaluator |
 | OCR | Blocked | Best expanded full-frame result is 0.2448 macro F1; fixed caption-band proposals regress below that baseline | Evaluate a genuine multi-region text detector, split caption and UI subsets, and do not integrate Tesseract yet |
-| Broad object detection | Blocked | NanoDet is compact and fast locally, but the exhaustive fixture contains 24 people and no unambiguous non-person objects | Build a checksum-bound multi-video corpus before selecting a confidence threshold or integrating the detector |
+| Broad object detection | Blocked | NanoDet is compact and fast locally; four new videos elicit several non-person labels, but only the original person's class has exhaustive ground truth | Exhaustively annotate the checksum-bound multi-video corpus before selecting a confidence threshold or integrating the detector |
 | Actions, brands, products, and logos | Not evaluated | COCO object labels do not measure these required capabilities | Create separate tasks, labels, and acceptance criteria |
 | Whisper in the production-equivalent environment | Unverified | Fixture transcription exercises assembly, but the CPU PyTorch wheel was unavailable and Docker is absent on this host | Verify independently in the production container environment |
 
@@ -51,9 +55,11 @@ from the current single-video evidence.
 
 ### Evidence limitations
 
-- The source benchmark is one 74.138-second portrait promotional video. It cannot
-  establish performance across camera footage, screen recordings, landscapes,
-  animation, low light, motion blur, or varied resolutions.
+- The only scored source benchmark remains one 74.138-second portrait promotional
+  video. Four additional portrait or near-portrait supplied videos now cover sports,
+  red-carpet footage, a composited presenter/UI demonstration, and a presenter with
+  a filmed monitor, but they have no exhaustive annotations and do not cover
+  landscape, animation, low light, or substantial resolution diversity.
 - The OCR fixture has 13 exhaustively annotated hybrid frames. It is adequate to
   reject the tested Tesseract configurations, but not to estimate general OCR
   performance.
@@ -66,11 +72,83 @@ from the current single-video evidence.
 - Local latency excludes decoding, preprocessing, and postprocessing and is not a
   deployment service-level objective.
 
+### Prioritized problem list
+
+The goal for the next few iterations is to close a majority of the problems below.
+An item is not closed by a successful command, emitted model output, or a plausible
+manual example. Closure requires a documented scope, reproducible evidence,
+checksum-bound ground truth where accuracy is claimed, explicit acceptance criteria,
+and a recorded pass or fail result. Unknowns must remain explicit; they must not be
+replaced with assumptions or partial investigations represented as conclusions.
+
+#### Critical blockers
+
+1. **OCR accuracy is inadequate.** The best expanded full-frame result is 0.2448
+   macro F1, and the fixed caption crop is worse. Evaluate a genuine multi-region
+   text detector on independently scored caption and UI subsets.
+2. **Broad-object accuracy is unproven.** The only exhaustive object fixture is
+   person-only. Exhaustively annotate non-person objects at varied scales across the
+   supplied videos before selecting a detector or confidence threshold.
+3. **The additional videos lack exhaustive annotations.** Detector output on those
+   videos measures activity, not precision or recall. Freeze annotation rules for
+   live, composited, screen-depicted, illustrated, partial, and occluded objects
+   before labels are created.
+4. **The detector taxonomy is narrower than the product requirement.** COCO omits
+   relevant concepts such as the visible microphone and does not cover brands,
+   products, logos, actions, UI semantics, or visual descriptions. Define and test
+   separate capabilities rather than treating generic object labels as substitutes.
+5. **Whisper is unverified in the production-equivalent environment.** Validate the
+   CPU dependency path, real model execution, transcript accuracy, timestamps,
+   resource consumption, and container behavior.
+6. **Actions, brands, products, and logos have no evaluation framework.** Define
+   schemas, annotation scopes, fixtures, metrics, and predeclared acceptance gates
+   before evaluating candidate models.
+
+#### High-priority engineering and evaluation issues
+
+7. **The prior NanoDet confidence table is stale.** Regenerate it with the corrected
+   maximum-cardinality matcher and unchanged annotations, model digest, NMS, and IoU
+   settings before using its exact values.
+8. **Website and UI understanding is absent.** OCR words and `laptop` or `tv` labels
+   do not identify an application, page, control, state change, or demonstrated
+   interaction. Define a separate UI-understanding task and evidence format.
+9. **Natural-language visual descriptions are absent.** Define grounded description
+   requirements, temporal scope, uncertainty handling, and evaluation criteria before
+   introducing a captioning or vision-language model.
+10. **Performance evidence is incomplete.** Measure end-to-end extraction latency,
+    decoding and preprocessing cost, postprocessing, peak memory, artifact size, and
+    concurrent behavior in the deployment environment; `net.forward` timing alone is
+    not a service-level measurement.
+11. **Long-video behavior is unresolved.** The 80-frame cap intentionally fails when
+    mandatory coverage candidates exceed it. Define and test a chunking, hierarchical
+    sampling, or adaptive-interval policy without silently weakening coverage.
+12. **Semantic deduplication is unresolved.** Visually similar frames can contain
+    different captions or UI states. Do not discard them using perceptual similarity
+    alone; evaluate text, transcript, object, and state-change evidence first.
+13. **Production acceptance criteria are incomplete.** Predeclare precision, recall,
+    localization, subset, abstention, latency, memory, and output-size gates for each
+    capability before comparing or tuning candidates.
+
+#### Corpus and governance constraints
+
+14. **The corpus is not suitable for commercial use.** The supplied license permits
+    sharing but prohibits commercial use. Preserve that restriction for the source
+    videos. No separate license information has been supplied for derived artifacts,
+    so their commercial-use status must remain unresolved rather than assumed.
+15. **Exact YouTube source URLs are not recorded.** The source domain is known, but
+    exact per-video traceability remains incomplete. Record individual URLs and any
+    required attribution if they become available; do not infer them.
+16. **Coverage diversity remains limited.** Add properly licensed, checksum-bound
+    examples for landscape, animation, low light, motion blur, multilingual text,
+    varied resolutions, long-form content, and unusual media streams before making
+    general performance claims.
+
 ### Prioritized next investigation
 
-1. Acquire a small, redistributable multi-video corpus and record each source's
-   license, SHA-256, duration, dimensions, and content category.
-2. Exhaustively label non-person COCO objects at varied scales and explicitly tag
+1. Record the exact YouTube URL and required attribution for every supplied sample
+   if that information becomes available, without inferring missing provenance.
+2. Exhaustively label non-person objects at varied scales in the checksum-bound
+   supplied corpus and explicitly tag
    live, composited, and screen-depicted subsets.
 3. Re-run the pinned NanoDet model at fixed confidence thresholds with the corrected
    matcher, then report both aggregate and per-subset precision, recall, and F1.
@@ -95,6 +173,68 @@ from the current single-video evidence.
 - `scripts/README.md` contains the commands needed to reproduce each diagnostic.
 
 The remaining sections are the chronological evidence log supporting this recap.
+
+## Supplied multi-video diagnostic pass
+
+Four additional files were supplied under `sample-input-media/videos`. The
+directory README records `youtube.com` as their source and states that sharing is
+permitted but commercial use is prohibited. Individual video URLs are not recorded.
+The files were treated as read-only: diagnostics wrote all extracted frames and
+reports beneath `/tmp/video-sample-diagnostics`. Any use of the source videos must
+retain the non-commercial restriction. No separate license information has been
+supplied for derived artifacts.
+
+The recorded source identities and media properties are:
+
+| Source | SHA-256 | Duration | Dimensions | FPS | Observed content category |
+| --- | --- | ---: | ---: | ---: | --- |
+| `sample_1.mp4` | `bc14db678d642d02ae769c92a234ddd53c611a6bdf88ca93da97fb166bbfaa1b` | 74.138458 s | 720 x 1280 | 30 | Presenter, application UI, advertisements |
+| `sample_2.mp4` | `434295f8f59b7cce995c6a5c6311922a13165ce726d760164a3878abe5ced5ef` | 5.467007 s | 720 x 1280 | Association-football match close-up |
+| `sample_3.mp4` | `461207be93539144fab5b6ba8ab87848bc73b26d902035806e8fbbf76040e0bc` | 76.699070 s | 720 x 960 | Red-carpet interview with captions |
+| `sample_4.mp4` | `2a5b97bc6f8e711c172c1d951896f51d9b9c215075610a0259651a40a65b5d34` | 87.327392 s | 720 x 1280 | Composited presenter and website UI |
+| `sample_5.mp4` | `1d442ef0cc26937da5662505af7307996c043658e8204630846c8a5cffa2d6d2` | 99.889388 s | 720 x 1280 | Presenter, microphone, hand, and filmed monitor |
+
+All five files contain H.264 video and stereo AAC audio. Hybrid sampling preserved
+the declared five-second coverage bound across every source, including the
+5.467-second sports clip and the 99.889-second presenter clip. Scene-only sampling
+remained unreliable for temporal coverage: its maximum boundary-aware gap ranged
+from 5.400340 seconds on `sample_2.mp4` to 73.533333 seconds on `sample_5.mp4`.
+
+| Source | Scene frames | Scene max gap | Fixed frames | Fixed max gap | Hybrid frames | Hybrid max gap |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `sample_1.mp4` | 13 | 16.533334 s | 15 | 5.000000 s | 28 | 5.000000 s |
+| `sample_2.mp4` | 2 | 5.400340 s | 2 | 5.000000 s | 4 | 4.933333 s |
+| `sample_3.mp4` | 36 | 12.849070 s | 16 | 5.050000 s | 51 | 5.000000 s |
+| `sample_4.mp4` | 12 | 26.916666 s | 18 | 5.000000 s | 30 | 5.000000 s |
+| `sample_5.mp4` | 3 | 73.533333 s | 20 | 5.000000 s | 23 | 5.000000 s |
+
+The 5.05-second fixed-sampling result on `sample_3.mp4` starts at the source's first
+decoded timestamp of 0.05 seconds. The production-equivalent hybrid merge still
+retained an explicit 0.0-second first-frame candidate and met the boundary-aware
+five-second guarantee. This is further evidence for keeping candidate provenance
+and measuring source boundaries rather than assuming the first decoded timestamp.
+
+NanoDet was also run over the four new hybrid manifests at the previously strongest
+single-video confidence threshold of 0.5, with 0.6 NMS IoU. These unannotated counts
+measure detector activity only:
+
+| Source | Frames | Frames with output | Observations | Raw class distribution |
+| --- | ---: | ---: | ---: | --- |
+| `sample_2.mp4` | 4 | 3 | 10 | person 9; sports ball 1 |
+| `sample_3.mp4` | 51 | 35 | 56 | person 47; tie 4; cake 2; bottle 1; fire hydrant 1; skateboard 1 |
+| `sample_4.mp4` | 30 | 27 | 30 | person 27; laptop 2; refrigerator 1 |
+| `sample_5.mp4` | 23 | 12 | 12 | person 7; tv 4; laptop 1 |
+
+Contact-sheet review makes several of these non-person labels questionable; for
+example, the red-carpet frames do not visibly establish a fire hydrant or
+skateboard, and UI regions can elicit appliance or computer labels. Conversely,
+`sample_5.mp4` contains a prominent handheld microphone, a category outside COCO's
+80 classes, so a correct absence of a microphone label would still fail the broader
+product requirement. The additional videos therefore strengthen the case for
+separating detector activity from accuracy and for defining requirements outside
+COCO before integration. The next valid step is exhaustive annotation under a
+predeclared live/composited/screen-depicted scope, not threshold retuning against
+these raw outputs.
 
 ## Phase 0: accepted requirements
 
