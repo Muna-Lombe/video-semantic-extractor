@@ -287,3 +287,37 @@ the two stylized captions were total misses, and the small three-frame set is an
 integrity check rather than a representative accuracy benchmark. The next OCR pass
 should expand annotations across application screens and talking-head captions,
 then compare page-segmentation modes or region proposals before integration.
+
+## OCR page-segmentation results
+
+The source diagnostic now records Tesseract's page-segmentation mode and compared
+automatic layout (3), uniform text block (6), sparse text (11), and sparse text with
+orientation detection (12), using original retained images and the same 0.5
+confidence threshold. Hybrid macro results on the three exhaustively labeled frames
+were:
+
+| Page segmentation mode | Mean precision | Mean recall | Mean F1 |
+| ---: | ---: | ---: | ---: |
+| 3 | 1.0000 | 0.3611 | 0.4524 |
+| 6 | 0.3675 | 0.3889 | 0.3778 |
+| 11 | 0.4231 | 0.3056 | 0.2933 |
+| 12 | 0.4546 | 0.2778 | 0.2899 |
+
+Mode 3 improved macro F1 over the mode-11 baseline by recognizing `THIS` at 70.0
+seconds and nine supported words at 74.0 seconds without an accepted unsupported
+word. It still emitted no accepted words at 69.3 seconds, recognized only one of
+three expected words at 70.0 seconds, and omitted three expected words at 74.0
+seconds. No tested mode completely detected any annotated text state, so this small
+comparison does not establish a production default or overturn the earlier OCR
+integration blocker.
+
+The checksum previously documented as binding the source annotations was not
+enforced by the evaluator. Sampling reports now record the input video SHA-256, and
+the OCR diagnostic refuses checksum-bound ground truth when that value is missing or
+different. This prevents plausible-looking accuracy metrics from being produced
+against frames from another upload.
+
+The next pass should expand exhaustive annotations before tuning further. It should
+then evaluate targeted caption or text-region proposals, since changing a global
+layout mode improved aggregate scoring but did not recover the stylized 69.3-second
+caption.

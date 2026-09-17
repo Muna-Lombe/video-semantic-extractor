@@ -106,4 +106,20 @@ and is bound to the source checksum recorded in the investigation:
 ```
 
 Its timestamp windows are deliberately narrow so nearby frames with changing
-captions are not assigned text that was not manually reviewed.
+captions are not assigned text that was not manually reviewed. The evaluator
+compares the annotation's `source_sha256` with the checksum in the sampling report
+and refuses to score mismatched or unverifiable artifacts.
+
+Tesseract's layout assumption is also an experimental variable. Compare page
+segmentation modes in separate reports so the selected mode and its raw observations
+remain auditable; mode 11 remains the default sparse-text baseline:
+
+```bash
+for psm in 3 6 11 12; do
+  ./scripts/diagnostics/evaluate-frame-ocr.py \
+    /tmp/frame-sampling \
+    "/tmp/frame-sampling/source-ocr-psm${psm}.json" \
+    --ground-truth scripts/fixtures/source-ocr-ground-truth.json \
+    --page-segmentation-mode "$psm"
+done
+```
