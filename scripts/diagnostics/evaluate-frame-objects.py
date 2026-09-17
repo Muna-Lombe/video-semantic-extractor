@@ -203,29 +203,37 @@ def score_observations(
     observed: Sequence[ObjectObservation],
     minimum_iou: float,
 ) -> tuple[int, int, int]:
-    """Greedily match same-class boxes by IoU and return TP, FP, and FN counts."""
-    candidates = sorted(
-        (
-            (
-                intersection_over_union(label.region, item.region),
-                label_index,
-                item_index,
-            )
-            for label_index, label in enumerate(expected)
-            for item_index, item in enumerate(observed)
-            if label.label == item.label
-        ),
-        reverse=True,
+    """Maximize one-to-one same-class matches at the requested IoU threshold."""
+    eligible_labels: dict[int, list[tuple[float, int]]] = {}
+    for item_index, item in enumerate(observed):
+        candidates = []
+        for label_index, label in enumerate(expected):
+            if label.label != item.label:
+                continue
+            overlap = intersection_over_union(label.region, item.region)
+            if overlap >= minimum_iou:
+                candidates.append((overlap, label_index))
+        eligible_labels[item_index] = sorted(candidates, reverse=True)
+
+    matched_observation_by_label: dict[int, int] = {}
+
+    def claim_label(item_index: int, visited_labels: set[int]) -> bool:
+        """Find an augmenting path so a local high-IoU choice cannot lose a TP."""
+        for _overlap, label_index in eligible_labels[item_index]:
+            if label_index in visited_labels:
+                continue
+            visited_labels.add(label_index)
+            displaced_item = matched_observation_by_label.get(label_index)
+            if displaced_item is None or claim_label(displaced_item, visited_labels):
+                matched_observation_by_label[label_index] = item_index
+                return True
+        return False
+
+    matched_observations = sum(
+        claim_label(item_index, set()) for item_index in range(len(observed))
     )
-    matched_labels: set[int] = set()
-    matched_observations: set[int] = set()
-    for overlap, label_index, item_index in candidates:
-        if overlap < minimum_iou:
-            break
-        if label_index not in matched_labels and item_index not in matched_observations:
-            matched_labels.add(label_index)
-            matched_observations.add(item_index)
-    true_positives = len(matched_labels)
+    true_positives = len(matched_observation_by_label)
+    assert true_positives == matched_observations
     return (
         true_positives,
         len(observed) - true_positives,

@@ -89,6 +89,20 @@ def test_score_observations_requires_class_and_iou_match() -> None:
     assert objects.score_observations(expected, observed[2:], 0.5) == (0, 1, 1)
 
 
+def test_score_observations_maximizes_one_to_one_matches() -> None:
+    """Do not lose a true positive when the highest-IoU pair blocks two matches."""
+    expected = [
+        objects.ObjectLabel("person", (0, 0, 100, 100)),
+        objects.ObjectLabel("person", (40, 0, 100, 100)),
+    ]
+    observed = [
+        objects.ObjectObservation("person", 0.9, (20, 0, 100, 100)),
+        objects.ObjectObservation("person", 0.8, (0, 0, 70, 100)),
+    ]
+
+    assert objects.score_observations(expected, observed, 0.5) == (2, 0, 0)
+
+
 def test_checksum_bound_ground_truth_rejects_different_source(tmp_path: Path) -> None:
     """Never score object annotations against frames from another source video."""
     sampling = tmp_path / "sampling"
