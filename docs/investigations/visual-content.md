@@ -5,6 +5,97 @@
 
 # Visual content investigation
 
+## Investigation recap (2026-09-17)
+
+### Executive conclusion
+
+Timestamp extraction and representative frame sampling are ready to remain in the
+production pipeline. The visual-semantic analyzers are not ready for production:
+full-frame Tesseract misses most annotated source text, and the NanoDet evidence is
+limited to one person-dominated video. Object detection remains a viable experiment,
+not a validated broad-object capability. Actions, brands, products, logos, website
+understanding, and natural-language visual descriptions remain explicitly
+unsupported.
+
+The investigation should therefore continue as evaluation work rather than by
+adding OCR or object output to the capsule schema. No model default should be chosen
+from the current single-video evidence.
+
+### Current readiness
+
+| Capability | Status | Evidence | Decision |
+| --- | --- | --- | --- |
+| Frame timestamps | Ready | Filter-time-base preservation fixes the reproduced timestamp collapse; numeric sorting fixes the ten-second filename boundary | Keep the production fix and regression coverage |
+| Frame sampling | Ready | Hybrid selection guarantees first, interval, scene, and near-final candidates with a five-second maximum gap on the source | Keep hybrid sampling and fail when the frame cap cannot preserve coverage |
+| Evidence provenance | Ready for current diagnostics | Manifests retain resolvable relative paths; sampling reports and annotation fixtures enforce source SHA-256 identity | Preserve these checks in every subsequent evaluator |
+| OCR | Blocked | Best expanded full-frame result is 0.2448 macro F1; fixed caption-band proposals regress below that baseline | Evaluate a genuine multi-region text detector, split caption and UI subsets, and do not integrate Tesseract yet |
+| Broad object detection | Blocked | NanoDet is compact and fast locally, but the exhaustive fixture contains 24 people and no unambiguous non-person objects | Build a checksum-bound multi-video corpus before selecting a confidence threshold or integrating the detector |
+| Actions, brands, products, and logos | Not evaluated | COCO object labels do not measure these required capabilities | Create separate tasks, labels, and acceptance criteria |
+| Whisper in the production-equivalent environment | Unverified | Fixture transcription exercises assembly, but the CPU PyTorch wheel was unavailable and Docker is absent on this host | Verify independently in the production container environment |
+
+### Decisions that should not be reopened without new evidence
+
+1. Use source timestamps, not image-muxer filename assumptions. Preserve the FFmpeg
+   filter time base and sort parsed numeric timestamp tokens.
+2. Keep scene, interval, and near-final frame candidates independent until they are
+   merged with provenance. Do not replace them with a single combined filter.
+3. Treat emitted OCR words or object labels as observations, not accuracy. Accuracy
+   claims require exhaustive, checksum-bound annotations with a declared scope.
+4. Do not select OCR preprocessing or page-segmentation defaults from the original
+   three-frame fixture. The expanded 13-frame benchmark reversed those conclusions.
+5. Keep live-scene objects distinct from people or products depicted inside screens,
+   thumbnails, illustrations, and logos.
+6. Match object predictions one-to-one by class and minimum IoU using
+   maximum-cardinality matching so a local pairing choice cannot discard a valid
+   true positive.
+
+### Evidence limitations
+
+- The source benchmark is one 74.138-second portrait promotional video. It cannot
+  establish performance across camera footage, screen recordings, landscapes,
+  animation, low light, motion blur, or varied resolutions.
+- The OCR fixture has 13 exhaustively annotated hybrid frames. It is adequate to
+  reject the tested Tesseract configurations, but not to estimate general OCR
+  performance.
+- The object fixture labels all 28 hybrid frames under a live-scene scope, but its
+  positive class distribution is exclusively `person`. It cannot validate broad
+  COCO detection.
+- The confidence table below predates the matching-integrity correction. The source
+  reports must be regenerated before those values are treated as current; the
+  correction does not itself provide new model evidence.
+- Local latency excludes decoding, preprocessing, and postprocessing and is not a
+  deployment service-level objective.
+
+### Prioritized next investigation
+
+1. Acquire a small, redistributable multi-video corpus and record each source's
+   license, SHA-256, duration, dimensions, and content category.
+2. Exhaustively label non-person COCO objects at varied scales and explicitly tag
+   live, composited, and screen-depicted subsets.
+3. Re-run the pinned NanoDet model at fixed confidence thresholds with the corrected
+   matcher, then report both aggregate and per-subset precision, recall, and F1.
+4. In parallel, benchmark a true text-region proposal on separate caption and UI
+   subsets; retain full-frame Tesseract mode 11 as the comparison baseline only.
+5. Define independent fixtures and metrics for actions, brands, products, and logos
+   before evaluating models for those requirements.
+6. Revisit production integration only after a candidate passes a predeclared gate
+   on the broader corpus. Until then, preserve unsupported capabilities explicitly.
+
+### Reproducible artifact map
+
+- `scripts/diagnostics/compare-frame-sampling.py` produces frame manifests, coverage
+  metrics, and contact sheets.
+- `scripts/diagnostics/evaluate-frame-ocr.py` records OCR observations and scores
+  checksum-bound text annotations.
+- `scripts/diagnostics/evaluate-frame-objects.py` records NanoDet observations,
+  latency, provenance, and checksum-bound object scores.
+- `scripts/fixtures/source-ocr-ground-truth.json` and
+  `scripts/fixtures/source-object-ground-truth.json` define the current exhaustive
+  annotation scopes.
+- `scripts/README.md` contains the commands needed to reproduce each diagnostic.
+
+The remaining sections are the chronological evidence log supporting this recap.
+
 ## Phase 0: accepted requirements
 
 The first stable visual analyzer must identify broad objects. It must also expose an
@@ -484,3 +575,18 @@ integration remains blocked until a checksum-bound multi-video fixture contains
 exhaustive non-person objects at varied scales and separates live, composited, and
 screen-depicted evaluation subsets. The next iteration should add that broader
 corpus rather than tune NMS against this person-dominated source.
+
+## Object matching integrity follow-up
+
+Review of the scorer found that its original global highest-IoU greedy matching
+could undercount true positives. When two predictions both overlap one label, but
+only one also overlaps a second label, consuming the strongest individual pair can
+leave only one match even though two valid one-to-one matches exist at the declared
+IoU threshold. That makes aggregate precision, recall, and F1 depend on a local
+pairing decision rather than solely on the accepted predictions and labels.
+
+The scorer now uses augmenting-path bipartite matching within the same-class,
+minimum-IoU eligibility graph. It still prefers higher-IoU candidates while finding
+the maximum number of valid one-to-one matches. A synthetic regression fixture
+covers the blocking geometry. This is an evaluation-integrity correction; it does
+not add broader object evidence or remove the multi-video production blocker.

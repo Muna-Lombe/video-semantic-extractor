@@ -159,3 +159,23 @@ one-to-one at a fixed IoU and report threshold comparisons against unchanged lab
 
 💡 **Prevention:** Freeze annotation scope and source identity before detector
 threshold selection, and do not generalize from a single-class-dominated fixture.
+
+### Maximize valid one-to-one detection matches
+
+**Date learned:** 2026-09-17
+**Category:** Object detection
+
+⚠️ **Problem:** Globally consuming the highest-IoU label/prediction pair can leave
+another prediction unmatched even when a different pairing would satisfy the class
+and IoU rules for both. The resulting TP, FP, and FN counts then depend on a greedy
+pairing artifact.
+
+✓ **Solution:** Build the same-class, minimum-IoU eligibility graph and use
+augmenting paths to find a maximum-cardinality one-to-one matching, ordering eligible
+labels by IoU only as a deterministic preference.
+
+📄 **Affected files:** `scripts/diagnostics/evaluate-frame-objects.py`,
+`backend/tests/test_object_diagnostics.py`
+
+💡 **Prevention:** Include an adversarial matching fixture where the strongest
+individual overlap must be displaced to preserve two valid true positives.
