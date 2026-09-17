@@ -113,6 +113,12 @@ captions are not assigned text that was not manually reviewed. The evaluator
 compares the annotation's `source_sha256` with the checksum in the sampling report
 and refuses to score mismatched or unverifiable artifacts.
 
+The source fixture covers 13 exhaustively reviewed frames spanning captions,
+advertising, application UI, and platform labels. Its declared scope includes all
+fully legible intentional digital text, while excluding incidental garment text and
+words that are clipped or occluded. Keep that scope explicit when adding labels so
+precision remains meaningful.
+
 Tesseract's layout assumption is also an experimental variable. Compare page
 segmentation modes in separate reports so the selected mode and its raw observations
 remain auditable; mode 11 remains the default sparse-text baseline:
@@ -126,3 +132,20 @@ for psm in 3 6 11 12; do
     --page-segmentation-mode "$psm"
 done
 ```
+
+Targeted text regions are an independent experimental variable. The first proposal
+crops the lower 45 percent of each frame, where this source usually places its
+outlined captions, and maps returned boxes back to original-frame coordinates:
+
+```bash
+./scripts/diagnostics/evaluate-frame-ocr.py \
+  /tmp/frame-sampling \
+  /tmp/frame-sampling/source-ocr-caption-band.json \
+  --ground-truth scripts/fixtures/source-ocr-ground-truth.json \
+  --page-segmentation-mode 11 \
+  --text-region caption-band
+```
+
+Use `--text-region full-frame` for the default baseline. A caption-region report
+still scores every word in an exhaustively labeled frame, including UI text outside
+the crop; this is intentional because it exposes the evidence lost by the proposal.

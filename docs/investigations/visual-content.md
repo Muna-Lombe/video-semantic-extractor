@@ -349,3 +349,60 @@ These results reinforce rather than remove the integration blocker: none of the
 global preprocessing and layout combinations completely recognizes every labeled
 text state. The next diagnostic should expand exhaustive labels and evaluate a
 targeted caption-region proposal independently from full-frame OCR.
+
+## Expanded OCR ground-truth results
+
+The exhaustive source benchmark now covers 13 hybrid-retained frames rather than
+three. The frames span early, middle, and late video sections and include outlined
+talking-head captions, an app-store advertisement, application navigation, a batch
+editing promotion, platform labels, and the closing discount card. The annotation
+scope is explicit: every fully legible intentional overlay, caption, advertisement,
+and user-interface word is included, while incidental garment text and clipped or
+occluded words are excluded. All labels remain bound to the recorded source SHA-256
+and use narrow windows around the manually inspected frames.
+
+Re-running the full-frame layout comparison on the expanded labels changed the
+ranking and removed the apparent advantage of automatic layout mode 3:
+
+| Page segmentation mode | Mean precision | Mean recall | Mean F1 |
+| ---: | ---: | ---: | ---: |
+| 3 | 0.7949 | 0.1644 | 0.2075 |
+| 6 | 0.2507 | 0.1857 | 0.1949 |
+| 11 | 0.3506 | 0.2282 | 0.2448 |
+| 12 | 0.3535 | 0.2148 | 0.2373 |
+
+Mode 11 now has the best macro F1, but it recalls fewer than one quarter of labeled
+words on average. Mode 3 remains more conservative: its high macro precision comes
+from the subset of frames where it emits accepted text, while eight of the 13
+labeled frames have zero recall. No mode completely recognizes any of the 13 text
+states at the 0.5 confidence threshold.
+
+The earlier preprocessing conclusion also failed to generalize. At mode 3, color
+upscaling scored 0.1928 macro F1, grayscale scored 0.1993, and Otsu thresholding
+scored 0.2140, compared with 0.2075 for unchanged frames. Thresholding's small
+aggregate increase comes with lower precision, and none of the transformations
+meaningfully resolves outlined-caption recognition. There is still no justified
+global preprocessing default.
+
+## Targeted caption-region results
+
+The first targeted proposal restricts OCR to the lower 45 percent of the frame,
+where the video's outlined captions usually appear. Diagnostic boxes are translated
+back to original-frame coordinates, including compensation for two-times
+preprocessing, so retained evidence remains spatially comparable with full-frame
+results.
+
+The best tested caption-band result was mode 11 with Otsu thresholding: 0.2738 mean
+precision, 0.1144 mean recall, and 0.1468 mean F1. Unchanged caption-band input at
+mode 11 reached 0.1370 F1, and color upscaling reached 0.1451. All are materially
+below the 0.2448 full-frame mode-11 baseline. Cropping removes useful UI and
+advertisement evidence without reliably separating the outlined captions from the
+speaker and clothing; thresholding also fragments outlined glyphs.
+
+The expanded benchmark therefore completes the current ground-truth pass but keeps
+production OCR blocked. Further global layout or preprocessing sweeps are not
+justified by these results. A subsequent OCR iteration should use a genuine text
+detection proposal that can return multiple localized regions, rather than another
+fixed crop, and should evaluate caption and UI subsets independently. In parallel,
+the investigation can now begin the compact ONNX object-detector benchmark without
+representing OCR as production-ready.

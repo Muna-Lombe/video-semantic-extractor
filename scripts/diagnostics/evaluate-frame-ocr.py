@@ -139,6 +139,49 @@ def preprocess(image_path: Path, output_path: Path, mode: str) -> Path:
     return output_path
 
 
+def propose_text_region(
+    image_path: Path, output_path: Path, proposal: str
+) -> tuple[Path, tuple[int, int]]:
+    """Create a targeted OCR region and return its source-coordinate offset."""
+    if proposal == "full-frame":
+        return image_path, (0, 0)
+    image = cv2.imread(str(image_path), cv2.IMREAD_COLOR)
+    if image is None:
+        raise RuntimeError(f"could not decode {image_path}")
+    if proposal == "caption-band":
+        top = round(image.shape[0] * 0.55)
+        region = image[top:, :]
+        offset = (0, top)
+    else:
+        raise ValueError(f"unsupported text-region proposal: {proposal}")
+    if not cv2.imwrite(str(output_path), region):
+        raise RuntimeError(f"could not write {output_path}")
+    return output_path, offset
+
+
+def map_observations_to_source(
+    observations: Sequence[TextObservation],
+    offset: tuple[int, int],
+    preprocessing_mode: str,
+) -> list[TextObservation]:
+    """Map OCR boxes from a prepared region back to original-frame pixels."""
+    scale = 1 if preprocessing_mode == "original" else 2
+    offset_x, offset_y = offset
+    return [
+        TextObservation(
+            item.text,
+            item.confidence,
+            (
+                round(item.region[0] / scale) + offset_x,
+                round(item.region[1] / scale) + offset_y,
+                round(item.region[2] / scale),
+                round(item.region[3] / scale),
+            ),
+        )
+        for item in observations
+    ]
+
+
 def load_ground_truth(
     ground_truth_path: Path | None, sampling_directory: Path
 ) -> tuple[list[dict[str, object]], str | None]:
@@ -168,6 +211,7 @@ def evaluate_strategy(
     minimum_confidence: float,
     mode: str,
     page_segmentation_mode: int = 11,
+    text_region: str = "full-frame",
     ocr_runner: Callable[[Path, int], str] = run_tesseract,
 ) -> dict[str, object]:
     """Evaluate every frame named by a sampling diagnostic manifest."""
@@ -187,9 +231,19 @@ def evaluate_strategy(
             source = (frames_root / row["filename"]).resolve()
             if not source.is_relative_to(frames_root):
                 raise RuntimeError(f"manifest frame escapes frame root: {row['filename']}")
-            prepared = preprocess(source, temporary_dir / f"{index:06d}.png", mode)
+            proposed, (offset_x, offset_y) = propose_text_region(
+                source,
+                temporary_dir / f"{index:06d}-region.png",
+                text_region,
+            )
+            prepared = preprocess(
+                proposed, temporary_dir / f"{index:06d}-preprocessed.png", mode
+            )
             observations = parse_tesseract_tsv(
                 ocr_runner(prepared, page_segmentation_mode), minimum_confidence
+            )
+            observations = map_observations_to_source(
+                observations, (offset_x, offset_y), mode
             )
             observed = " ".join(item.text for item in observations)
             timestamp = float(row["timestamp_sec"])
@@ -261,6 +315,12 @@ def main() -> None:
         default=11,
         help="Tesseract page segmentation mode (default: sparse text mode 11)",
     )
+    parser.add_argument(
+        "--text-region",
+        choices=("full-frame", "caption-band"),
+        default="full-frame",
+        help="OCR the full image or only its lower caption band",
+    )
     args = parser.parse_args()
     if not 0 <= args.minimum_confidence <= 1:
         parser.error("minimum confidence must be between 0 and 1")
@@ -274,6 +334,7 @@ def main() -> None:
             args.minimum_confidence,
             args.preprocess,
             args.page_segmentation_mode,
+            args.text_region,
         )
         for path in sorted(args.sampling_directory.iterdir())
         if (path / "manifest.csv").is_file()
@@ -285,6 +346,7 @@ def main() -> None:
         "minimum_confidence": args.minimum_confidence,
         "preprocess": args.preprocess,
         "page_segmentation_mode": args.page_segmentation_mode,
+        "text_region": args.text_region,
         "ground_truth": ground_truth,
         "strategies": strategies,
     }
