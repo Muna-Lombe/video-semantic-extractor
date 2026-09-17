@@ -107,6 +107,22 @@ def test_run_tesseract_uses_requested_page_segmentation_mode(monkeypatch) -> Non
     ]
 
 
+def test_preprocess_upscale_preserves_color_and_doubles_dimensions(
+    tmp_path: Path,
+) -> None:
+    """Isolate scale from grayscale conversion when comparing OCR inputs."""
+    source = tmp_path / "source.png"
+    output = tmp_path / "upscaled.png"
+    image = np.full((10, 20, 3), (10, 20, 200), dtype=np.uint8)
+    assert cv2.imwrite(str(source), image)
+
+    assert ocr.preprocess(source, output, "upscale") == output
+    upscaled = cv2.imread(str(output), cv2.IMREAD_UNCHANGED)
+    assert upscaled is not None
+    assert upscaled.shape == (20, 40, 3)
+    assert upscaled[0, 0].tolist() == [10, 20, 200]
+
+
 def test_checksum_bound_ground_truth_rejects_different_source(tmp_path: Path) -> None:
     """Never score source annotations against sampling artifacts from another video."""
     sampling_directory = tmp_path / "sampling"

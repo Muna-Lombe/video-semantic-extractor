@@ -87,8 +87,11 @@ report also includes expected-word precision, recall, and F1:
 ```
 
 The diagnostic calls the system `tesseract` executable installed by the setup
-script. `--preprocess grayscale` and `--preprocess threshold` provide repeatable
-alternatives for investigation; the original retained images remain unchanged.
+script. `--preprocess upscale`, `--preprocess grayscale`, and `--preprocess
+threshold` provide repeatable alternatives for investigation; each non-original
+mode doubles the image dimensions, while `upscale` preserves color so scale can be
+tested independently from grayscale conversion. The original retained images remain
+unchanged.
 Run these modes as separate reports rather than selecting a winner from a single
 frame. A confidence threshold filters reported words, while raw frame-level results
 remain auditable in the JSON report. Precision is scored only on labeled frames
