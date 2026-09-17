@@ -105,6 +105,10 @@ def word_precision(expected: str, observed: str) -> float | None:
 
 def harmonic_mean(precision: float | None, recall: float | None) -> float | None:
     """Return an F1 score when both word metrics are defined."""
+    # Precision is undefined when OCR emits no words, but a labeled frame with
+    # zero recall is still an unambiguous F1 miss and must remain in macro means.
+    if precision is None and recall == 0:
+        return 0.0
     if precision is None or recall is None:
         return None
     if precision + recall == 0:
