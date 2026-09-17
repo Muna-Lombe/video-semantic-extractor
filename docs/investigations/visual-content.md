@@ -406,3 +406,81 @@ detection proposal that can return multiple localized regions, rather than anoth
 fixed crop, and should evaluate caption and UI subsets independently. In parallel,
 the investigation can now begin the compact ONNX object-detector benchmark without
 representing OCR as production-ready.
+
+## Compact ONNX object-detector results
+
+The first object pass uses OpenCV Zoo's NanoDet-Plus-m 1.5x model at a 416-pixel
+input size through the existing OpenCV DNN CPU runtime. The pinned float32 ONNX
+artifact is 3,800,954 bytes with SHA-256
+`4b82da9944b88577175ee23a459dce2e26e6e4be573def65b1055dc2d9720186`,
+well below the 4 GB model-artifact limit. The diagnostic records the artifact
+identity and runtime versions, letterboxes without distorting portrait frames, and
+maps all accepted boxes back to source-frame pixel coordinates.
+
+At the OpenCV Zoo defaults of 0.35 minimum confidence and 0.6 NMS IoU, the model
+returned 39 observations across the 28 hybrid-retained frames. Twenty-six frames
+had at least one result. On this host with OpenCV 4.14.0, `net.forward` took 98.655
+ms per frame on average and 117.731 ms at the nearest-rank 95th percentile. These
+numbers exclude image decoding, resizing, normalization, and postprocessing and are
+environment measurements rather than deployment guarantees.
+
+| Predicted COCO class | Observations |
+| --- | ---: |
+| person | 32 |
+| teddy bear | 2 |
+| clock | 1 |
+| dining table | 1 |
+| frisbee | 1 |
+| laptop | 1 |
+| tv | 1 |
+
+Manual review supports the repeated `person` detections in talking-head frames, but
+also exposes the limits of raw COCO output. Application screens at 20 seconds were
+classified as `tv` and `laptop`; screen content around 40.7 seconds was classified
+as `clock`; and product imagery around 48 to 51 seconds produced `teddy bear` and
+`frisbee` labels. The benchmark has no exhaustive object annotations yet, so the
+26-of-28 result is coverage of emitted predictions, not recall, and the table is a
+prediction distribution rather than accuracy evidence.
+
+NanoDet is small and fast enough to remain a viable candidate, but these results do
+not justify production integration. The next object pass should checksum-bind an
+exhaustive frame-level object fixture, define whether depicted products inside app
+screens count as objects, and score box/class precision and recall. It should also
+compare confidence thresholds against those labels before selecting defaults.
+
+## Object ground-truth and confidence results
+
+The follow-up fixture exhaustively annotates all 28 hybrid frames and is bound to
+the source-video SHA-256. Its object scope distinguishes the live scene from media
+depicted inside application interfaces: primary live-action people receive one
+source-pixel box, while people, animals, and products visible only in screenshots,
+thumbnails, illustrations, icons, and logos are excluded. A presenter is also
+excluded at 37.066667 seconds because the overlay leaves only disconnected hair and
+torso fragments, with neither a face nor contiguous head-and-upper-body region.
+Under that scope the benchmark contains 24 expected `person` instances and no
+fully and unambiguously visible non-person COCO objects.
+
+Predictions are matched one-to-one to same-class labels at 0.5 box IoU. Keeping the
+0.6 NMS IoU fixed produced this confidence comparison:
+
+| Minimum confidence | TP | FP | FN | Precision | Recall | F1 |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.20 | 23 | 151 | 1 | 0.1322 | 0.9583 | 0.2323 |
+| 0.35 | 23 | 16 | 1 | 0.5897 | 0.9583 | 0.7302 |
+| 0.50 | 21 | 1 | 3 | 0.9545 | 0.8750 | 0.9130 |
+| 0.65 | 14 | 0 | 10 | 1.0000 | 0.5833 | 0.7368 |
+
+The 0.5 threshold gives the best F1 on this fixture. Its only false positive is a
+person depicted inside the Picsart advertisement at 37.066667 seconds. Its three
+misses are the partially overlay-occluded presenter at 20 seconds, the small
+composited presenter at 37.766667 seconds, and the small presenter below the batch
+editing interface at 55 seconds. Lowering the threshold recovers two of those three
+but admits duplicate person boxes and numerous unsupported UI-image labels. Raising
+it to 0.65 removes all false positives but loses ten people.
+
+This establishes a defensible threshold only for prominent people in this single
+portrait promotional video; it does not validate broad object detection. Production
+integration remains blocked until a checksum-bound multi-video fixture contains
+exhaustive non-person objects at varied scales and separates live, composited, and
+screen-depicted evaluation subsets. The next iteration should add that broader
+corpus rather than tune NMS against this person-dominated source.

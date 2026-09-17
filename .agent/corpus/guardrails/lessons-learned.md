@@ -119,3 +119,43 @@ boxes back to source-frame coordinates.
 💡 **Prevention:** Do not promote a configuration from a small integrity fixture.
 Report zero-recall frames, compare against the unchanged full-frame baseline, and
 document the annotation inclusion and exclusion rules.
+
+### Separate detector activity from detector accuracy
+
+**Date learned:** 2026-09-17
+**Category:** Object detection
+
+⚠️ **Problem:** A compact COCO detector emitted observations for 26 of 28 retained
+frames, but several application screens and product images received plausible yet
+unsupported labels. Treating frames-with-results as recall would turn detector
+activity into a misleading accuracy claim.
+
+✓ **Solution:** Preserve raw confidence-scored labels and source-coordinate boxes,
+record the exact model digest and runtime, and report output distributions separately
+from metrics that require exhaustive annotations.
+
+📄 **Affected files:** `scripts/diagnostics/evaluate-frame-objects.py`,
+`docs/investigations/visual-content.md`
+
+💡 **Prevention:** Define object annotation scope and checksum-bind ground truth
+before selecting confidence thresholds or promoting a detector into production.
+
+### Separate live objects from depicted media in annotations
+
+**Date learned:** 2026-09-17
+**Category:** Object detection
+
+⚠️ **Problem:** COCO detections inside application screenshots can be technically
+correct image classifications while being irrelevant to a live-scene object scope.
+Without an explicit rule, the same prediction can be counted as either a true or
+false positive after results are known.
+
+✓ **Solution:** Declare the treatment of screenshots, thumbnails, illustrations,
+icons, occlusion, and composited presenters before scoring. Match same-class boxes
+one-to-one at a fixed IoU and report threshold comparisons against unchanged labels.
+
+📄 **Affected files:** `scripts/fixtures/source-object-ground-truth.json`,
+`scripts/diagnostics/evaluate-frame-objects.py`
+
+💡 **Prevention:** Freeze annotation scope and source identity before detector
+threshold selection, and do not generalize from a single-class-dominated fixture.
