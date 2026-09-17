@@ -149,3 +149,55 @@ outlined captions, and maps returned boxes back to original-frame coordinates:
 Use `--text-region full-frame` for the default baseline. A caption-region report
 still scores every word in an exhaustively labeled frame, including UI text outside
 the crop; this is intentional because it exposes the evidence lost by the proposal.
+
+## Object-detection evaluation
+
+Download the pinned 3.8 MB OpenCV Zoo NanoDet-Plus ONNX export outside the
+repository and verify its published Git LFS digest before running the benchmark:
+
+```bash
+mkdir -p /tmp/video-semantic-models
+curl --fail --location \
+  --output /tmp/video-semantic-models/nanodet.onnx \
+  https://media.githubusercontent.com/media/opencv/opencv_zoo/510899a2a0adb8c25957915fd030d66dbd553919/models/object_detection_nanodet/object_detection_nanodet_2022nov.onnx
+echo '4b82da9944b88577175ee23a459dce2e26e6e4be573def65b1055dc2d9720186  /tmp/video-semantic-models/nanodet.onnx' \
+  | sha256sum --check
+```
+
+Benchmark the hybrid retained frames through OpenCV DNN's CPU backend:
+
+```bash
+./scripts/diagnostics/evaluate-frame-objects.py \
+  /tmp/frame-sampling \
+  /tmp/video-semantic-models/nanodet.onnx \
+  /tmp/frame-sampling/object-report.json \
+  --strategy hybrid \
+  --ground-truth scripts/fixtures/source-object-ground-truth.json
+```
+
+Omit `--strategy` to evaluate every manifest or repeat it to select several. The
+report preserves the model checksum and size, runtime versions, inference latency,
+and every confidence-scored COCO label and source-pixel region. Latency is measured
+around `net.forward` only and is host-specific. Detection counts are not accuracy
+scores; use exhaustive object annotations before making precision or recall claims.
+
+The source fixture exhaustively labels primary live-action people on all 28 hybrid
+frames. Its declared scope excludes people and products that appear only inside
+application screenshots, thumbnails, illustrations, icons, and logos. Predictions
+are true positives only when the COCO class matches and the source-coordinate box
+reaches the default 0.5 intersection-over-union threshold. The evaluator verifies
+the fixture's source checksum against the sampling report before scoring it.
+
+Compare detector confidence independently while keeping NMS and matching fixed:
+
+```bash
+for confidence in 0.20 0.35 0.50 0.65; do
+  ./scripts/diagnostics/evaluate-frame-objects.py \
+    /tmp/frame-sampling \
+    /tmp/video-semantic-models/nanodet.onnx \
+    "/tmp/frame-sampling/object-${confidence}.json" \
+    --strategy hybrid \
+    --ground-truth scripts/fixtures/source-object-ground-truth.json \
+    --minimum-confidence "$confidence"
+done
+```
