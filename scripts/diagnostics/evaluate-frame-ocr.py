@@ -127,7 +127,8 @@ def preprocess(image_path: Path, output_path: Path, mode: str) -> Path:
     """Create a repeatable OCR input while retaining the original sampled image."""
     if mode == "original":
         return image_path
-    image = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)
+    read_mode = cv2.IMREAD_COLOR if mode == "upscale" else cv2.IMREAD_GRAYSCALE
+    image = cv2.imread(str(image_path), read_mode)
     if image is None:
         raise RuntimeError(f"could not decode {image_path}")
     image = cv2.resize(image, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
@@ -250,7 +251,9 @@ def main() -> None:
     parser.add_argument("--ground-truth", type=Path)
     parser.add_argument("--minimum-confidence", type=float, default=0.5)
     parser.add_argument(
-        "--preprocess", choices=("original", "grayscale", "threshold"), default="original"
+        "--preprocess",
+        choices=("original", "upscale", "grayscale", "threshold"),
+        default="original",
     )
     parser.add_argument(
         "--page-segmentation-mode",

@@ -321,3 +321,31 @@ The next pass should expand exhaustive annotations before tuning further. It sho
 then evaluate targeted caption or text-region proposals, since changing a global
 layout mode improved aggregate scoring but did not recover the stylized 69.3-second
 caption.
+
+## OCR preprocessing isolation results
+
+The earlier grayscale and threshold preprocessing options both enlarged frames by
+two times, so their results could not distinguish the effect of scaling from the
+effect of discarding color. The diagnostic now has an `upscale` mode that performs
+the same cubic enlargement while retaining all three color channels.
+
+At page-segmentation mode 11, hybrid macro results on the same three exhaustive
+labels were:
+
+| Preprocessing | Mean precision | Mean recall | Mean F1 |
+| --- | ---: | ---: | ---: |
+| Original | 0.4231 | 0.3056 | 0.2933 |
+| Two-times color upscale | 0.4445 | 0.4445 | 0.4445 |
+| Two-times grayscale | 0.4394 | 0.4167 | 0.4275 |
+| Two-times Otsu threshold | 0.3077 | 0.2222 | 0.2133 |
+
+Color upscaling produced the best mode-11 macro result and recovered two of three
+expected words at 70.0 seconds, but it still accepted no supported word at 69.3
+seconds and regressed the 74.0-second frame from 0.88 to 0.6667 F1. With automatic
+layout mode 3, upscaling also reduced macro F1 from 0.4524 to 0.3651. Scaling is
+therefore a meaningful experimental variable, not a uniformly beneficial default.
+
+These results reinforce rather than remove the integration blocker: none of the
+global preprocessing and layout combinations completely recognizes every labeled
+text state. The next diagnostic should expand exhaustive labels and evaluate a
+targeted caption-region proposal independently from full-frame OCR.

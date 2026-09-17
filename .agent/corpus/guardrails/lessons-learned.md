@@ -78,3 +78,22 @@ match before loading checksum-bound ground truth.
 
 💡 **Prevention:** Treat provenance fields as enforceable invariants, not descriptive
 metadata, and add a rejection test for mismatched artifacts.
+
+### Isolate OCR preprocessing variables
+
+**Date learned:** 2026-09-17
+**Category:** OCR diagnostics
+
+⚠️ **Problem:** Grayscale and threshold experiments also enlarged every input, so
+their results could not attribute a score change to color conversion, binarization,
+or scale.
+
+✓ **Solution:** Add a color-preserving upscale mode with the same dimensions and
+interpolation as the other preprocessing modes, then compare each mode against the
+unchanged originals.
+
+📄 **Affected files:** `scripts/diagnostics/evaluate-frame-ocr.py`,
+`backend/tests/test_ocr_diagnostics.py`
+
+💡 **Prevention:** Change one image-processing variable at a time and record every
+selected transformation in the generated report.
