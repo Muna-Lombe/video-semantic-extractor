@@ -179,3 +179,24 @@ labels by IoU only as a deterministic preference.
 
 💡 **Prevention:** Include an adversarial matching fixture where the strongest
 individual overlap must be displaced to preserve two valid true positives.
+
+### Unannotated diversity is not a benchmark
+
+**Date learned:** 2026-09-17
+**Category:** Diagnostic integrity
+
+⚠️ **Problem:** Additional videos broaden visible content and detector output, but
+without source licenses and exhaustive annotations they cannot support accuracy,
+threshold, or redistribution claims. Plausible class distributions can obscure
+unsupported labels and requirements outside a detector's taxonomy.
+
+✓ **Solution:** Record checksums and media properties, keep generated artifacts
+outside the read-only input directory, and report unannotated predictions strictly
+as detector activity. Require documented provenance and checksum-bound labels before
+scoring or selecting defaults.
+
+📄 **Affected files:** `sample-input-media/videos/Readme.md`,
+`docs/investigations/visual-content.md`, `scripts/README.md`
+
+💡 **Prevention:** Audit license, annotation scope, and class-taxonomy coverage as
+separate gates before calling a collection an evaluation corpus.

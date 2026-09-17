@@ -73,6 +73,24 @@ are a review aid, not a semantic-quality score. OCR change measurement is report
 as unavailable until an OCR analyzer is introduced rather than inferred from image
 differences.
 
+To compare every supplied read-only sample without writing generated artifacts next
+to the inputs:
+
+```bash
+for video in sample-input-media/videos/*.mp4; do
+  sample="$(basename "$video" .mp4)"
+  ./scripts/diagnostics/compare-frame-sampling.py \
+    "$video" "/tmp/video-sample-diagnostics/$sample"
+done
+```
+
+The samples are sourced from `youtube.com`; their supplied license permits sharing
+but prohibits commercial use. Individual source URLs are not recorded, and no
+separate license information has been supplied for derived artifacts. Preserve the
+non-commercial restriction for the source videos and do not infer missing
+provenance or licensing terms. Never edit or overwrite the source videos; all
+frames, manifests, and reports belong outside the input directory.
+
 ## OCR evaluation
 
 Evaluate the retained frames from every sampling strategy with word confidence and
