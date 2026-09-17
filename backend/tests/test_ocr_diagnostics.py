@@ -123,6 +123,30 @@ def test_preprocess_upscale_preserves_color_and_doubles_dimensions(
     assert upscaled[0, 0].tolist() == [10, 20, 200]
 
 
+def test_caption_region_crops_lower_band_and_maps_boxes_to_source(
+    tmp_path: Path,
+) -> None:
+    """Keep targeted OCR evidence expressed in original-frame coordinates."""
+    source = tmp_path / "source.png"
+    cropped = tmp_path / "caption.png"
+    image = np.zeros((100, 60, 3), dtype=np.uint8)
+    image[55:, :] = (10, 20, 200)
+    assert cv2.imwrite(str(source), image)
+
+    proposed, offset = ocr.propose_text_region(source, cropped, "caption-band")
+
+    assert proposed == cropped
+    assert offset == (0, 55)
+    region = cv2.imread(str(cropped), cv2.IMREAD_UNCHANGED)
+    assert region is not None
+    assert region.shape == (45, 60, 3)
+    assert ocr.map_observations_to_source(
+        [ocr.TextObservation("CAPTION", 0.9, (20, 10, 40, 12))],
+        offset,
+        "upscale",
+    ) == [ocr.TextObservation("CAPTION", 0.9, (10, 60, 20, 6))]
+
+
 def test_checksum_bound_ground_truth_rejects_different_source(tmp_path: Path) -> None:
     """Never score source annotations against sampling artifacts from another video."""
     sampling_directory = tmp_path / "sampling"

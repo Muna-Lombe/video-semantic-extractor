@@ -97,3 +97,25 @@ unchanged originals.
 
 💡 **Prevention:** Change one image-processing variable at a time and record every
 selected transformation in the generated report.
+
+### Expand ground truth before selecting OCR defaults
+
+**Date learned:** 2026-09-17
+**Category:** OCR evaluation
+
+⚠️ **Problem:** Automatic page layout and color upscaling appeared strongest on
+only three exhaustively labeled end-of-video frames. After labels were expanded
+across captions, UI, advertisements, and platform names, sparse-text mode produced
+the best macro F1 and upscaling no longer improved its tested full-frame baseline.
+
+✓ **Solution:** Expand checksum-bound exhaustive labels across content types and
+video sections before selecting layout, preprocessing, or region-proposal defaults.
+Treat fixed-region proposals as evidence-preserving experiments by mapping their OCR
+boxes back to source-frame coordinates.
+
+📄 **Affected files:** `scripts/fixtures/source-ocr-ground-truth.json`,
+`scripts/diagnostics/evaluate-frame-ocr.py`
+
+💡 **Prevention:** Do not promote a configuration from a small integrity fixture.
+Report zero-recall frames, compare against the unchanged full-frame baseline, and
+document the annotation inclusion and exclusion rules.

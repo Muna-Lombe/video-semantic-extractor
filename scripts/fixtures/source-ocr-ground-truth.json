@@ -1,7 +1,57 @@
 {
   "source_sha256": "bc14db678d642d02ae769c92a234ddd53c611a6bdf88ca93da97fb166bbfaa1b",
-  "annotation_scope": "All legible words in each narrow timestamp window are exhaustive.",
+  "annotation_scope": "All fully legible intentional overlay, caption, advertisement, and user-interface words in each narrow timestamp window are exhaustive. Incidental garment text and clipped or occluded words are excluded.",
   "labels": [
+    {
+      "start_sec": 1.62,
+      "end_sec": 1.65,
+      "text": "WOULD YOU BELIEVE"
+    },
+    {
+      "start_sec": 9.99,
+      "end_sec": 10.01,
+      "text": "HERE'S EXACTLY HOW"
+    },
+    {
+      "start_sec": 14.99,
+      "end_sec": 15.01,
+      "text": "Stickers THIS THIS"
+    },
+    {
+      "start_sec": 24.99,
+      "end_sec": 25.01,
+      "text": "TAKE INSPIRATION FROM"
+    },
+    {
+      "start_sec": 37.05,
+      "end_sec": 37.08,
+      "text": "Picsart Picsart AI Photo Video Editor Design Editing Collage Maker Open 81K RATINGS 4.7 AGE 12+ Years Old CHART No.7 Photo & Video DEVELOPER PicsArt Inc TO SOMETHING LIKE"
+    },
+    {
+      "start_sec": 44.42,
+      "end_sec": 44.45,
+      "text": "IN 4 SECONDS"
+    },
+    {
+      "start_sec": 50.55,
+      "end_sec": 50.58,
+      "text": "Photos Videos Templates Draw & Color YOU CAN RESIZE"
+    },
+    {
+      "start_sec": 54.99,
+      "end_sec": 55.01,
+      "text": "Blue Shoulder Bag $50 Add to bag $50 Add to bag Edit up to 25 images at once Upload MORE LISTINGS EQUALS"
+    },
+    {
+      "start_sec": 59.99,
+      "end_sec": 60.01,
+      "text": "Fiverr Payhip Teachable Sellfy Redbubble OF THESE OTHER"
+    },
+    {
+      "start_sec": 64.99,
+      "end_sec": 65.01,
+      "text": "DON'T OVERCOMPLICATE BUSINESS"
+    },
     {
       "start_sec": 69.29,
       "end_sec": 69.31,
