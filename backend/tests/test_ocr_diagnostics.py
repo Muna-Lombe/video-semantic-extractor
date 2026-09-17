@@ -9,7 +9,6 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-
 SCRIPT = Path(__file__).parents[2] / "scripts" / "diagnostics" / "evaluate-frame-ocr.py"
 SPEC = importlib.util.spec_from_file_location("evaluate_frame_ocr", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
@@ -55,6 +54,7 @@ def test_word_precision_penalizes_unsupported_observations() -> None:
     assert ocr.word_precision("Shop now!", "SHOP later") == 0.5
     assert ocr.word_precision("Shop now!", "") is None
     assert ocr.harmonic_mean(0.5, 0.5) == 0.5
+    assert ocr.harmonic_mean(None, 0.0) == 0.0
 
 
 def test_evaluate_strategy_scores_manifest_frames(tmp_path: Path) -> None:

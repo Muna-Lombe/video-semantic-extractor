@@ -263,3 +263,27 @@ yet exhaustive text ground truth for representative frames. The next annotation
 pass must record all visible words in each scored frame, including captions, user
 interface labels, and clothing text; partial labels are suitable for recall but
 would make precision misleading.
+
+## Source OCR annotation results
+
+Three retained source frames at 69.3, 70.0, and 74.0 seconds now have exhaustive
+word annotations. Narrow timestamp windows prevent rapidly changing captions from
+sharing a label. The annotation file is tied to the recorded source SHA-256 so it
+cannot silently be treated as truth for another upload.
+
+At the default 0.5 confidence threshold, Tesseract recognized none of the two words
+at 69.3 seconds, none of the three at 70.0 seconds, and 11 of 12 at 74.0 seconds.
+The final frame had 0.8462 precision, 0.9167 recall, and 0.88 F1; its unsupported
+tokens came from punctuation and low-quality glyph interpretation after normalized
+word scoring. Hybrid sampling retained all three annotated frames, fixed sampling
+retained only 70.0 seconds, and scene sampling retained only 69.3 seconds.
+
+This pass exposed an aggregation defect: precision is correctly undefined when OCR
+emits no words, but F1 for an exhaustively labeled zero-recall frame is unequivocally
+zero. Excluding those frames inflated hybrid macro F1 from the correct 0.2933 to
+0.44. The diagnostic now retains silent OCR misses as zero in mean F1 while leaving
+precision undefined. The evidence does not support production OCR integration yet;
+the two stylized captions were total misses, and the small three-frame set is an
+integrity check rather than a representative accuracy benchmark. The next OCR pass
+should expand annotations across application screens and talking-head captions,
+then compare page-segmentation modes or region proposals before integration.

@@ -94,3 +94,16 @@ frame. A confidence threshold filters reported words, while raw frame-level resu
 remain auditable in the JSON report. Precision is scored only on labeled frames
 whose expected text is treated as exhaustive; unlabeled source frames must not be
 used to make false-positive claims.
+
+The source-video annotation fixture covers three manually reviewed retained frames
+and is bound to the source checksum recorded in the investigation:
+
+```bash
+./scripts/diagnostics/evaluate-frame-ocr.py \
+  /tmp/frame-sampling \
+  /tmp/frame-sampling/source-ocr-report.json \
+  --ground-truth scripts/fixtures/source-ocr-ground-truth.json
+```
+
+Its timestamp windows are deliberately narrow so nearby frames with changing
+captions are not assigned text that was not manually reviewed.

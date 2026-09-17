@@ -1,0 +1,21 @@
+{
+  "source_sha256": "bc14db678d642d02ae769c92a234ddd53c611a6bdf88ca93da97fb166bbfaa1b",
+  "annotation_scope": "All legible words in each narrow timestamp window are exhaustive.",
+  "labels": [
+    {
+      "start_sec": 69.29,
+      "end_sec": 69.31,
+      "text": "AND CREATIVITY"
+    },
+    {
+      "start_sec": 69.99,
+      "end_sec": 70.01,
+      "text": "YOURSELF WITH THIS"
+    },
+    {
+      "start_sec": 73.99,
+      "end_sec": 74.01,
+      "text": "Use Code ChrisPro To get 15% off on your first year BIO"
+    }
+  ]
+}
