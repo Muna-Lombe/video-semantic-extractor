@@ -3,11 +3,13 @@
 """
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
 import cv2
 import numpy as np
+import pytest
 
 SCRIPT = Path(__file__).parents[2] / "scripts" / "diagnostics" / "evaluate-frame-ocr.py"
 SPEC = importlib.util.spec_from_file_location("evaluate_frame_ocr", SCRIPT)
@@ -73,7 +75,8 @@ def test_evaluate_strategy_scores_manifest_frames(tmp_path: Path) -> None:
         [{"start_sec": 0, "end_sec": 3, "text": "WELCOME"}],
         0.5,
         "original",
-        ocr_runner=lambda _path: payload,
+        page_segmentation_mode=6,
+        ocr_runner=lambda _path, _page_segmentation_mode: payload,
     )
     assert report["mean_word_recall"] == 1.0
     assert report["mean_word_precision"] == 1.0
@@ -81,3 +84,40 @@ def test_evaluate_strategy_scores_manifest_frames(tmp_path: Path) -> None:
     assert report["ground_truth_label_recall"] == 1.0
     assert report["frames_with_any_text"] == 1
     assert report["frames"][0]["observations"][0]["region"] == (1, 2, 10, 5)
+
+
+def test_run_tesseract_uses_requested_page_segmentation_mode(monkeypatch) -> None:
+    """Keep layout assumptions explicit and reproducible in each OCR report."""
+    captured: list[str] = []
+
+    def fake_run(command, **_kwargs):
+        captured.extend(command)
+        return type("Result", (), {"stdout": TSV_HEADER})()
+
+    monkeypatch.setattr(ocr.subprocess, "run", fake_run)
+
+    assert ocr.run_tesseract(Path("frame.jpg"), 6) == TSV_HEADER
+    assert captured == [
+        "tesseract",
+        "frame.jpg",
+        "stdout",
+        "--psm",
+        "6",
+        "tsv",
+    ]
+
+
+def test_checksum_bound_ground_truth_rejects_different_source(tmp_path: Path) -> None:
+    """Never score source annotations against sampling artifacts from another video."""
+    sampling_directory = tmp_path / "sampling"
+    sampling_directory.mkdir()
+    (sampling_directory / "report.json").write_text(
+        json.dumps({"source_sha256": "different"}), encoding="utf-8"
+    )
+    ground_truth = tmp_path / "truth.json"
+    ground_truth.write_text(
+        json.dumps({"source_sha256": "expected", "labels": []}), encoding="utf-8"
+    )
+
+    with pytest.raises(RuntimeError, match="does not match"):
+        ocr.load_ground_truth(ground_truth, sampling_directory)

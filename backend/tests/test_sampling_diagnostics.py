@@ -3,6 +3,7 @@
 """
 
 import csv
+import hashlib
 import importlib.util
 import sys
 from pathlib import Path
@@ -33,6 +34,14 @@ def test_baseline_filters_are_independent_comparison_strategies() -> None:
         "scene": "eq(n,0)+gt(scene,0.3)",
         "fixed": "eq(n,0)+gte(t-prev_selected_t,5.0)",
     }
+
+
+def test_file_sha256_matches_source_bytes(tmp_path: Path) -> None:
+    """Bind reports to source identity without loading an entire video into memory."""
+    source = tmp_path / "source.mp4"
+    source.write_bytes(b"diagnostic-video" * 100_000)
+
+    assert sampling.file_sha256(source) == hashlib.sha256(source.read_bytes()).hexdigest()
 
 
 def test_metrics_include_video_boundaries_and_transcript_distance(tmp_path: Path) -> None:

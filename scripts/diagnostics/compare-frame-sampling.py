@@ -63,6 +63,15 @@ def probe_duration(input_path: Path) -> float:
     return float(json.loads(result.stdout)["format"]["duration"])
 
 
+def file_sha256(input_path: Path) -> str:
+    """Hash a source incrementally so diagnostics do not duplicate video memory."""
+    digest = hashlib.sha256()
+    with input_path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def sampling_filters(scene_threshold: float, interval_sec: float) -> dict[str, str]:
     """Build FFmpeg select expressions for the two baseline strategies."""
     return {
@@ -260,6 +269,7 @@ def main() -> None:
     speech_midpoints = transcript_midpoints(args.capsule)
     report: dict[str, object] = {
         "source": str(args.input_video),
+        "source_sha256": file_sha256(args.input_video),
         "duration_sec": duration,
         "scene_threshold": args.scene_threshold,
         "interval_sec": args.interval_sec,

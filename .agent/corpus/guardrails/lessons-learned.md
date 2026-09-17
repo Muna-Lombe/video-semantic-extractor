@@ -60,3 +60,21 @@ physical Tesseract row independently.
 
 💡 **Prevention:** Include punctuation-led OCR words in parser fixtures and retain
 raw frame-level observations in diagnostic reports.
+
+### Enforce source identity before scoring annotations
+
+**Date learned:** 2026-09-17
+**Category:** Diagnostic integrity
+
+⚠️ **Problem:** A ground-truth file recorded the source-video checksum, but the OCR
+evaluator ignored it. The labels could therefore produce credible-looking metrics
+for retained frames from a different upload.
+
+✓ **Solution:** Record the input SHA-256 in the sampling report and require an exact
+match before loading checksum-bound ground truth.
+
+📄 **Affected files:** `scripts/diagnostics/compare-frame-sampling.py`,
+`scripts/diagnostics/evaluate-frame-ocr.py`
+
+💡 **Prevention:** Treat provenance fields as enforceable invariants, not descriptive
+metadata, and add a rejection test for mismatched artifacts.

@@ -28,11 +28,18 @@ class TextObservation:
     region: tuple[int, int, int, int]
 
 
-def run_tesseract(image_path: Path) -> str:
+def run_tesseract(image_path: Path, page_segmentation_mode: int) -> str:
     """Run the compact system OCR engine and return its TSV observations."""
     try:
         result = subprocess.run(
-            ["tesseract", str(image_path), "stdout", "--psm", "11", "tsv"],
+            [
+                "tesseract",
+                str(image_path),
+                "stdout",
+                "--psm",
+                str(page_segmentation_mode),
+                "tsv",
+            ],
             check=True,
             capture_output=True,
             text=True,
@@ -131,12 +138,36 @@ def preprocess(image_path: Path, output_path: Path, mode: str) -> Path:
     return output_path
 
 
+def load_ground_truth(
+    ground_truth_path: Path | None, sampling_directory: Path
+) -> tuple[list[dict[str, object]], str | None]:
+    """Load labels and reject checksum-bound truth for a different source video."""
+    if ground_truth_path is None:
+        return [], None
+    payload = json.loads(ground_truth_path.read_text(encoding="utf-8"))
+    expected_checksum = payload.get("source_sha256")
+    if expected_checksum:
+        sampling_report_path = sampling_directory / "report.json"
+        if not sampling_report_path.is_file():
+            raise RuntimeError(
+                "checksum-bound ground truth requires the sampling report.json"
+            )
+        sampling_report = json.loads(sampling_report_path.read_text(encoding="utf-8"))
+        actual_checksum = sampling_report.get("source_sha256")
+        if actual_checksum != expected_checksum:
+            raise RuntimeError(
+                "ground-truth source checksum does not match the sampling report"
+            )
+    return payload["labels"], str(ground_truth_path)
+
+
 def evaluate_strategy(
     strategy_dir: Path,
     labels: Sequence[dict[str, object]],
     minimum_confidence: float,
     mode: str,
-    ocr_runner: Callable[[Path], str] = run_tesseract,
+    page_segmentation_mode: int = 11,
+    ocr_runner: Callable[[Path, int], str] = run_tesseract,
 ) -> dict[str, object]:
     """Evaluate every frame named by a sampling diagnostic manifest."""
     with (strategy_dir / "manifest.csv").open(newline="", encoding="utf-8") as handle:
@@ -156,7 +187,9 @@ def evaluate_strategy(
             if not source.is_relative_to(frames_root):
                 raise RuntimeError(f"manifest frame escapes frame root: {row['filename']}")
             prepared = preprocess(source, temporary_dir / f"{index:06d}.png", mode)
-            observations = parse_tesseract_tsv(ocr_runner(prepared), minimum_confidence)
+            observations = parse_tesseract_tsv(
+                ocr_runner(prepared, page_segmentation_mode), minimum_confidence
+            )
             observed = " ".join(item.text for item in observations)
             timestamp = float(row["timestamp_sec"])
             expected = expected_text(labels, timestamp)
@@ -219,14 +252,26 @@ def main() -> None:
     parser.add_argument(
         "--preprocess", choices=("original", "grayscale", "threshold"), default="original"
     )
+    parser.add_argument(
+        "--page-segmentation-mode",
+        type=int,
+        default=11,
+        help="Tesseract page segmentation mode (default: sparse text mode 11)",
+    )
     args = parser.parse_args()
     if not 0 <= args.minimum_confidence <= 1:
         parser.error("minimum confidence must be between 0 and 1")
-    labels: list[dict[str, object]] = []
-    if args.ground_truth:
-        labels = json.loads(args.ground_truth.read_text(encoding="utf-8"))["labels"]
+    if not 0 <= args.page_segmentation_mode <= 13:
+        parser.error("page segmentation mode must be between 0 and 13")
+    labels, ground_truth = load_ground_truth(args.ground_truth, args.sampling_directory)
     strategies = {
-        path.name: evaluate_strategy(path, labels, args.minimum_confidence, args.preprocess)
+        path.name: evaluate_strategy(
+            path,
+            labels,
+            args.minimum_confidence,
+            args.preprocess,
+            args.page_segmentation_mode,
+        )
         for path in sorted(args.sampling_directory.iterdir())
         if (path / "manifest.csv").is_file()
     }
@@ -236,7 +281,8 @@ def main() -> None:
         "engine": "tesseract_cli",
         "minimum_confidence": args.minimum_confidence,
         "preprocess": args.preprocess,
-        "ground_truth": str(args.ground_truth) if args.ground_truth else None,
+        "page_segmentation_mode": args.page_segmentation_mode,
+        "ground_truth": ground_truth,
         "strategies": strategies,
     }
     args.output_report.parent.mkdir(parents=True, exist_ok=True)
