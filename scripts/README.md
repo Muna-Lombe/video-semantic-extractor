@@ -222,6 +222,21 @@ done
 
 ### Multi-video annotation validation
 
+Initialize a prediction-blind annotation fixture directly from the checksum-bound
+hybrid manifests. The command deliberately records zero completed review passes and
+refuses to overwrite annotation work unless `--force` is explicitly supplied:
+
+```bash
+./scripts/diagnostics/initialize-object-annotations.py \
+  /tmp/video-sample-diagnostics \
+  /tmp/video-sample-diagnostics/multi-video-object-ground-truth.json
+```
+
+The initializer imports no detector report and creates an explicit empty `objects`
+and `out_of_taxonomy` list for every retained frame. Those empty lists are a review
+template, **not** verified negative labels. Two independent reviewers must replace
+them under the frozen policy before the review declaration can be advanced.
+
 Before exposing the frozen multi-video ground truth to detector predictions, validate
 its review declaration, checksum identity, exact hybrid-manifest coverage, labels,
 subsets, annotation identifiers, timestamps, minimum object size, and source-image
