@@ -5,7 +5,7 @@
 
 # Visual content investigation
 
-## Investigation recap (2026-09-17)
+## Investigation recap (2026-09-18)
 
 ### Executive conclusion
 
@@ -91,9 +91,9 @@ replaced with assumptions or partial investigations represented as conclusions.
    person-only. Exhaustively annotate non-person objects at varied scales across the
    supplied videos before selecting a detector or confidence threshold.
 3. **The additional videos lack exhaustive annotations.** Detector output on those
-   videos measures activity, not precision or recall. Freeze annotation rules for
-   live, composited, screen-depicted, illustrated, partial, and occluded objects
-   before labels are created.
+   videos measures activity, not precision or recall. The annotation policy now
+   freezes rules for live, composited, screen-depicted, illustrated, partial, and
+   occluded objects; the two-reviewer annotation and adjudication pass remains open.
 4. **The detector taxonomy is narrower than the product requirement.** COCO omits
    relevant concepts such as the visible microphone and does not cover brands,
    products, logos, actions, UI semantics, or visual descriptions. Define and test
@@ -173,9 +173,30 @@ replaced with assumptions or partial investigations represented as conclusions.
 - `scripts/fixtures/source-ocr-ground-truth.json` and
   `scripts/fixtures/source-object-ground-truth.json` define the current exhaustive
   annotation scopes.
+- `docs/investigations/object-annotation-policy.md` freezes the multi-video object
+  scope, subset taxonomy, review workflow, corpus-adequacy gate, and detector gate.
 - `scripts/README.md` contains the commands needed to reproduce each diagnostic.
 
 The remaining sections are the chronological evidence log supporting this recap.
+
+## Multi-video object annotation policy
+
+Before adding labels for the four additional videos, the investigation froze a
+candidate-independent annotation policy. Each hybrid-retained frame must now be
+reviewed independently by two reviewers, including explicit negative frames, and
+all disagreements must be adjudicated before the fixture is exposed to detector
+predictions. The policy assigns every eligible object to exactly one of `live`,
+`composited`, or `screen`, defines clipping, occlusion, partial-person, illustration,
+minimum-size, ambiguity, and out-of-taxonomy handling, and requires checksum-bound
+manifest coverage.
+
+The policy also prevents a nominally multi-video fixture from being treated as broad
+evidence when it remains person-dominated. Its corpus gate requires class, subset,
+scale, and source diversity before scoring begins. Aggregate and subset precision
+and recall thresholds are predeclared, but passing them supports only the scoped COCO
+task; it cannot establish actions, brands, products, logos, UI understanding, or
+commercial suitability. The next step remains native-resolution dual annotation and
+adjudication of every retained frame, not another threshold sweep.
 
 ## Supplied multi-video diagnostic pass
 
