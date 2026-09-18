@@ -219,3 +219,43 @@ for confidence in 0.20 0.35 0.50 0.65; do
     --minimum-confidence "$confidence"
 done
 ```
+
+### Multi-video annotation validation
+
+Before exposing the frozen multi-video ground truth to detector predictions, validate
+its review declaration, checksum identity, exact hybrid-manifest coverage, labels,
+subsets, annotation identifiers, timestamps, minimum object size, and source-image
+box bounds. The validator also reports each predeclared corpus-adequacy gate:
+
+```bash
+./scripts/diagnostics/validate-object-annotations.py \
+  scripts/fixtures/multi-video-object-ground-truth.json \
+  /tmp/video-sample-diagnostics \
+  /tmp/video-sample-diagnostics/object-annotation-validation.json
+```
+
+The sampling root must contain `sample_1` through `sample_5`, each with the
+`report.json` and `hybrid/manifest.csv` produced by `compare-frame-sampling.py`.
+Every fixture frame records `filename`, `timestamp_sec`, `objects`, and an
+`out_of_taxonomy` list. Each object records a globally unique `id`, a COCO `label`,
+one of the `live`, `composited`, or `screen` subsets, and an integer
+`[x, y, width, height]` region. The fixture root declares policy version
+`2026-09-18`, all five sources and checksums, and this completed-review record:
+
+```json
+{
+  "review": {
+    "independent_passes": 2,
+    "predictions_reviewed_before_freeze": false,
+    "adjudication_status": "complete",
+    "adjudication_log": []
+  }
+}
+```
+
+During annotation, use zero through two `independent_passes`, an adjudication status
+of `not_started`, `in_progress`, or `complete`, and pass `--allow-incomplete` to
+distinguish a structurally valid draft from a corpus whose review or diversity gates
+are not yet complete. That option never permits checksum, coverage, geometry,
+taxonomy, or review-metadata errors. Omit it for the final frozen-fixture check; the
+command then fails unless both validity and corpus adequacy pass.
