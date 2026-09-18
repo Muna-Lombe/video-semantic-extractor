@@ -107,7 +107,10 @@ function renderFrameDetails() {
   $("timestamp").textContent = `${Number(frame.timestamp_sec).toFixed(3)} sec`;
   $("frame-status").textContent = `${position} of ${total} frames · ${frame.objects.length} objects recorded`;
   $("progress-bar").style.width = `${position / total * 100}%`;
-  const reviewed = reviewedFrames().includes(frameKey()) || assistedReviewedFrames().includes(frameKey());
+  const assistedLayout = $("workspace").classList.contains("assisted");
+  const reviewed = assistedLayout
+    ? assistedReviewedFrames().includes(frameKey())
+    : reviewedFrames().includes(frameKey());
   $("review-frame").textContent = reviewed ? "Reviewed" : "Review frame";
   $("review-frame").classList.toggle("reviewed", reviewed);
   $("previous-frame").disabled = state.sourceIndex === 0 && state.frameIndex === 0;

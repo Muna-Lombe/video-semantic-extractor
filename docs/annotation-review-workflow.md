@@ -65,6 +65,44 @@ rejects path traversal, unknown frames, source identity changes, checksum change
 and policy-version changes on save. Image bytes are never embedded in annotation
 JSON.
 
+### Remote review through Cloudflare Tunnel
+
+Do not expose the writable review server without an access token. Install
+`cloudflared`, generate a long random token, and run the server/tunnel supervisor
+from a persistent shell, VM, or named-tunnel host:
+
+```bash
+export PATH="/path/to/cloudflared-directory:$PATH"
+export ANNOTATION_REVIEW_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+scripts/annotation-review/run-tunneled-review.sh \
+  /tmp/video-sample-diagnostics \
+  /tmp/video-sample-diagnostics/reviewer-a.json \
+  8765
+```
+
+For its default quick-tunnel mode, copy the generated `https://...trycloudflare.com`
+URL and open `HTTPS_URL/?token=$ANNOTATION_REVIEW_TOKEN` once. The server exchanges
+the query token for an HTTP-only, same-site cookie and redirects to a clean URL.
+Keep the supervisor process running for the entire download, external annotation,
+upload, manual review, and save cycle. Stopping the process invalidates the quick
+tunnel URL but does not delete the reviewer JSON or generated bundles.
+
+A quick tunnel is suitable for a temporary supervised session, not a durable
+service-level guarantee. For a stable hostname, authenticate `cloudflared`, create
+and route a named tunnel in the Cloudflare account, then supply its normal run
+arguments without secrets in the repository:
+
+```bash
+export CLOUDFLARED_TUNNEL_ARGS="tunnel --no-autoupdate run annotation-review"
+scripts/annotation-review/run-tunneled-review.sh \
+  /persistent/evidence /persistent/reviewer-a.json 8765
+```
+
+Put the evidence and reviewer JSON on persistent storage. Cloudflare Tunnel keeps
+the origin private, but the application token is still required unless an equivalent
+Cloudflare Access policy is configured and tested. Runtime logs are written beneath
+`review-runtime/` next to the annotation file by default.
+
 ## Assistance modes
 
 The sidebar switches between two mutually exclusive modes.
@@ -111,10 +149,22 @@ changes `reviewed_frames`, `independent_passes`, or adjudication status. Agent
 output is assisted annotation, not an independent human review pass. Agent-imported
 frames still require the same assisted frame-review and completion actions.
 
+The importer also rejects duplicate frame entries, even when their unique filename
+set appears complete. Manual and assisted coverage are displayed independently in
+the workspace: reviewing an assisted suggestion cannot make a frame appear manually
+reviewed. These controls prevent a convenient model handoff from accidentally
+masquerading as the human pass that remains required by the policy.
+
 ## Independent review and adjudication
 
 Use separate initialized copies for reviewer A and reviewer B. Keep candidate model
 predictions hidden during both independent passes. After both passes, compare them:
+
+Reviewer B must use a separate JSON file and must not inspect reviewer A's file or
+comparison report first. Run a second server on another port/tunnel, or stop the
+first supervisor after reviewer A saves and restart it with `reviewer-b.json`.
+Generated handoff bundles are isolated by reviewer filename so simultaneous review
+servers cannot overwrite one another's ZIPs.
 
 ```bash
 .venv/bin/python scripts/diagnostics/compare-object-reviews.py \
@@ -143,6 +193,14 @@ reviewer-to-reviewer disagreement comparison, adjudication entries, validation
 errors, object counts, and all adequacy gates. A report with invalid annotations or
 failed gates is still useful as a reproducible draft, but cannot be used to claim a
 frozen diagnostic fixture.
+
+The report separately audits each reviewer file against the sampling evidence. A
+scoring-ready report requires exactly two distinct files, one complete manual pass
+in each file, exact reviewed-frame coverage without duplicates, and structurally
+valid annotations. Passing the merged-fixture adequacy gates alone is insufficient;
+the command exits nonzero unless both fixture adequacy and reviewer provenance pass.
+Use `--allow-incomplete` to generate an explicit draft while either condition is
+still open.
 
 ## Validation gate
 

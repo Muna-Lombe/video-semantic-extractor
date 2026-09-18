@@ -230,6 +230,17 @@ entries, validator errors, object counts, and each corpus-adequacy gate. A draft
 report may expose annotation defects for repair, but only an adequate validated
 report can support a frozen-fixture claim.
 
+The annotation handoff materially reduces the clerical blocker: a stronger
+multimodal model can inspect native frames from a per-source ZIP, and a human can
+then accept, correct, and save the returned metadata in the same review workspace.
+It does not replace independent review. Follow-up integrity checks found two ways
+assistance could otherwise look stronger than it was: duplicate response frames
+could pass a set-only import check, and assisted coverage could make the manual
+workspace label a frame as reviewed. Both are now separated and rejected. The final
+report also requires two distinct, structurally valid reviewer files with complete
+manual coverage before it declares the evidence ready for detector scoring; merged
+fixture adequacy by itself is no longer sufficient.
+
 ### Annotation validator result
 
 The frozen policy previously described the required controls but had no executable
