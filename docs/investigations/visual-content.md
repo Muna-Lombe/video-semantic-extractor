@@ -173,6 +173,9 @@ replaced with assumptions or partial investigations represented as conclusions.
 - `scripts/diagnostics/validate-object-annotations.py` validates multi-video review
   metadata, evidence identity, manifest coverage, annotation geometry, taxonomy,
   subsets, and all predeclared corpus-adequacy gates before scoring.
+- `scripts/diagnostics/initialize-object-annotations.py` creates a deterministic,
+  prediction-blind review template from the five checksum-bound hybrid manifests
+  without claiming that its initially empty object lists are reviewed negatives.
 - `scripts/fixtures/source-ocr-ground-truth.json` and
   `scripts/fixtures/source-object-ground-truth.json` define the current exhaustive
   annotation scopes.
@@ -200,6 +203,14 @@ and recall thresholds are predeclared, but passing them supports only the scoped
 task; it cannot establish actions, brands, products, logos, UI understanding, or
 commercial suitability. The next step remains native-resolution dual annotation and
 adjudication of every retained frame, not another threshold sweep.
+
+Annotation setup is now reproducible as well as validation. The initializer binds
+all five sources to their sampling-report checksums, imports every hybrid manifest
+frame, starts review metadata at zero completed passes, and never consumes detector
+predictions. It refuses to overwrite an existing fixture by default so rerunning a
+setup command cannot silently destroy manual annotation work. This removes clerical
+fixture assembly from the review process, but it does not count as either required
+independent review and does not change the blocked detector status.
 
 ### Annotation validator result
 

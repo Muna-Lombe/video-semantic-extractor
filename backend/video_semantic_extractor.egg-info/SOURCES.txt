@@ -1,6 +1,11 @@
 README.md
 pyproject.toml
 tests/test_api.py
+tests/test_object_annotation_initialization.py
+tests/test_object_diagnostics.py
+tests/test_ocr_diagnostics.py
+tests/test_pipeline.py
+tests/test_sampling_diagnostics.py
 tests/test_schema.py
 video_semantic_extractor/__init__.py
 video_semantic_extractor/api.py
