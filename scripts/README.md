@@ -39,6 +39,25 @@ it cannot change source checksums or manifest frame identity. Copy the initializ
 fixture to `reviewer-b.json` and repeat independently before comparison and
 adjudication.
 
+To make the writable app temporarily reachable outside the host, use the supervised
+Cloudflare Tunnel wrapper with a random access token:
+
+```bash
+export ANNOTATION_REVIEW_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+scripts/annotation-review/run-tunneled-review.sh \
+  /tmp/video-sample-diagnostics \
+  /tmp/video-sample-diagnostics/reviewer-a.json
+```
+
+The wrapper binds the Python server only to loopback, verifies it is ready, starts
+`cloudflared`, stores both logs beside the annotation file, and terminates both
+processes together. Open the printed tunnel URL with `/?token=<token>` once to create
+the protected browser session. Set `CLOUDFLARED_TUNNEL_ARGS` to the arguments for an
+already configured named tunnel when a stable hostname and longer-lived host are
+required. Quick tunnels exist only while the wrapper and its environment remain
+alive; use persistent storage and a named tunnel for work that must survive host
+restarts.
+
 Use the frame transport in the toolbar to move **back**, **review**, or move
 **forward** without opening the frame selector. The center action follows the
 active layout: it marks a manual frame reviewed in manual mode and requires all
@@ -376,7 +395,9 @@ be supplied to preserve provenance and completion evidence:
 
 The command validates the merged fixture, records SHA-256 hashes for the merged and
 reviewer files, extracts review and adjudication metadata, and writes all corpus
-counts and adequacy gates. It exits nonzero unless the final fixture is adequate;
+counts and adequacy gates. It also verifies that exactly two distinct reviewer files
+each contain a structurally valid, complete manual pass with exact frame coverage.
+It exits nonzero unless both the final fixture and reviewer provenance are ready;
 use `--allow-incomplete` while preparing a draft report. Commit the generated JSON
 and Markdown only after the fixture is frozen and the investigation has been
 reviewed.

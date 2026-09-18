@@ -3,6 +3,7 @@
 """
 
 import importlib.util
+import http.cookiejar
 import json
 import threading
 import urllib.error
@@ -50,7 +51,9 @@ def create_review(tmp_path: Path) -> tuple[Path, Path, dict[str, object]]:
     return sampling, annotation_path, payload
 
 
-def request_json(url: str, payload: dict[str, object] | None = None) -> tuple[int, dict[str, object]]:
+def request_json(
+    url: str, payload: dict[str, object] | None = None
+) -> tuple[int, dict[str, object]]:
     request = urllib.request.Request(url, method="POST" if payload else "GET")
     if payload:
         body = json.dumps(payload).encode("utf-8")
@@ -85,7 +88,10 @@ def test_review_server_loads_and_saves_without_allowing_identity_changes(tmp_pat
         changed["review"]["independent_passes"] = 1
         status, _ = request_json(f"{base_url}/api/save", changed)
         assert status == 200
-        assert json.loads(annotation_path.read_text(encoding="utf-8"))["review"]["independent_passes"] == 1
+        assert (
+            json.loads(annotation_path.read_text(encoding="utf-8"))["review"]["independent_passes"]
+            == 1
+        )
 
         changed["sources"][0]["source_sha256"] = "b" * 64
         status, result = request_json(f"{base_url}/api/save", changed)
@@ -99,7 +105,11 @@ def test_review_server_loads_and_saves_without_allowing_identity_changes(tmp_pat
 def test_review_server_imports_jsonc_without_changing_review_status(tmp_path: Path) -> None:
     sampling, annotation_path, payload = create_review(tmp_path)
     server = server_module.ReviewServer(
-        ("127.0.0.1", 0), server_module.ReviewHandler, SCRIPT.parent / "web", annotation_path, sampling
+        ("127.0.0.1", 0),
+        server_module.ReviewHandler,
+        SCRIPT.parent / "web",
+        annotation_path,
+        sampling,
     )
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -108,12 +118,21 @@ def test_review_server_imports_jsonc_without_changing_review_status(tmp_path: Pa
         response = {
             "source": "sample_1.mp4",
             "source_sha256": "a" * 64,
-            "frames": [{
-                "filename": "frame.jpg",
-                "timestamp_sec": 1.0,
-                "objects": [{"id": "agent-1", "label": "person", "subset": "live", "region": [1, 2, 20, 20]}],
-                "out_of_taxonomy": [],
-            }],
+            "frames": [
+                {
+                    "filename": "frame.jpg",
+                    "timestamp_sec": 1.0,
+                    "objects": [
+                        {
+                            "id": "agent-1",
+                            "label": "person",
+                            "subset": "live",
+                            "region": [1, 2, 20, 20],
+                        }
+                    ],
+                    "out_of_taxonomy": [],
+                }
+            ],
         }
         status, _ = request_json(
             f"{base_url}/api/import-agent",
@@ -123,6 +142,78 @@ def test_review_server_imports_jsonc_without_changing_review_status(tmp_path: Pa
         saved = json.loads(annotation_path.read_text(encoding="utf-8"))
         assert saved["sources"][0]["frames"][0]["objects"][0]["id"] == "agent-1"
         assert saved["review"]["independent_passes"] == 0
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_review_server_rejects_duplicate_agent_frames(tmp_path: Path) -> None:
+    """A set-equivalent response must not hide duplicated manifest entries."""
+    sampling, annotation_path, payload = create_review(tmp_path)
+    server = server_module.ReviewServer(
+        ("127.0.0.1", 0),
+        server_module.ReviewHandler,
+        SCRIPT.parent / "web",
+        annotation_path,
+        sampling,
+    )
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base_url = f"http://127.0.0.1:{server.server_port}"
+    try:
+        frame = {
+            "filename": "frame.jpg",
+            "timestamp_sec": 1.0,
+            "objects": [],
+            "out_of_taxonomy": [],
+        }
+        response = {
+            "source": "sample_1.mp4",
+            "source_sha256": "a" * 64,
+            "frames": [frame, frame],
+        }
+
+        status, result = request_json(
+            f"{base_url}/api/import-agent", {"content": json.dumps(response)}
+        )
+
+        assert status == 400
+        assert "exactly once" in result["error"]
+        assert json.loads(annotation_path.read_text(encoding="utf-8")) == payload
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_review_server_requires_token_and_bootstraps_cookie(tmp_path: Path) -> None:
+    """A tunneled browser can authenticate once without exposing the token thereafter."""
+    sampling, annotation_path, _payload = create_review(tmp_path)
+    server = server_module.ReviewServer(
+        ("127.0.0.1", 0),
+        server_module.ReviewHandler,
+        SCRIPT.parent / "web",
+        annotation_path,
+        sampling,
+        "secret-token",
+    )
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    assert server.bundle_root == tmp_path / "agent-bundles" / "review"
+    base_url = f"http://127.0.0.1:{server.server_port}"
+    opener = urllib.request.build_opener(
+        urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar())
+    )
+    try:
+        status, result = request_json(f"{base_url}/api/state")
+        assert status == 401
+        assert result["error"] == "authorization required"
+
+        with opener.open(f"{base_url}/?token=secret-token") as response:
+            assert response.status == 200
+            assert response.geturl() == f"{base_url}/"
+        with opener.open(f"{base_url}/api/state") as response:
+            assert response.status == 200
+            assert "annotations" in json.loads(response.read())
     finally:
         server.shutdown()
         server.server_close()
