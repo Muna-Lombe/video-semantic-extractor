@@ -66,9 +66,10 @@ are not recorded.
 - The object fixture labels all 28 hybrid frames under a live-scene scope, but its
   positive class distribution is exclusively `person`. It cannot validate broad
   COCO detection.
-- The confidence table below predates the matching-integrity correction. The source
-  reports must be regenerated before those values are treated as current; the
-  correction does not itself provide new model evidence.
+- The confidence table below has been regenerated with the corrected
+  maximum-cardinality matcher. Its values were unchanged because the retained
+  predictions contain no ambiguous eligible pairings, but it still describes only
+  the original person-only fixture.
 - Local latency excludes decoding, preprocessing, and postprocessing and is not a
   deployment service-level objective.
 
@@ -106,9 +107,10 @@ replaced with assumptions or partial investigations represented as conclusions.
 
 #### High-priority engineering and evaluation issues
 
-7. **The prior NanoDet confidence table is stale.** Regenerate it with the corrected
-   maximum-cardinality matcher and unchanged annotations, model digest, NMS, and IoU
-   settings before using its exact values.
+7. **Completed: the NanoDet confidence table was regenerated.** The corrected
+   maximum-cardinality matcher produced the same values with unchanged annotations,
+   model digest, 0.6 NMS IoU, and 0.5 scoring IoU. This closes the report-integrity
+   issue, not the broad-object evidence gap.
 8. **Website and UI understanding is absent.** OCR words and `laptop` or `tv` labels
    do not identify an application, page, control, state change, or demonstrated
    interaction. Define a separate UI-understanding task and evidence format.
@@ -150,8 +152,9 @@ replaced with assumptions or partial investigations represented as conclusions.
 2. Exhaustively label non-person objects at varied scales in the checksum-bound
    supplied corpus and explicitly tag
    live, composited, and screen-depicted subsets.
-3. Re-run the pinned NanoDet model at fixed confidence thresholds with the corrected
-   matcher, then report both aggregate and per-subset precision, recall, and F1.
+3. After the broader annotations exist, run the pinned NanoDet model at fixed
+   confidence thresholds and report both aggregate and live, composited, and
+   screen-depicted subset precision, recall, and F1.
 4. In parallel, benchmark a true text-region proposal on separate caption and UI
    subsets; retain full-frame Tesseract mode 11 as the comparison baseline only.
 5. Define independent fixtures and metrics for actions, brands, products, and logos
@@ -730,3 +733,31 @@ minimum-IoU eligibility graph. It still prefers higher-IoU candidates while find
 the maximum number of valid one-to-one matches. A synthetic regression fixture
 covers the blocking geometry. This is an evaluation-integrity correction; it does
 not add broader object evidence or remove the multi-video production blocker.
+
+
+## Corrected confidence-report regeneration
+
+The four confidence reports were regenerated after the matching-integrity fix using
+freshly extracted hybrid frames from `sample_1.mp4`. The sampling report and object
+fixture both identify the source as
+`bc14db678d642d02ae769c92a234ddd53c611a6bdf88ca93da97fb166bbfaa1b`.
+The run retained the pinned NanoDet artifact digest
+`4b82da9944b88577175ee23a459dce2e26e6e4be573def65b1055dc2d9720186`,
+0.6 NMS IoU, 0.5 scoring IoU, and the existing exhaustive annotations. This isolates
+the matcher change from model, input, suppression, and ground-truth changes.
+
+| Minimum confidence | TP | FP | FN | Precision | Recall | F1 | Changed from prior report |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| 0.20 | 23 | 151 | 1 | 0.1322 | 0.9583 | 0.2323 | No |
+| 0.35 | 23 | 16 | 1 | 0.5897 | 0.9583 | 0.7302 | No |
+| 0.50 | 21 | 1 | 3 | 0.9545 | 0.8750 | 0.9130 | No |
+| 0.65 | 14 | 0 | 10 | 1.0000 | 0.5833 | 0.7368 | No |
+
+The unchanged values show that the real retained predictions do not exercise the
+ambiguous matching geometry covered by the synthetic regression test. They do not
+show that the integrity correction was unnecessary: it remains required so future
+multi-object frames cannot be undercounted by a locally optimal pairing. This
+regeneration closes the stale-report issue only. It adds no non-person ground truth,
+no evaluation subsets, and no evidence supporting production integration. The next
+object investigation remains exhaustive multi-video annotation under the frozen
+live, composited, and screen-depicted scopes.
