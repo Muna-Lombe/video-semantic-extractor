@@ -20,6 +20,55 @@ The local environment uses Python 3.12 to match `deployments/Dockerfile`.
 Set `INSTALL_MODELS=0` when preparing only the media and CV diagnostic environment;
 normal full extraction installs the CPU PyTorch and Whisper dependencies.
 
+## Human annotation review UI
+
+After initializing the prediction-blind fixture, launch the local SPA once per
+reviewer with a different output JSON path. The server binds to loopback by default:
+
+```bash
+python scripts/annotation-review/server.py \
+  /tmp/video-sample-diagnostics \
+  /tmp/video-sample-diagnostics/reviewer-a.json
+```
+
+Open `http://127.0.0.1:8765/`, inspect every retained frame at native resolution,
+draw eligible object boxes, choose their class and source subset, mark each frame
+reviewed, and record visible out-of-taxonomy concepts. Click **Save metadata** regularly. The UI serves referenced
+images from the sampling evidence but saves only annotation JSON and review metadata;
+it cannot change source checksums or manifest frame identity. Copy the initialized
+fixture to `reviewer-b.json` and repeat independently before comparison and
+adjudication.
+
+The sidebar has two assistance tabs. **Browser model** keeps optional model
+suggestions in the browser; each suggestion must be confirmed or rejected and is
+recorded as assisted metadata. In assisted mode, mark each frame reviewed only
+after all suggestions are confirmed or rejected, then use **Complete assisted pass**
+after every retained frame is covered. This records `review.assisted_review` and
+does not increment the two independent human passes. **Agent handoff** generates and lists the per-video
+ZIP bundles directly in the app. Click **Generate bundles**, then click **Download
+ZIP** beside a video. Upload the completed JSONC response in the same tab.
+
+For a faster handoff to a capable multimodal agent, export one ZIP per source
+video. Each bundle contains the retained native-resolution images, a task README,
+`schema.json`, and a prediction-blind `annotations.jsonc` template. The images are
+inside the downloadable bundle for inspection; they are never copied into the
+returned metadata file:
+
+```bash
+python scripts/annotation-review/export-agent-bundles.py \
+  /tmp/video-sample-diagnostics/reviewer-a.json \
+  /tmp/video-sample-diagnostics \
+  /tmp/video-sample-diagnostics/agent-bundles
+```
+
+Give each bundle to the agent independently and request its completed
+`annotations.jsonc`. Upload the response in the SPA using **Agent handoff** and
+**Import response**. The importer checks the source checksum, exact frame set, and
+timestamps before merging object metadata. It does not update `reviewed_frames`,
+`independent_passes`, or adjudication state. A second independent handoff is still
+required, followed by comparison and human adjudication. Treat agent output as
+assisted annotation, not as an independent human review pass.
+
 ## Diagnostic fixture and full extraction
 
 ```bash
@@ -236,6 +285,31 @@ The initializer imports no detector report and creates an explicit empty `object
 and `out_of_taxonomy` list for every retained frame. Those empty lists are a review
 template, **not** verified negative labels. Two independent reviewers must replace
 them under the frozen policy before the review declaration can be advanced.
+
+Create two working copies of the initialized JSON and annotate them independently
+at native resolution. Reviewer-local annotation IDs may differ. Compare the two
+completed passes before adjudication; the report uses class, subset, and at least
+0.8 box IoU for object agreement and reports missing frames, unmatched objects,
+and out-of-taxonomy differences:
+
+```bash
+cp /tmp/video-sample-diagnostics/multi-video-object-ground-truth.json \
+  /tmp/video-sample-diagnostics/reviewer-a.json
+cp /tmp/video-sample-diagnostics/multi-video-object-ground-truth.json \
+  /tmp/video-sample-diagnostics/reviewer-b.json
+# Reviewers edit reviewer-a.json and reviewer-b.json independently.
+./scripts/diagnostics/compare-object-reviews.py \
+  /tmp/video-sample-diagnostics/reviewer-a.json \
+  /tmp/video-sample-diagnostics/reviewer-b.json \
+  /tmp/video-sample-diagnostics/review-comparison.json
+```
+
+The comparison command exits with status 1 while disagreements remain. A third
+adjudication pass must resolve every reported disagreement into a merged fixture,
+record genuine ambiguities in `review.adjudication_log`, set
+`review.independent_passes` to `2`, and set `review.adjudication_status` to
+`complete`. Run the validator with `--allow-incomplete` while annotation is in
+progress; omit it only after the merged fixture also satisfies corpus adequacy.
 
 Before exposing the frozen multi-video ground truth to detector predictions, validate
 its review declaration, checksum identity, exact hybrid-manifest coverage, labels,

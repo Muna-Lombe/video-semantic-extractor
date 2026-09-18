@@ -212,6 +212,17 @@ setup command cannot silently destroy manual annotation work. This removes cleri
 fixture assembly from the review process, but it does not count as either required
 independent review and does not change the blocked detector status.
 
+The review workflow now includes a local browser SPA. It serves only manifest-bound
+images, saves annotation metadata atomically, tracks explicit reviewed-frame coverage,
+and prevents browser saves from changing source checksums or frame identity. The SPA
+offers a browser-model suggestion tab and a separate agent-handoff tab. Browser
+suggestions require per-box confirmation or rejection; per-video agent ZIPs contain
+the native frames, task README, schema, and JSONC response template, and can be
+generated and downloaded from the app. JSONC imports validate checksum, exact frame
+coverage, and timestamps while leaving independent-pass and adjudication metadata
+human-controlled. These tools improve annotation throughput but do not close the
+dual-review blocker.
+
 ### Annotation validator result
 
 The frozen policy previously described the required controls but had no executable

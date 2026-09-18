@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Object review</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="kicker">Prediction-blind review</p>
+      <h1>Object annotation desk</h1>
+    </div>
+    <div class="header-actions">
+      <span id="save-status" class="status">Loading review...</span>
+      <button id="save" class="primary">Save metadata</button>
+    </div>
+  </header>
+
+  <main id="workspace" class="workspace">
+    <aside class="sidebar">
+      <label>Source <select id="source"></select></label>
+      <label>Frame <select id="frame"></select></label>
+      <div class="progress"><span id="progress-bar"></span></div>
+      <p id="frame-status" class="muted"></p>
+      <div class="review-card manual-only">
+        <div class="card-heading"><strong>Review declaration</strong><span id="pass-state">0 / 2</span></div>
+        <p class="muted">Mark this file as one completed independent pass only after every frame has been inspected.</p>
+        <button id="complete-pass" class="secondary">Mark pass complete</button>
+      </div>
+      <div class="layout-tabs" role="tablist" aria-label="Annotation layout">
+        <button id="manual-tab" class="layout-tab active" role="tab" aria-selected="true">Manual annotation</button>
+        <button id="assisted-tab" class="layout-tab" role="tab" aria-selected="false">Assisted annotation</button>
+      </div>
+      <div id="assisted-switcher" class="mode-tabs" role="tablist" aria-label="Assisted annotation source" hidden>
+        <button id="browser-tab" class="mode-tab active" role="tab" aria-selected="true">Browser model</button>
+        <button id="agent-tab" class="mode-tab" role="tab" aria-selected="false">Agent handoff</button>
+      </div>
+      <div id="browser-panel" class="review-card assisted-card mode-panel" hidden>
+        <div class="card-heading"><strong>Browser suggestions</strong><span>optional</span></div>
+        <p class="muted">Runs locally in this browser. Suggestions are never ground truth and do not count as an independent pass.</p>
+        <input id="model-id" value="Xenova/yolos-tiny" aria-label="Browser model ID">
+        <button id="load-model" class="secondary">Load model</button>
+        <button id="suggest-frame" class="primary" disabled>Suggest objects</button>
+        <span id="model-status" class="muted">No model loaded</span>
+      </div>
+      <div id="agent-panel" class="review-card mode-panel" hidden>
+        <div class="card-heading"><strong>Agent handoff</strong><span>JSONC</span></div>
+        <p class="muted">Import one completed per-video response. It updates annotations only; review status stays human-controlled.</p>
+        <div id="bundle-list" class="bundle-list"><span class="muted">Loading bundles...</span></div>
+        <button id="generate-bundles" class="secondary">Generate bundles</button>
+        <input id="agent-file" type="file" accept=".jsonc,.json,application/json">
+        <button id="import-agent" class="secondary">Import response</button>
+      </div>
+    </aside>
+
+    <section class="review-area">
+      <div class="toolbar">
+        <div>
+          <strong id="frame-title">Frame</strong>
+          <span id="timestamp" class="muted"></span>
+        </div>
+        <div class="toolbar-actions"><button id="manual-review" class="secondary" hidden>Review manually</button><button id="assisted-mark-reviewed" class="secondary" hidden>Mark assisted frame reviewed</button><button id="mark-reviewed" class="secondary manual-only">Mark frame reviewed</button><button id="clear-frame" class="quiet manual-only">Clear objects</button></div>
+      </div>
+      <div class="canvas-wrap"><canvas id="canvas"></canvas></div>
+      <div class="controls">
+        <div class="control-group manual-only">
+          <label>New object class <select id="label"></select></label>
+          <label>Subset <select id="subset"><option>live</option><option>composited</option><option>screen</option></select></label>
+          <button id="draw-mode" class="primary">Draw box</button>
+        </div>
+        <div class="object-list" id="object-list"></div>
+          <div class="suggestion-list" id="suggestion-list"></div>
+          <button id="complete-assisted-pass" class="primary assisted-only" hidden>Complete assisted pass</button>
+      </div>
+      <label class="taxonomy">Out-of-taxonomy notes <span class="muted">one observation per line</span>
+        <textarea id="out-of-taxonomy" rows="3" placeholder="e.g. microphone near presenter"></textarea>
+      </label>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

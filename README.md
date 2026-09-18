@@ -51,6 +51,31 @@ Configure download limits with `CAPSULE_MAX_DOWNLOAD_BYTES` and
 default to limit server-side request forgery; set `CAPSULE_ALLOW_PRIVATE_URLS=1`
 only for a trusted private deployment.
 
+## Human object annotation review
+
+The multi-video object fixture is intentionally initialized with empty annotation
+lists. To perform one prediction-blind human pass, create a reviewer-specific copy
+and start the local review SPA from the repository root:
+
+```bash
+cp /tmp/video-sample-diagnostics/multi-video-object-ground-truth.json \
+    /tmp/video-sample-diagnostics/reviewer-a.json
+python scripts/annotation-review/server.py \
+    /tmp/video-sample-diagnostics \
+    /tmp/video-sample-diagnostics/reviewer-a.json
+```
+
+Open `http://127.0.0.1:8765/`. The reviewer draws source-pixel boxes, selects the
+COCO class and `live`/`composited`/`screen` subset, records out-of-taxonomy notes,
+marks each frame reviewed, and saves JSON metadata. The server reads images from the checksum-bound sampling
+directory and never embeds or copies image data into the annotation file. Repeat
+with `reviewer-b.json` for the independent second pass, then compare both files
+with `scripts/diagnostics/compare-object-reviews.py` before adjudication.
+
+See [`docs/annotation-review-workflow.md`](docs/annotation-review-workflow.md) for
+the complete SPA, browser-assistance, agent-bundle, JSONC import, comparison, and
+validation workflow.
+
 ## Worker quick start
 
 ```bash

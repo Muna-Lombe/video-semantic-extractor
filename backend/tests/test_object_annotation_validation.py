@@ -52,6 +52,7 @@ def valid_payload() -> dict[str, object]:
             "predictions_reviewed_before_freeze": False,
             "adjudication_status": "complete",
             "adjudication_log": [],
+            "reviewed_frames": ["sample_1/frame.jpg"],
         },
         "sources": [
             {

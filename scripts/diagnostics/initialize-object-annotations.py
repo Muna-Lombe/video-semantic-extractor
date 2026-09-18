@@ -88,6 +88,12 @@ def initialize_annotations(sampling_root: Path) -> dict[str, Any]:
             "predictions_reviewed_before_freeze": False,
             "adjudication_status": "not_started",
             "adjudication_log": [],
+            "reviewed_frames": [],
+            "assisted_review": {
+                "reviewed_frames": [],
+                "completed_passes": 0,
+                "status": "not_started",
+            },
         },
         "sources": [
             _load_sampling_source(sampling_root, source_name)

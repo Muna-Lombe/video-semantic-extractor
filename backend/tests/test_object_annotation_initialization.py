@@ -47,6 +47,12 @@ def test_initializer_covers_every_source_and_frame_without_claiming_review(
         "predictions_reviewed_before_freeze": False,
         "adjudication_status": "not_started",
         "adjudication_log": [],
+        "reviewed_frames": [],
+        "assisted_review": {
+            "reviewed_frames": [],
+            "completed_passes": 0,
+            "status": "not_started",
+        },
     }
     assert [source["source"] for source in payload["sources"]] == [
         f"sample_{index}.mp4" for index in range(1, 6)

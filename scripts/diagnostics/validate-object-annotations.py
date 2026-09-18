@@ -142,6 +142,7 @@ def validate_annotations(
         }
     review = payload.get("review")
     review_complete = False
+    reviewed_frames: list[str] = []
     if not isinstance(review, dict):
         errors.append("review metadata is required")
     else:
@@ -157,7 +158,13 @@ def validate_annotations(
             )
         if not isinstance(review.get("adjudication_log"), list):
             errors.append("review.adjudication_log must be a list")
-        review_complete = independent_passes == 2 and adjudication_status == "complete"
+        reviewed_frames_value = review.get("reviewed_frames")
+        if not isinstance(reviewed_frames_value, list) or any(
+            not isinstance(frame_key, str) for frame_key in reviewed_frames_value
+        ):
+            errors.append("review.reviewed_frames must be a list of frame keys")
+        else:
+            reviewed_frames = reviewed_frames_value
 
     seen_sources: set[str] = set()
     seen_ids: set[str] = set()
@@ -166,6 +173,7 @@ def validate_annotations(
     source_counts: Counter[str] = Counter()
     area_counts: Counter[str] = Counter()
     frame_count = 0
+    expected_reviewed_frames: set[str] = set()
 
     for source in sources:
         source_name = source.get("source")
@@ -218,6 +226,7 @@ def validate_annotations(
         frames_root = (sampling_directory / "hybrid" / "frames").resolve()
         for filename in sorted(set(manifest) & set(by_filename)):
             frame_count += 1
+            expected_reviewed_frames.add(f"{source_name}/{filename}")
             frame = by_filename[filename]
             try:
                 timestamp = float(frame.get("timestamp_sec"))
@@ -294,6 +303,12 @@ def validate_annotations(
 
     positive_count = sum(class_counts.values())
     non_person_count = positive_count - class_counts["person"]
+    review_complete = (
+        isinstance(review, dict)
+        and review.get("independent_passes") == 2
+        and review.get("adjudication_status") == "complete"
+        and set(reviewed_frames) == expected_reviewed_frames
+    )
     gates = {
         "review_complete": review_complete,
         "five_sources": seen_sources == EXPECTED_SOURCES,
