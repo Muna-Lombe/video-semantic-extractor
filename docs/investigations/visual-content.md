@@ -33,7 +33,7 @@ are not recorded.
 | Frame sampling | Ready | Hybrid selection guarantees first, interval, scene, and near-final candidates with a five-second maximum gap on the source | Keep hybrid sampling and fail when the frame cap cannot preserve coverage |
 | Evidence provenance | Ready for current diagnostics | Manifests retain resolvable relative paths; sampling reports and annotation fixtures enforce source SHA-256 identity | Preserve these checks in every subsequent evaluator |
 | OCR | Blocked | Best expanded full-frame result is 0.2448 macro F1; fixed caption-band proposals regress below that baseline | Evaluate a genuine multi-region text detector, split caption and UI subsets, and do not integrate Tesseract yet |
-| Broad object detection | Blocked | NanoDet is compact and fast locally; four new videos elicit several non-person labels, but only the original person's class has exhaustive ground truth | Exhaustively annotate the checksum-bound multi-video corpus before selecting a confidence threshold or integrating the detector |
+| Broad object detection | Blocked | NanoDet is compact and fast locally; four new videos elicit several non-person labels, but only the original person's class has exhaustive ground truth. A policy-specific validator now prevents incomplete or detached annotations from being scored | Exhaustively annotate and validate the checksum-bound multi-video corpus before selecting a confidence threshold or integrating the detector |
 | Actions, brands, products, and logos | Not evaluated | COCO object labels do not measure these required capabilities | Create separate tasks, labels, and acceptance criteria |
 | Whisper in the production-equivalent environment | Unverified | Fixture transcription exercises assembly, but the CPU PyTorch wheel was unavailable and Docker is absent on this host | Verify independently in the production container environment |
 
@@ -170,6 +170,9 @@ replaced with assumptions or partial investigations represented as conclusions.
   checksum-bound text annotations.
 - `scripts/diagnostics/evaluate-frame-objects.py` records NanoDet observations,
   latency, provenance, and checksum-bound object scores.
+- `scripts/diagnostics/validate-object-annotations.py` validates multi-video review
+  metadata, evidence identity, manifest coverage, annotation geometry, taxonomy,
+  subsets, and all predeclared corpus-adequacy gates before scoring.
 - `scripts/fixtures/source-ocr-ground-truth.json` and
   `scripts/fixtures/source-object-ground-truth.json` define the current exhaustive
   annotation scopes.
@@ -197,6 +200,27 @@ and recall thresholds are predeclared, but passing them supports only the scoped
 task; it cannot establish actions, brands, products, logos, UI understanding, or
 commercial suitability. The next step remains native-resolution dual annotation and
 adjudication of every retained frame, not another threshold sweep.
+
+### Annotation validator result
+
+The frozen policy previously described the required controls but had no executable
+gate between an annotation draft and detector scoring. The new validator makes that
+boundary reproducible. It requires the exact five supplied source names, binds each
+source checksum to its sampling report, requires every hybrid manifest frame once
+(including explicit negatives), decodes the corresponding image, and rejects
+timestamp mismatches, invalid COCO classes or subsets, duplicate identifiers,
+sub-eight-pixel boxes, and boxes outside source-image bounds. It also requires a
+declaration of two independent passes, prediction-blind review, completed
+adjudication, and an adjudication log.
+
+Validity and corpus adequacy are deliberately separate results. A draft may use
+`--allow-incomplete` while annotations are accumulated, but that option does not
+waive evidence or annotation errors. Without it, the validator also requires every
+class, subset, scale, source-diversity, and concentration threshold frozen in the
+policy. This closes a tooling gap; it does **not** close the broad-object blocker.
+No dual-reviewed multi-video fixture exists yet, so there is no new accuracy result
+and detector predictions must remain hidden from annotators until the fixture is
+adjudicated, validated, and frozen.
 
 ## Supplied multi-video diagnostic pass
 
