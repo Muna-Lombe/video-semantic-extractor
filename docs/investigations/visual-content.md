@@ -223,6 +223,13 @@ coverage, and timestamps while leaving independent-pass and adjudication metadat
 human-controlled. These tools improve annotation throughput but do not close the
 dual-review blocker.
 
+The report generator now turns saved reviewer files and the merged fixture into
+deterministic diagnostic and investigation artifacts. It records input SHA-256
+hashes, reviewer completion metadata, reviewer comparison results, adjudication
+entries, validator errors, object counts, and each corpus-adequacy gate. A draft
+report may expose annotation defects for repair, but only an adequate validated
+report can support a frozen-fixture claim.
+
 ### Annotation validator result
 
 The frozen policy previously described the required controls but had no executable

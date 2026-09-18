@@ -39,6 +39,17 @@ it cannot change source checksums or manifest frame identity. Copy the initializ
 fixture to `reviewer-b.json` and repeat independently before comparison and
 adjudication.
 
+Use the frame transport in the toolbar to move **back**, **review**, or move
+**forward** without opening the frame selector. The center action follows the
+active layout: it marks a manual frame reviewed in manual mode and requires all
+assisted suggestions to be resolved before marking an assisted frame reviewed.
+When every frame is covered, **Mark pass complete** saves the reviewer JSON and
+records the completion time. In assisted mode, **Complete assisted pass** does the
+same for `review.assisted_review` without counting as one of the two independent
+human passes. After the second reviewer finishes, compare both saved files,
+adjudicate disagreements, merge the result into the diagnostic fixture, and run
+the final validator before updating the investigation record.
+
 The sidebar has two assistance tabs. **Browser model** keeps optional model
 suggestions in the browser; each suggestion must be confirmed or rejected and is
 recorded as assisted metadata. In assisted mode, mark each frame reviewed only
@@ -348,3 +359,24 @@ distinguish a structurally valid draft from a corpus whose review or diversity g
 are not yet complete. That option never permits checksum, coverage, geometry,
 taxonomy, or review-metadata errors. Omit it for the final frozen-fixture check; the
 command then fails unless both validity and corpus adequacy pass.
+
+After adjudication, generate the machine-readable diagnostic report and the Markdown
+investigation record from the merged fixture. Reviewer files are optional but should
+be supplied to preserve provenance and completion evidence:
+
+```bash
+.venv/bin/python scripts/diagnostics/generate-object-annotation-report.py \
+  /tmp/video-sample-diagnostics/multi-video-object-ground-truth.json \
+  /tmp/video-sample-diagnostics \
+  /tmp/video-sample-diagnostics/object-annotation-report.json \
+  docs/investigations/object-annotation-report.md \
+  --reviewer /tmp/video-sample-diagnostics/reviewer-a.json \
+  --reviewer /tmp/video-sample-diagnostics/reviewer-b.json
+```
+
+The command validates the merged fixture, records SHA-256 hashes for the merged and
+reviewer files, extracts review and adjudication metadata, and writes all corpus
+counts and adequacy gates. It exits nonzero unless the final fixture is adequate;
+use `--allow-incomplete` while preparing a draft report. Commit the generated JSON
+and Markdown only after the fixture is frozen and the investigation has been
+reviewed.

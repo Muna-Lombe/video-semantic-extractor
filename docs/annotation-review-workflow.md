@@ -55,6 +55,11 @@ explicit reviewed-frame markers, out-of-taxonomy notes, and atomic JSON metadata
 saves. A pass cannot be marked complete until every manifest frame is marked
 reviewed, including negative frames.
 
+When the final frame is reviewed, **Complete pass** records a UTC completion time
+under `review.manual_pass`, sets `review.independent_passes` to at least `1`, and
+saves the reviewer JSON immediately. This is one reviewer pass only; it is not the
+final merged diagnostic fixture. The second reviewer completes a separate copy.
+
 The server serves only images already referenced by the checksum-bound manifest and
 rejects path traversal, unknown frames, source identity changes, checksum changes,
 and policy-version changes on save. Image bytes are never embedded in annotation
@@ -75,7 +80,8 @@ Confirmed suggestions become annotation objects, while every decision is recorde
 under `review.assisted_review`. Browser suggestions never count as an independent
 review pass. After resolving every suggestion on a frame, use **Mark assisted frame
 reviewed**. Once all manifest frames are covered, **Complete assisted pass** records
-an assisted completion without changing `review.independent_passes`. MiniCPM-V 2.6 is not the default because it is a general multimodal
+an assisted completion time and saves immediately without changing
+`review.independent_passes`. MiniCPM-V 2.6 is not the default because it is a general multimodal
 model, not a small browser-native COCO box detector; a compatible browser model can
 be substituted when its runtime supports object-detection output.
 
@@ -122,6 +128,21 @@ out-of-taxonomy differences. Object agreement uses matching class, matching subs
 and at least 0.8 box IoU; reviewer-local IDs do not create false disagreements.
 Every disagreement requires a third adjudication pass. Genuine ambiguity is excluded
 from scored ground truth and recorded in `review.adjudication_log`.
+
+After adjudication, write the merged result to the diagnostic fixture path, set
+`review.independent_passes` to `2`, set `review.adjudication_status` to `complete`,
+and preserve the adjudication log. Then run the validator without
+`--allow-incomplete`. The resulting validation report and frozen fixture are the
+artifacts to reference from the investigation record; reviewer-specific files and
+assisted completion records remain provenance for how the fixture was produced.
+
+Generate those artifacts reproducibly with
+`generate-object-annotation-report.py`. It writes JSON for diagnostics and Markdown
+for the investigation, including SHA-256 hashes, reviewer completion summaries,
+reviewer-to-reviewer disagreement comparison, adjudication entries, validation
+errors, object counts, and all adequacy gates. A report with invalid annotations or
+failed gates is still useful as a reproducible draft, but cannot be used to claim a
+frozen diagnostic fixture.
 
 ## Validation gate
 

@@ -17,6 +17,7 @@ button { cursor: pointer; border: 0; }
 .kicker { margin: 0 0 2px; color: var(--accent); font: 700 11px/1.2 ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
 h1 { margin: 0; font-size: 25px; font-weight: 600; }
 .header-actions, .control-group, .card-heading { display: flex; align-items: center; gap: 12px; }
+.toolbar-actions { display: flex; align-items: center; gap: 6px; }
 .status, .muted { color: var(--muted); font-size: 13px; }
 .workspace { display: grid; grid-template-columns: 270px minmax(0, 1fr); min-height: calc(100vh - 82px); }
 .sidebar { padding: 24px 20px; border-right: 1px solid var(--line); background: #eef2ee; }
@@ -49,7 +50,11 @@ textarea { resize: vertical; font-weight: 400; }
 .shortcuts p { margin-top: 5px; }
 .review-area { min-width: 0; padding: 24px 30px 36px; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-.toolbar-actions { display: flex; align-items: center; gap: 10px; }
+.transport, .review-transport { min-width: 36px; height: 34px; padding: 6px 10px; }
+.transport { color: var(--teal); background: #dceceb; font-family: sans-serif; }
+.transport:disabled { opacity: .4; cursor: default; }
+.review-transport { color: white; background: var(--accent); }
+.review-transport.reviewed { color: var(--teal); background: #dceceb; }
 .toolbar strong { font-size: 18px; }
 .canvas-wrap { display: grid; place-items: center; min-height: 300px; max-height: 64vh; overflow: auto; border: 1px solid var(--line); background: #20282a; }
 canvas { display: block; max-width: 100%; height: auto; cursor: crosshair; }

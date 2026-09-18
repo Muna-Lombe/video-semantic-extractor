@@ -25,6 +25,16 @@ function assistedReview() {
 }
 function assistedReviewedFrames() { return assistedReview().reviewed_frames; }
 function setStatus(text, error = false) { $("save-status").textContent = text; $("save-status").style.color = error ? "#a94025" : ""; }
+async function savePayload(successMessage) {
+  const response = await fetch("/api/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(state.payload)
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Could not save annotation metadata");
+  setStatus(successMessage || `Saved ${new Date().toLocaleTimeString()}`);
+}
 function setMode(mode) {
   const browser = mode === "browser";
   $("browser-panel").hidden = !browser;
@@ -45,7 +55,6 @@ function setLayout(layout) {
   document.querySelectorAll(".manual-only").forEach((element) => { element.hidden = assisted; });
   document.querySelectorAll(".assisted-only").forEach((element) => { element.hidden = !assisted; });
   $("manual-review").hidden = !assisted;
-  $("assisted-mark-reviewed").hidden = !assisted;
   $("complete-assisted-pass").hidden = !assisted;
   if (assisted) setMode("browser");
 }
@@ -98,8 +107,13 @@ function renderFrameDetails() {
   $("timestamp").textContent = `${Number(frame.timestamp_sec).toFixed(3)} sec`;
   $("frame-status").textContent = `${position} of ${total} frames · ${frame.objects.length} objects recorded`;
   $("progress-bar").style.width = `${position / total * 100}%`;
-  $("mark-reviewed").textContent = reviewedFrames().includes(frameKey()) ? "Frame reviewed" : "Mark frame reviewed";
-  $("assisted-mark-reviewed").textContent = assistedReviewedFrames().includes(frameKey()) ? "Assisted frame reviewed" : "Mark assisted frame reviewed";
+  const reviewed = reviewedFrames().includes(frameKey()) || assistedReviewedFrames().includes(frameKey());
+  $("review-frame").textContent = reviewed ? "Reviewed" : "Review frame";
+  $("review-frame").classList.toggle("reviewed", reviewed);
+  $("previous-frame").disabled = state.sourceIndex === 0 && state.frameIndex === 0;
+  const lastSource = state.payload.sources.length - 1;
+  const lastFrame = state.payload.sources[lastSource].frames.length - 1;
+  $("next-frame").disabled = state.sourceIndex === lastSource && state.frameIndex === lastFrame;
   $("out-of-taxonomy").value = (frame.out_of_taxonomy || []).join("\n");
   $("pass-state").textContent = `${state.payload.review.independent_passes} / 2`;
   renderObjectList();
@@ -171,7 +185,32 @@ function markAssistedFrameReviewed() {
   renderFrameDetails(); setStatus("Assisted frame reviewed; save metadata");
 }
 
-function completeAssistedPass() {
+function moveFrame(direction) {
+  let sourceIndex = state.sourceIndex;
+  let frameIndex = state.frameIndex + direction;
+  if (frameIndex < 0 && sourceIndex > 0) {
+    sourceIndex -= 1;
+    frameIndex = state.payload.sources[sourceIndex].frames.length - 1;
+  } else if (frameIndex >= currentSource().frames.length && sourceIndex < state.payload.sources.length - 1) {
+    sourceIndex += 1;
+    frameIndex = 0;
+  }
+  if (sourceIndex === state.sourceIndex && frameIndex === state.frameIndex) return;
+  state.sourceIndex = sourceIndex;
+  state.frameIndex = frameIndex;
+  $("source").value = sourceIndex;
+  populateFrames();
+}
+
+function reviewCurrentFrame() {
+  if ($("workspace").classList.contains("assisted")) markAssistedFrameReviewed();
+  else {
+    if (!reviewedFrames().includes(frameKey())) reviewedFrames().push(frameKey());
+    renderFrameDetails(); setStatus("Frame reviewed; save metadata");
+  }
+}
+
+async function completeAssistedPass() {
   const total = state.payload.sources.reduce((sum, source) => sum + source.frames.length, 0);
   if (assistedReviewedFrames().length !== total) {
     setStatus(`Review all ${total} assisted frames before completing the pass`, true);
@@ -179,7 +218,14 @@ function completeAssistedPass() {
   }
   assistedReview().completed_passes = 1;
   assistedReview().status = "complete";
-  renderFrameDetails(); setStatus("Assisted pass complete; save metadata");
+  assistedReview().completed_at = new Date().toISOString();
+  renderFrameDetails();
+  try {
+    await savePayload("Assisted pass complete and saved");
+  } catch (error) {
+    assistedReview().status = "in_progress";
+    setStatus(`Assisted pass was not saved: ${error.message}`, true);
+  }
 }
 
 function canvasPoint(event) {
@@ -239,26 +285,34 @@ $("suggest-frame").addEventListener("click", async () => {
   } finally { $("suggest-frame").disabled = false; }
 });
 $("clear-frame").addEventListener("click", () => { currentFrame().objects = []; drawCanvas(); renderFrameDetails(); });
-$("mark-reviewed").addEventListener("click", () => {
-  if (!reviewedFrames().includes(frameKey())) reviewedFrames().push(frameKey());
-  renderFrameDetails(); setStatus("Frame marked reviewed; save metadata");
-});
-$("complete-pass").addEventListener("click", () => {
+$("complete-pass").addEventListener("click", async () => {
   const total = state.payload.sources.reduce((sum, source) => sum + source.frames.length, 0);
   if (reviewedFrames().length !== total) {
     setStatus(`Review all ${total} frames before completing the pass`, true);
     return;
   }
-  state.payload.review.independent_passes = 1;
+  state.payload.review.independent_passes = Math.max(state.payload.review.independent_passes, 1);
   state.payload.review.adjudication_status = "in_progress";
-  renderFrameDetails(); setStatus("Pass marked complete; save metadata", false);
+  state.payload.review.manual_pass = {
+    status: "complete",
+    completed_at: new Date().toISOString(),
+  };
+  renderFrameDetails();
+  try {
+    await savePayload("Independent pass complete and saved");
+  } catch (error) {
+    state.payload.review.manual_pass.status = "in_progress";
+    setStatus(`Independent pass was not saved: ${error.message}`, true);
+  }
 });
 $("out-of-taxonomy").addEventListener("input", (event) => { currentFrame().out_of_taxonomy = event.target.value.split("\n").map((value) => value.trim()).filter(Boolean); });
 $("save").addEventListener("click", async () => {
   setStatus("Saving...");
-  const response = await fetch("/api/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(state.payload) });
-  const result = await response.json();
-  setStatus(response.ok ? `Saved ${new Date().toLocaleTimeString()}` : result.error, !response.ok);
+  try {
+    await savePayload();
+  } catch (error) {
+    setStatus(error.message, true);
+  }
 });
 $("browser-tab").addEventListener("click", () => setMode("browser"));
 $("agent-tab").addEventListener("click", async () => {
@@ -277,8 +331,10 @@ $("generate-bundles").addEventListener("click", async () => {
 $("manual-tab").addEventListener("click", () => setLayout("manual"));
 $("assisted-tab").addEventListener("click", () => setLayout("assisted"));
 $("manual-review").addEventListener("click", () => setLayout("manual"));
-$("assisted-mark-reviewed").addEventListener("click", markAssistedFrameReviewed);
 $("complete-assisted-pass").addEventListener("click", completeAssistedPass);
+$("previous-frame").addEventListener("click", () => moveFrame(-1));
+$("next-frame").addEventListener("click", () => moveFrame(1));
+$("review-frame").addEventListener("click", reviewCurrentFrame);
 $("import-agent").addEventListener("click", async () => {
   const file = $("agent-file").files[0];
   if (!file) { setStatus("Choose an agent JSONC response first", true); return; }

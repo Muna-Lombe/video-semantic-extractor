@@ -61,7 +61,13 @@
           <strong id="frame-title">Frame</strong>
           <span id="timestamp" class="muted"></span>
         </div>
-        <div class="toolbar-actions"><button id="manual-review" class="secondary" hidden>Review manually</button><button id="assisted-mark-reviewed" class="secondary" hidden>Mark assisted frame reviewed</button><button id="mark-reviewed" class="secondary manual-only">Mark frame reviewed</button><button id="clear-frame" class="quiet manual-only">Clear objects</button></div>
+        <div class="toolbar-actions">
+          <button id="previous-frame" class="transport" title="Previous frame">&#9664;</button>
+          <button id="review-frame" class="review-transport">Review frame</button>
+          <button id="next-frame" class="transport" title="Next frame">&#9654;</button>
+          <button id="manual-review" class="secondary" hidden>Review manually</button>
+          <button id="clear-frame" class="quiet manual-only">Clear objects</button>
+        </div>
       </div>
       <div class="canvas-wrap"><canvas id="canvas"></canvas></div>
       <div class="controls">
