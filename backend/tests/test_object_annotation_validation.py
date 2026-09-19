@@ -120,3 +120,21 @@ def test_validation_requires_exact_manifest_coverage(tmp_path: Path) -> None:
     assert any(
         "missing annotated frames: frame.jpg" in error for error in report["errors"]
     )
+
+
+def test_validation_rejects_adjudication_before_two_independent_passes(
+    tmp_path: Path,
+) -> None:
+    """A first-pass save cannot claim that the adjudication stage has begun."""
+    create_sampling_evidence(tmp_path)
+    payload = valid_payload()
+    payload["review"]["independent_passes"] = 1
+    payload["review"]["adjudication_status"] = "in_progress"
+
+    report = validator.validate_annotations(payload, tmp_path)
+
+    assert report["valid"] is False
+    assert any(
+        "must be 'not_started' until two independent passes" in error
+        for error in report["errors"]
+    )

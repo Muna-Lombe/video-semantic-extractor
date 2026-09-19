@@ -83,6 +83,7 @@ def test_review_server_loads_and_saves_without_allowing_identity_changes(tmp_pat
         status, state = request_json(f"{base_url}/api/state")
         assert status == 200
         assert state["annotations"] == payload
+        assert state["workspace_role"] == "reviewer"
 
         changed = json.loads(json.dumps(payload))
         changed["review"]["independent_passes"] = 1

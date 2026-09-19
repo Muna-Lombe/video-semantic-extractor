@@ -156,6 +156,11 @@ def validate_annotations(
             errors.append(
                 "review.adjudication_status must be 'not_started', 'in_progress', or 'complete'"
             )
+        elif independent_passes != 2 and adjudication_status != "not_started":
+            errors.append(
+                "review.adjudication_status must be 'not_started' until two "
+                "independent passes are complete"
+            )
         if not isinstance(review.get("adjudication_log"), list):
             errors.append("review.adjudication_log must be a list")
         reviewed_frames_value = review.get("reviewed_frames")
