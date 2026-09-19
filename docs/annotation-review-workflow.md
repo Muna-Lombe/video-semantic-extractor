@@ -46,7 +46,8 @@ Start one server per reviewer, using a separate output JSON path:
 ```bash
 .venv/bin/python scripts/annotation-review/server.py \
   /tmp/video-sample-diagnostics \
-  /tmp/video-sample-diagnostics/reviewer-a.json
+  /tmp/video-sample-diagnostics/reviewer-a.json \
+  --workspace-role reviewer-a
 ```
 
 Open `http://127.0.0.1:8765/`. The SPA provides source and frame navigation, native
@@ -57,7 +58,9 @@ reviewed, including negative frames.
 
 When the final frame is reviewed, **Complete pass** records a UTC completion time
 under `review.manual_pass`, sets `review.independent_passes` to at least `1`, and
-saves the reviewer JSON immediately. This is one reviewer pass only; it is not the
+saves the reviewer JSON immediately. It leaves `review.adjudication_status` as
+`not_started`, because adjudication cannot begin until two independently completed
+reviewer files have been compared. This is one reviewer pass only; it is not the
 final merged diagnostic fixture. The second reviewer completes a separate copy.
 
 The server serves only images already referenced by the checksum-bound manifest and
@@ -166,6 +169,29 @@ first supervisor after reviewer A saves and restart it with `reviewer-b.json`.
 Generated handoff bundles are isolated by reviewer filename so simultaneous review
 servers cannot overwrite one another's ZIPs.
 
+Use separate browser sessions, ports, output files, and access tokens for the two
+reviewer workspaces. Reviewer A uses the ordinary review UI backed only by
+`reviewer-a.json`; Reviewer B uses another instance backed only by `reviewer-b.json`.
+Do not share either review URL or token with the other reviewer.
+
+```bash
+ANNOTATION_REVIEW_TOKEN="$REVIEWER_A_TOKEN" \
+  .venv/bin/python scripts/annotation-review/server.py \
+    /tmp/video-sample-diagnostics \
+    /tmp/video-sample-diagnostics/reviewer-a.json \
+    --workspace-role reviewer-a --port 8765
+
+ANNOTATION_REVIEW_TOKEN="$REVIEWER_B_TOKEN" \
+  .venv/bin/python scripts/annotation-review/server.py \
+    /tmp/video-sample-diagnostics \
+    /tmp/video-sample-diagnostics/reviewer-b.json \
+    --workspace-role reviewer-b --port 8766
+```
+
+The role banner prevents accidental window confusion; server-side file isolation is
+the actual control. A reviewer workspace exposes only its configured annotation
+file and cannot load the other review through the UI.
+
 ```bash
 .venv/bin/python scripts/diagnostics/compare-object-reviews.py \
   /tmp/video-sample-diagnostics/reviewer-a.json \
@@ -178,6 +204,29 @@ out-of-taxonomy differences. Object agreement uses matching class, matching subs
 and at least 0.8 box IoU; reviewer-local IDs do not create false disagreements.
 Every disagreement requires a third adjudication pass. Genuine ambiguity is excluded
 from scored ground truth and recorded in `review.adjudication_log`.
+
+Both inputs to this comparison are human reviewer files. NanoDet and other candidate
+detectors are deliberately excluded: they are scored only after adjudication,
+validation, and fixture freezing. Their predictions may not replace Reviewer B.
+Automation may generate the comparison and organize its evidence, but a human
+adjudicator makes and owns every resolution recorded in the final fixture.
+
+Start the separate adjudication UI only after both manual passes are complete:
+
+```bash
+.venv/bin/python scripts/annotation-review/adjudication-server.py \
+  /tmp/video-sample-diagnostics \
+  /tmp/video-sample-diagnostics/reviewer-a.json \
+  /tmp/video-sample-diagnostics/reviewer-b.json \
+  /tmp/video-sample-diagnostics/source-object-ground-truth.json
+```
+
+The adjudication server refuses the same file in both reviewer positions, requires
+both manual passes to be complete, reads both reviewer files without modifying them,
+and writes decisions only to the merged output. Its UI lists disagreement frames,
+shows Reviewer A and Reviewer B data beside the source image, and lets Adjudicator C
+choose either review or edit the merged frame JSON. Completion remains blocked until
+every disagreement frame has a logged resolution.
 
 After adjudication, write the merged result to the diagnostic fixture path, set
 `review.independent_passes` to `2`, set `review.adjudication_status` to `complete`,

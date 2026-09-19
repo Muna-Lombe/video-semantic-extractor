@@ -1,0 +1,5 @@
+<!-- @type implementation @purpose Provide the isolated human adjudication workspace. -->
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Adjudicator C</title><link rel="stylesheet" href="/style.css"></head>
+<body><header><p>Isolated adjudication workspace</p><h1>Adjudicator C</h1><button id="complete">Complete adjudication</button><span id="status">Loading…</span></header>
+<main><aside><h2>Disagreement frames</h2><div id="frames"></div></aside><section><h2 id="title">Select a frame</h2><img id="image" alt="Source evidence"><div class="columns"><article><h3>Reviewer A</h3><pre id="left"></pre><button id="use-a">Use A</button></article><article><h3>Reviewer B</h3><pre id="right"></pre><button id="use-b">Use B</button></article><article><h3>Merged decision</h3><textarea id="merged" rows="20"></textarea><button id="save">Save edited decision</button></article></div></section></main><script src="/app.js"></script></body></html>

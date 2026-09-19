@@ -83,17 +83,39 @@ Apply these edge rules consistently:
 
 1. Generate fresh hybrid manifests and verify each source SHA-256 against the corpus
    inventory before annotation.
-2. Two reviewers independently inspect every retained frame at native resolution.
-   Neither reviewer may inspect candidate-model predictions first.
-3. Compare frame coverage, class, subset, and boxes. Agreement on boxes requires the
-   same class and subset and at least 0.8 intersection over union.
-4. A third pass adjudicates every disagreement and every ambiguity record. The final
-   fixture must retain an adjudication log without reviewer identities if anonymity
-   is needed.
-5. Validate that all manifest frames occur exactly once, checksums match, classes and
+2. **Reviewer A**, a human annotator, performs the first pass and saves it in a
+   reviewer-specific file. Reviewer A may use an assisted annotation tool, but the
+   tool or agent is not a reviewer and its output does not count as a pass.
+3. **Reviewer B**, a different human who has not seen Reviewer A's annotations,
+   performs the second pass in a separately initialized file. Reviewer B must not
+   be the same person under another account or session. Neither reviewer may inspect
+   candidate-model predictions first.
+4. Compare frame coverage, class, subset, and boxes only after both reviewer files
+   are complete. Agreement on boxes requires the same class and subset and at least
+   0.8 intersection over union.
+5. **Adjudicator C**, a third qualified human who performed neither independent
+   pass, reviews the source image, policy, and both completed reviewer
+   files and resolves every disagreement and ambiguity. The adjudicator may see the
+   comparison report, but must not inspect candidate-model predictions. An AI agent
+   may organize evidence but cannot adjudicate. If a third qualified human is not
+   available, the corpus remains incomplete rather than allowing Reviewer A or B to
+   approve their own annotation.
+6. The adjudicator or a designated data custodian writes the decisions into the
+   merged fixture. The final fixture must retain an adjudication log without human
+   names if anonymity is needed, while separate access-controlled provenance records
+   which people filled Reviewer A, Reviewer B, and Adjudicator C roles.
+7. Validate that all manifest frames occur exactly once, checksums match, classes and
    subsets are allowed, identifiers are unique, and boxes are within image bounds.
-6. Freeze and commit the fixture before running or inspecting the candidate report
+8. Freeze and commit the fixture before running or inspecting the candidate report
    used for model selection.
+
+The second pass is not a NanoDet run or another model's output. Candidate detectors
+are the systems being measured, so using their predictions as one side of the truth
+construction would make evaluation circular and would reveal predictions before the
+freeze. A model may provide assisted suggestions that a human accepts, rejects, or
+redraws, but those suggestions do not constitute an independent pass. An AI may
+generate the mechanical comparison report, but the adjudicator is the accountable
+human who resolves its entries from source pixels and this policy.
 
 Negative frames are first-class evidence. An empty annotation list means both
 reviewers exhaustively inspected the frame and found no eligible object; it must not

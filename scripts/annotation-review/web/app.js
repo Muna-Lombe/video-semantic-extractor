@@ -295,7 +295,6 @@ $("complete-pass").addEventListener("click", async () => {
     return;
   }
   state.payload.review.independent_passes = Math.max(state.payload.review.independent_passes, 1);
-  state.payload.review.adjudication_status = "in_progress";
   state.payload.review.manual_pass = {
     status: "complete",
     completed_at: new Date().toISOString(),
@@ -352,5 +351,6 @@ $("import-agent").addEventListener("click", async () => {
 });
 
 fetch("/api/state").then((response) => response.json()).then((result) => {
+  $("workspace-role").textContent = `${result.workspace_role.replace("-", " ")} · prediction-blind review`;
   state.payload = result.annotations; populateLabels(); populateSources(); setLayout("manual"); setStatus("Unsaved changes");
 }).catch(() => setStatus("Could not load annotation file", true));

@@ -28,6 +28,7 @@ class ReviewServer(ThreadingHTTPServer):
         annotations: Path,
         sampling: Path,
         access_token: str | None = None,
+        workspace_role: str = "reviewer",
     ):
         super().__init__(address, handler)
         self.review_root = root
@@ -37,6 +38,7 @@ class ReviewServer(ThreadingHTTPServer):
             self.annotation_path.parent / "agent-bundles" / self.annotation_path.stem
         )
         self.access_token = access_token
+        self.workspace_role = workspace_role
 
 
 class ReviewHandler(BaseHTTPRequestHandler):
@@ -107,7 +109,12 @@ class ReviewHandler(BaseHTTPRequestHandler):
         elif parsed.path == "/style.css":
             self._send_file(self.server.review_root / "style.css", "text/css")
         elif parsed.path == "/api/state":
-            self._send_json({"annotations": self._payload()})
+            self._send_json(
+                {
+                    "annotations": self._payload(),
+                    "workspace_role": self.server.workspace_role,
+                }
+            )
         elif parsed.path == "/api/frame":
             self._send_frame(parse_qs(parsed.query))
         elif parsed.path == "/api/bundles":
@@ -348,6 +355,12 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument(
+        "--workspace-role",
+        choices=("reviewer-a", "reviewer-b"),
+        default="reviewer-a",
+        help="label this isolated browser workspace for its assigned human reviewer",
+    )
+    parser.add_argument(
         "--access-token",
         default=os.environ.get("ANNOTATION_REVIEW_TOKEN"),
         help="require this secret in the initial ?token= URL (or ANNOTATION_REVIEW_TOKEN)",
@@ -361,6 +374,7 @@ def main() -> None:
         args.annotations,
         args.sampling_root,
         args.access_token,
+        args.workspace_role,
     )
     print(f"Annotation review UI: http://{args.host}:{args.port}/")
     print(f"Saving annotation metadata to {server.annotation_path}")
