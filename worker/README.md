@@ -11,7 +11,9 @@ URL and the backend performs the bounded download.
 ## Adjudication Worker
 
 `src/adjudication.ts` is a separate Worker entry point for the third-reviewer
-workflow. It serves the browser UI, ports the reviewer comparison and completion
+workflow. The actual UI is in `adjudication-web/index.html`, with its behavior in
+`adjudication-web/app.js` and styling in `adjudication-web/style.css`; Cloudflare's
+static-assets binding serves that directory at the Worker root. The Worker ports the reviewer comparison and completion
 gates to the Worker runtime, and persists working sessions and immutable completed
 results in an R2 bucket. Mutable API routes require `ADJUDICATION_TOKEN`; completed
 results are intentionally readable with `GET /results/<review-id>.json`.
@@ -38,7 +40,7 @@ curl -X POST "https://<worker>/api/reviews" \
 JSON
 ```
 
-Open `https://<worker>/?review=corpus-v1`, enter the token, and adjudicate each
+Open **`https://<worker>/?review=corpus-v1`** to use the UI, enter the token, and adjudicate each
 disagreement. On completion, the Worker copies the merged annotation to the R2
 `results/` prefix. Fetch it without authentication:
 

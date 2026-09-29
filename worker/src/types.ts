@@ -10,6 +10,7 @@ export interface Env {
 export interface AdjudicationEnv {
   REVIEW_BUCKET: R2Bucket;
   ADJUDICATION_TOKEN: string;
+  ASSETS: Fetcher;
 }
 
 export interface ContainerEnv extends Env {

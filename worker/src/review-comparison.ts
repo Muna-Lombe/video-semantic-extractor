@@ -29,7 +29,7 @@ function maximumMatches(left: JsonRecord[], right: JsonRecord[]): Array<[number,
     return false;
   };
   left.forEach((_, index) => visit(index, new Set()));
-  return [...rightToLeft].map(([rightIndex, leftIndex]) => [leftIndex, rightIndex]).sort((a, b) => a[0] - b[0]);
+  return [...rightToLeft].map(([rightIndex, leftIndex]): [number, number] => [leftIndex, rightIndex]).sort((a, b) => a[0] - b[0]);
 }
 
 function frameMap(payload: JsonRecord): Map<string, JsonRecord> {

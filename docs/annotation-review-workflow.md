@@ -214,8 +214,10 @@ adjudicator makes and owns every resolution recorded in the final fixture.
 The preferred adjudication service is the standalone Cloudflare Worker in
 `worker/src/adjudication.ts`. It keeps active sessions under the R2 `sessions/`
 prefix, publishes completed merged annotations under `results/`, and serves both
-the protected review API and its browser UI. Create the two R2 buckets and deploy
-it once:
+the protected review API and its browser UI. The UI source is directly inspectable
+under `worker/adjudication-web/` (`index.html`, `app.js`, and `style.css`) and is
+served at the deployed Worker's `/` route through Cloudflare Static Assets. Create
+the two R2 buckets and deploy it once:
 
 ```bash
 cd worker

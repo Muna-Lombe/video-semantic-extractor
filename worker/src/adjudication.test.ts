@@ -27,9 +27,17 @@ function request(path: string, method = "GET", body?: unknown, token = "secret")
   return new Request(`https://review.test${path}`, { method, headers: { authorization: `Bearer ${token}`, ...(body ? { "content-type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined });
 }
 
+function environment(bucket = new MemoryBucket()): AdjudicationEnv {
+  return {
+    REVIEW_BUCKET: bucket as unknown as R2Bucket,
+    ADJUDICATION_TOKEN: "secret",
+    ASSETS: { fetch: async () => new Response("<h1>Adjudicator C</h1>", { headers: { "content-type": "text/html" } }) } as unknown as Fetcher,
+  };
+}
+
 describe("adjudication worker", () => {
   it("serves its UI without authentication", async () => {
-    const env = { REVIEW_BUCKET: new MemoryBucket() as unknown as R2Bucket, ADJUDICATION_TOKEN: "secret" };
+    const env = environment();
     const response = await worker.fetch(request("/", "GET", undefined, "wrong"), env);
     expect(response.status).toBe(200);
     expect(await response.text()).toContain("Adjudicator C");
@@ -37,7 +45,7 @@ describe("adjudication worker", () => {
 
   it("creates, resolves, completes, and exposes a result through GET", async () => {
     const bucket = new MemoryBucket();
-    const env: AdjudicationEnv = { REVIEW_BUCKET: bucket as unknown as R2Bucket, ADJUDICATION_TOKEN: "secret" };
+    const env = environment(bucket);
     const reviewerA = review("person"), reviewerB = review("chair");
     let response = await worker.fetch(request("/api/reviews", "POST", { id: "review-1", reviewer_a: reviewerA, reviewer_b: reviewerB, frame_urls: { "sample.mp4/frame.jpg": "https://evidence.example/frame.jpg" } }), env);
     expect(response.status).toBe(201);
@@ -58,13 +66,13 @@ describe("adjudication worker", () => {
   });
 
   it("protects mutable review routes", async () => {
-    const env = { REVIEW_BUCKET: new MemoryBucket() as unknown as R2Bucket, ADJUDICATION_TOKEN: "secret" };
+    const env = environment();
     const response = await worker.fetch(request("/api/reviews/missing/state", "GET", undefined, "wrong"), env);
     expect(response.status).toBe(401);
   });
 
   it("rejects incomplete reviewer input", async () => {
-    const env = { REVIEW_BUCKET: new MemoryBucket() as unknown as R2Bucket, ADJUDICATION_TOKEN: "secret" };
+    const env = environment();
     const incomplete = review("person"); incomplete.review.manual_pass.status = "in_progress";
     const response = await worker.fetch(request("/api/reviews", "POST", { id: "review-2", reviewer_a: incomplete, reviewer_b: review("chair") }), env);
     expect(response.status).toBe(400);

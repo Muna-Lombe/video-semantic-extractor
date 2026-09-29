@@ -1,5 +1,4 @@
 /** @type implementation @purpose Run durable Cloudflare-hosted review adjudication backed by R2. */
-import { ADJUDICATION_CSS, ADJUDICATION_HTML, ADJUDICATION_JS } from "./adjudication-ui";
 import { compareReviews, type JsonRecord } from "./review-comparison";
 import type { AdjudicationEnv } from "./types";
 
@@ -79,9 +78,7 @@ async function mutate(request: Request, env: AdjudicationEnv, id: string, action
 
 export default { async fetch(request: Request, env: AdjudicationEnv): Promise<Response> {
   const url = new URL(request.url), path = url.pathname;
-  if (request.method === "GET" && path === "/") return new Response(ADJUDICATION_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
-  if (request.method === "GET" && path === "/adjudication.js") return new Response(ADJUDICATION_JS, { headers: { "content-type": "text/javascript; charset=utf-8" } });
-  if (request.method === "GET" && path === "/adjudication.css") return new Response(ADJUDICATION_CSS, { headers: { "content-type": "text/css; charset=utf-8" } });
+  if (request.method === "GET" && (path === "/" || path === "/app.js" || path === "/style.css")) return env.ASSETS.fetch(request);
   const resultMatch = path.match(/^\/results\/([a-z0-9][a-z0-9_-]{0,63})\.json$/);
   if (request.method === "GET" && resultMatch) { const object = await env.REVIEW_BUCKET.get(resultKey(resultMatch[1])); return object ? new Response(object.body, { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=60" } }) : json({ error: "result not found" }, 404); }
   if (path === "/health" && request.method === "GET") return json({ status: "ok" });
