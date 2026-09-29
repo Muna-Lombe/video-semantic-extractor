@@ -1,0 +1,15 @@
+# @type configuration
+# @purpose Deploy the standalone adjudication UI and API with persistent R2 storage.
+name = "video-semantic-extractor"
+main = "src/adjudication.ts"
+compatibility_date = "2026-09-01"
+
+[assets]
+directory = "./adjudication-web"
+binding = "ASSETS"
+run_worker_first = true
+
+[[r2_buckets]]
+binding = "REVIEW_BUCKET"
+bucket_name = "video-annotation-reviews"
+preview_bucket_name = "video-annotation-reviews-preview"
