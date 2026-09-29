@@ -200,3 +200,40 @@ scoring or selecting defaults.
 
 💡 **Prevention:** Audit license, annotation scope, and class-taxonomy coverage as
 separate gates before calling a collection an evaluation corpus.
+
+### Report OCR subsets before accepting an aggregate gain
+
+**Date learned:** 2026-09-29
+**Category:** OCR evaluation
+
+⚠️ **Problem:** PP-OCRv3 text regions improved aggregate Tesseract F1 and UI recall,
+but caption recall fell below the already weak full-frame baseline. An aggregate
+score alone would hide a regression in a required content type.
+
+✓ **Solution:** Split exhaustive labels into `caption` and `ui`, retain aggregate
+precision across both categories, and report category recall independently. Reject
+the configuration when a required category regresses despite an aggregate gain.
+
+📄 **Affected files:** `scripts/fixtures/source-ocr-ground-truth.json`,
+`scripts/diagnostics/evaluate-frame-ocr.py`, `docs/investigations/visual-content.md`
+
+💡 **Prevention:** Predeclare required content categories, report each one, and do
+not promote a model from aggregate metrics that conceal a weak slice.
+
+### Turn corpus gates into actionable shortfalls
+
+**Date learned:** 2026-09-29
+**Category:** Diagnostic integrity
+
+⚠️ **Problem:** Boolean adequacy gates showed that a draft corpus failed but did not
+say how much evidence was missing, encouraging manual recounting or pressure to
+relax a frozen gate.
+
+✓ **Solution:** Emit required, actual, and remaining values for count-based gates,
+the exact missing source set, and measured source concentration alongside pass/fail.
+
+📄 **Affected files:** `scripts/diagnostics/validate-object-annotations.py`,
+`scripts/diagnostics/generate-object-annotation-report.py`
+
+💡 **Prevention:** Every quantitative evidence gate should expose its deficit while
+keeping the declared threshold immutable.

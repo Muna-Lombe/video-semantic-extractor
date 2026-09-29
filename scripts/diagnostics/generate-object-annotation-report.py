@@ -131,6 +131,31 @@ def _markdown(report: dict[str, Any]) -> str:
     lines.extend(
         f"- {'PASS' if value else 'FAIL'}: `{name}`" for name, value in gates.items()
     )
+    shortfalls = validation["corpus_adequacy_shortfalls"]
+    lines.extend(
+        [
+            "",
+            "## Remaining corpus work",
+            "",
+            f"- Independent review/adjudication stages: {shortfalls['review_complete']['remaining']}",
+            f"- Missing required sources: {', '.join(shortfalls['five_sources']['missing']) or 'none'}",
+            f"- Additional non-person instances: {shortfalls['non_person_instances']['remaining']}",
+            f"- Additional non-person classes: {shortfalls['non_person_classes']['remaining']}",
+            "- Additional subset instances: "
+            + ", ".join(
+                f"{name}={values['remaining']}"
+                for name, values in shortfalls["subsets"].items()
+            ),
+            "- Additional area-band instances: "
+            + ", ".join(
+                f"{name}={values['remaining']}"
+                for name, values in shortfalls["area_bands"].items()
+            ),
+            "- Maximum source concentration: "
+            f"{shortfalls['source_concentration']['actual']} "
+            f"(required <= {shortfalls['source_concentration']['maximum']})",
+        ]
+    )
     if validation["errors"]:
         lines.extend(["", "## Validation errors", ""])
         lines.extend(f"- {error}" for error in validation["errors"])

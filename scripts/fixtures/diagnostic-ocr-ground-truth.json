@@ -2,8 +2,8 @@
   "_type": "data",
   "_purpose": "Provide timestamped OCR labels for the generated diagnostic video.",
   "labels": [
-    {"start_sec": 0.0, "end_sec": 3.0, "text": "WELCOME"},
-    {"start_sec": 3.0, "end_sec": 6.0, "text": "SHOP NOW"},
-    {"start_sec": 6.0, "end_sec": 9.1, "text": "15 OFF"}
+    {"start_sec": 0.0, "end_sec": 3.0, "category": "ui", "text": "WELCOME"},
+    {"start_sec": 3.0, "end_sec": 6.0, "category": "ui", "text": "SHOP NOW"},
+    {"start_sec": 6.0, "end_sec": 9.1, "category": "ui", "text": "15 OFF"}
   ]
 }

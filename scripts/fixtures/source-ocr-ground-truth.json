@@ -1,70 +1,107 @@
 {
   "source_sha256": "bc14db678d642d02ae769c92a234ddd53c611a6bdf88ca93da97fb166bbfaa1b",
-  "annotation_scope": "All fully legible intentional overlay, caption, advertisement, and user-interface words in each narrow timestamp window are exhaustive. Incidental garment text and clipped or occluded words are excluded.",
+  "annotation_scope": "All fully legible intentional overlay, caption, advertisement, and user-interface words in each narrow timestamp window are exhaustive. Each word is assigned to caption or ui; promotional cards, application controls, advertisements, and platform labels are ui. Incidental garment text and clipped or occluded words are excluded.",
   "labels": [
     {
       "start_sec": 1.62,
       "end_sec": 1.65,
+      "category": "caption",
       "text": "WOULD YOU BELIEVE"
     },
     {
       "start_sec": 9.99,
       "end_sec": 10.01,
+      "category": "caption",
       "text": "HERE'S EXACTLY HOW"
     },
     {
       "start_sec": 14.99,
       "end_sec": 15.01,
-      "text": "Stickers THIS THIS"
+      "category": "ui",
+      "text": "Stickers"
+    },
+    {
+      "start_sec": 14.99,
+      "end_sec": 15.01,
+      "category": "caption",
+      "text": "THIS THIS"
     },
     {
       "start_sec": 24.99,
       "end_sec": 25.01,
+      "category": "caption",
       "text": "TAKE INSPIRATION FROM"
     },
     {
       "start_sec": 37.05,
       "end_sec": 37.08,
-      "text": "Picsart Picsart AI Photo Video Editor Design Editing Collage Maker Open 81K RATINGS 4.7 AGE 12+ Years Old CHART No.7 Photo & Video DEVELOPER PicsArt Inc TO SOMETHING LIKE"
+      "category": "ui",
+      "text": "Picsart Picsart AI Photo Video Editor Design Editing Collage Maker Open 81K RATINGS 4.7 AGE 12+ Years Old CHART No.7 Photo & Video DEVELOPER PicsArt Inc"
+    },
+    {
+      "start_sec": 37.05,
+      "end_sec": 37.08,
+      "category": "caption",
+      "text": "TO SOMETHING LIKE"
     },
     {
       "start_sec": 44.42,
       "end_sec": 44.45,
+      "category": "caption",
       "text": "IN 4 SECONDS"
     },
     {
       "start_sec": 50.55,
       "end_sec": 50.58,
+      "category": "ui",
       "text": "Photos Videos Templates Draw & Color YOU CAN RESIZE"
     },
     {
       "start_sec": 54.99,
       "end_sec": 55.01,
-      "text": "Blue Shoulder Bag $50 Add to bag $50 Add to bag Edit up to 25 images at once Upload MORE LISTINGS EQUALS"
+      "category": "ui",
+      "text": "Blue Shoulder Bag $50 Add to bag $50 Add to bag Edit up to 25 images at once Upload"
+    },
+    {
+      "start_sec": 54.99,
+      "end_sec": 55.01,
+      "category": "caption",
+      "text": "MORE LISTINGS EQUALS"
     },
     {
       "start_sec": 59.99,
       "end_sec": 60.01,
-      "text": "Fiverr Payhip Teachable Sellfy Redbubble OF THESE OTHER"
+      "category": "ui",
+      "text": "Fiverr Payhip Teachable Sellfy Redbubble"
+    },
+    {
+      "start_sec": 59.99,
+      "end_sec": 60.01,
+      "category": "caption",
+      "text": "OF THESE OTHER"
     },
     {
       "start_sec": 64.99,
       "end_sec": 65.01,
+      "category": "caption",
       "text": "DON'T OVERCOMPLICATE BUSINESS"
     },
     {
       "start_sec": 69.29,
       "end_sec": 69.31,
+      "category": "caption",
       "text": "AND CREATIVITY"
     },
     {
       "start_sec": 69.99,
       "end_sec": 70.01,
+      "category": "caption",
       "text": "YOURSELF WITH THIS"
     },
     {
       "start_sec": 73.99,
       "end_sec": 74.01,
+      "category": "ui",
       "text": "Use Code ChrisPro To get 15% off on your first year BIO"
     }
   ]
