@@ -1,6 +1,6 @@
 # @type configuration
 # @purpose Deploy the standalone adjudication UI and API with persistent R2 storage.
-name = "video-annotation-adjudicator"
+name = "video-semantic-extractor"
 main = "src/adjudication.ts"
 compatibility_date = "2026-09-01"
 
