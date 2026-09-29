@@ -1,8 +1,18 @@
 # @type configuration
 # @purpose Configure deployment of the semantic capsule gateway.
-name = "video-semantic-extractor-worker"
-main = "src/index.ts"
+name = "video-semantic-extractor"
+main = "src/adjudication.ts"
 compatibility_date = "2026-09-01"
+
+[assets]
+directory = "./adjudication-web"
+binding = "ASSETS"
+run_worker_first = true
+
+[[r2_buckets]]
+binding = "REVIEW_BUCKET"
+bucket_name = "video-annotation-reviews"
+preview_bucket_name = "video-annotation-reviews-preview"
 
 [vars]
 UPSTREAM_API_URL = "https://api.example.com/capsule"
