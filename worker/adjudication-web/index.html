@@ -1,0 +1,49 @@
+<!-- @type implementation @purpose Provide the Cloudflare-hosted adjudication workspace. -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Adjudicator C</title>
+    <link rel="stylesheet" href="/style.css">
+  </head>
+  <body>
+    <section id="login" class="login-card">
+      <p class="eyebrow">Cloudflare adjudication workspace</p>
+      <h1>Adjudicator C</h1>
+      <p>Enter the review identifier returned by the create-review API and the Worker access token.</p>
+      <label for="review-id">Review ID</label>
+      <input id="review-id" autocomplete="off" placeholder="source-objects-v1">
+      <label for="token">Access token</label>
+      <input id="token" type="password" autocomplete="current-password">
+      <button id="open">Open review</button>
+    </section>
+
+    <div id="app" hidden>
+      <header>
+        <div>
+          <p class="eyebrow">Cloudflare adjudication workspace</p>
+          <h1>Adjudicator C</h1>
+        </div>
+        <button id="complete">Complete adjudication</button>
+        <span id="message" role="status">Loading…</span>
+      </header>
+      <main>
+        <aside>
+          <h2>Disagreement frames</h2>
+          <div id="frames"></div>
+        </aside>
+        <section class="workspace">
+          <h2 id="title">Select a frame</h2>
+          <img id="image" alt="Source evidence">
+          <div class="columns">
+            <article><h3>Reviewer A</h3><pre id="left"></pre><button id="use-a">Use A</button></article>
+            <article><h3>Reviewer B</h3><pre id="right"></pre><button id="use-b">Use B</button></article>
+            <article><h3>Merged decision</h3><textarea id="merged" aria-label="Merged frame JSON"></textarea><button id="save">Save edited decision</button></article>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

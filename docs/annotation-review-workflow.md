@@ -211,22 +211,58 @@ validation, and fixture freezing. Their predictions may not replace Reviewer B.
 Automation may generate the comparison and organize its evidence, but a human
 adjudicator makes and owns every resolution recorded in the final fixture.
 
-Start the separate adjudication UI only after both manual passes are complete:
+The preferred adjudication service is the standalone Cloudflare Worker in
+`worker/src/adjudication.ts`. It keeps active sessions under the R2 `sessions/`
+prefix, publishes completed merged annotations under `results/`, and serves both
+the protected review API and its browser UI. The UI source is directly inspectable
+under `worker/adjudication-web/` (`index.html`, `app.js`, and `style.css`) and is
+served at the deployed Worker's `/` route through Cloudflare Static Assets. Create
+the two R2 buckets and deploy it once:
 
 ```bash
-.venv/bin/python scripts/annotation-review/adjudication-server.py \
-  /tmp/video-sample-diagnostics \
-  /tmp/video-sample-diagnostics/reviewer-a.json \
-  /tmp/video-sample-diagnostics/reviewer-b.json \
-  /tmp/video-sample-diagnostics/source-object-ground-truth.json
+cd worker
+npx wrangler r2 bucket create video-annotation-reviews
+npx wrangler r2 bucket create video-annotation-reviews-preview
+npx wrangler secret put ADJUDICATION_TOKEN --config wrangler.adjudication.toml
+npm run deploy:adjudication
 ```
 
-The adjudication server refuses the same file in both reviewer positions, requires
-both manual passes to be complete, reads both reviewer files without modifying them,
-and writes decisions only to the merged output. Its UI lists disagreement frames,
-shows Reviewer A and Reviewer B data beside the source image, and lets Adjudicator C
-choose either review or edit the merged frame JSON. Completion remains blocked until
-every disagreement frame has a logged resolution.
+Start a session by posting both completed reviewer JSON payloads. `frame_urls` is
+optional, but the UI can display evidence only when it maps each
+`<source>/<filename>` key to an HTTPS URL:
+
+```bash
+curl -X POST "https://<worker>/api/reviews" \
+  -H "Authorization: Bearer $ADJUDICATION_TOKEN" \
+  -H "Content-Type: application/json" \
+  --data @- <<JSON
+{"id":"source-objects-v1","reviewer_a":$(cat /tmp/video-sample-diagnostics/reviewer-a.json),"reviewer_b":$(cat /tmp/video-sample-diagnostics/reviewer-b.json),"frame_urls":{}}
+JSON
+```
+
+Open `https://<worker>/?review=source-objects-v1`. The Worker requires both manual
+passes to be complete, verifies policy and evidence identity, and never modifies
+the submitted reviewer payloads. Its UI groups disagreement entries by frame,
+shows Reviewer A and Reviewer B beside the evidence, and lets Adjudicator C select
+either review or edit the merged frame JSON. Completion remains blocked until every
+disagreement frame has a logged resolution.
+
+After completion, retrieve the published artifact with an ordinary unauthenticated
+GET request. R2 has no directories, so the `results/` key prefix is the Cloudflare
+equivalent of the former local output directory:
+
+```bash
+curl "https://<worker>/results/source-objects-v1.json" \
+  --output /tmp/video-sample-diagnostics/source-object-ground-truth.json
+```
+
+Mutable API calls require the Worker secret. Completed results are deliberately
+public; use non-sensitive IDs and payloads, or add an access policy before using
+the service with sensitive material. Use only one active adjudicator per review,
+because R2 session objects do not offer transactional multi-writer updates.
+
+The local `scripts/annotation-review/adjudication-server.py` remains available as
+an offline fallback when evidence cannot be hosted at HTTPS URLs.
 
 After adjudication, write the merged result to the diagnostic fixture path, set
 `review.independent_passes` to `2`, set `review.adjudication_status` to `complete`,

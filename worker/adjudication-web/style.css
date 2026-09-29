@@ -1,0 +1,24 @@
+/* @type implementation @purpose Style the Cloudflare-hosted adjudication workspace. */
+:root { font: 15px/1.45 system-ui, sans-serif; color: #172126; background: #f4f7f5; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+h1 { margin: 0; }
+.eyebrow { margin: 0; color: #9e4128; font-weight: 700; }
+button, input, textarea { font: inherit; }
+button { padding: .55rem .8rem; border: 0; border-radius: 4px; background: #176e69; color: #fff; font-weight: 700; cursor: pointer; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.login-card { max-width: 38rem; margin: 5rem auto; padding: 2rem; background: #fff; border: 1px solid #ccd7d2; }
+.login-card label { display: block; margin-top: 1rem; font-weight: 700; }
+.login-card input { width: 100%; padding: .65rem; margin: .35rem 0 1rem; }
+header { padding: 1rem 1.5rem; background: #fff; border-bottom: 1px solid #ccd7d2; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+#message { color: #59666c; }
+main { display: grid; grid-template-columns: 18rem 1fr; min-height: calc(100vh - 74px); }
+aside { padding: 1rem; border-right: 1px solid #ccd7d2; }
+.frame { display: block; width: 100%; margin: .4rem 0; text-align: left; background: #d8e9e7; color: #174b48; }
+.frame.resolved { background: #dce8d3; }
+.workspace { padding: 1.25rem; }
+img { display: block; max-width: 100%; max-height: 42vh; margin: auto; background: #222; }
+.columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; margin-top: 1rem; }
+article { padding: 1rem; background: #fff; border: 1px solid #ccd7d2; }
+pre, textarea { width: 100%; min-height: 18rem; white-space: pre-wrap; font: 12px/1.4 monospace; }
+@media (max-width: 900px) { main, .columns { display: block; } aside { border: 0; } .columns article { margin-top: .8rem; } }
