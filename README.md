@@ -70,7 +70,10 @@ COCO class and `live`/`composited`/`screen` subset, records out-of-taxonomy note
 marks each frame reviewed, and saves JSON metadata. The server reads images from the checksum-bound sampling
 directory and never embeds or copies image data into the annotation file. Repeat
 with `reviewer-b.json` for the independent second pass, then compare both files
-with `scripts/diagnostics/compare-object-reviews.py` before adjudication.
+with `scripts/diagnostics/compare-object-reviews.py` before adjudication. The
+standalone Cloudflare adjudication Worker serves the third-reviewer UI, persists
+work in R2, and publishes completed merged JSON at
+`GET /results/<review-id>.json`.
 
 See [`docs/annotation-review-workflow.md`](docs/annotation-review-workflow.md) for
 the complete SPA, browser-assistance, agent-bundle, JSONC import, comparison, and
@@ -89,6 +92,10 @@ npx wrangler deploy
 Set `UPSTREAM_API_URL` in `worker/wrangler.toml` to the deployed backend. The
 worker accepts only JSON requests, validates URLs, and forwards a request ID and
 optional bearer token.
+
+Deploy the separate adjudication Worker with `npm run deploy:adjudication` after
+creating its R2 buckets and `ADJUDICATION_TOKEN`; see
+[`worker/README.md`](worker/README.md) for initialization and result URLs.
 
 ## Capsule contract
 
