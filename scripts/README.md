@@ -247,6 +247,39 @@ Use `--text-region full-frame` for the default baseline. A caption-region report
 still scores every word in an exhaustively labeled frame, including UI text outside
 the crop; this is intentional because it exposes the evidence lost by the proposal.
 
+For a genuine multi-region proposal, download the pinned OpenCV Zoo English
+PP-OCRv3 DB detector outside the repository and verify its digest:
+
+```bash
+mkdir -p /tmp/video-semantic-models
+curl --fail --location \
+  --output /tmp/video-semantic-models/text-detection-ppocrv3.onnx \
+  https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/text_detection_ppocr/text_detection_en_ppocrv3_2023may.onnx
+echo '03f550c6b406fda8bf54bd8327815f6c7e2edd98cea02348c93d879254366587  /tmp/video-semantic-models/text-detection-ppocrv3.onnx' \
+  | sha256sum --check
+```
+
+Run detection and recognition only on the hybrid evidence set. Each detected
+polygon becomes an axis-aligned source-image crop, and every Tesseract word box is
+mapped back to source coordinates. The report records the model digest, size, crop
+count, aggregate metrics, and separate caption/UI recall:
+
+```bash
+./scripts/diagnostics/evaluate-frame-ocr.py \
+  /tmp/frame-sampling \
+  /tmp/frame-sampling/source-ocr-ppocrv3.json \
+  --strategy hybrid \
+  --ground-truth scripts/fixtures/source-ocr-ground-truth.json \
+  --page-segmentation-mode 11 \
+  --text-region detector \
+  --text-detector-model /tmp/video-semantic-models/text-detection-ppocrv3.onnx
+```
+
+Category recall uses the exhaustive `caption` and `ui` word labels. Category
+precision is intentionally not reported because the current fixture has no
+word-level regions with which to assign an unexpected OCR observation to one
+category; aggregate precision remains exhaustive across both categories.
+
 ## Object-detection evaluation
 
 Download the pinned 3.8 MB OpenCV Zoo NanoDet-Plus ONNX export outside the
@@ -378,6 +411,12 @@ distinguish a structurally valid draft from a corpus whose review or diversity g
 are not yet complete. That option never permits checksum, coverage, geometry,
 taxonomy, or review-metadata errors. Omit it for the final frozen-fixture check; the
 command then fails unless both validity and corpus adequacy pass.
+
+In addition to Boolean gates, the validation JSON contains
+`corpus_adequacy_shortfalls`. It reports required, actual, and remaining counts for
+sources, non-person objects and classes, subsets, and area bands, plus the measured
+maximum per-source concentration. Use these values to direct new annotation or
+source acquisition; do not relax a gate when its remaining count is nonzero.
 
 After adjudication, generate the machine-readable diagnostic report and the Markdown
 investigation record from the merged fixture. Reviewer files are optional but should

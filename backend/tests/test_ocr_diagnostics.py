@@ -72,7 +72,14 @@ def test_evaluate_strategy_scores_manifest_frames(tmp_path: Path) -> None:
     payload = TSV_HEADER + "5\t1\t1\t1\t1\t1\t1\t2\t10\t5\t99\tWELCOME\n"
     report = ocr.evaluate_strategy(
         strategy,
-        [{"start_sec": 0, "end_sec": 3, "text": "WELCOME"}],
+        [
+            {
+                "start_sec": 0,
+                "end_sec": 3,
+                "category": "caption",
+                "text": "WELCOME",
+            }
+        ],
         0.5,
         "original",
         page_segmentation_mode=6,
@@ -83,6 +90,9 @@ def test_evaluate_strategy_scores_manifest_frames(tmp_path: Path) -> None:
     assert report["mean_word_f1"] == 1.0
     assert report["ground_truth_label_recall"] == 1.0
     assert report["frames_with_any_text"] == 1
+    assert report["categories"]["caption"]["mean_word_recall"] == 1.0
+    assert report["categories"]["caption"]["ground_truth_label_recall"] == 1.0
+    assert report["categories"]["ui"]["mean_word_recall"] is None
     assert report["frames"][0]["observations"][0]["region"] == (1, 2, 10, 5)
 
 
@@ -145,6 +155,47 @@ def test_caption_region_crops_lower_band_and_maps_boxes_to_source(
         offset,
         "upscale",
     ) == [ocr.TextObservation("CAPTION", 0.9, (10, 60, 20, 6))]
+
+
+def test_detector_regions_run_ocr_per_crop_and_map_to_source(tmp_path: Path) -> None:
+    """OCR every detected text region while retaining source-image coordinates."""
+    strategy = tmp_path / "hybrid"
+    frames = strategy / "frames"
+    frames.mkdir(parents=True)
+    image = np.zeros((100, 200, 3), dtype=np.uint8)
+    assert cv2.imwrite(str(frames / "frame.jpg"), image)
+    (strategy / "manifest.csv").write_text(
+        "filename,timestamp_sec,sampling_reasons\nframe.jpg,1.000000,first\n",
+        encoding="utf-8",
+    )
+    outputs = iter(
+        (
+            TSV_HEADER + "5\t1\t1\t1\t1\t1\t1\t2\t10\t5\t99\tHELLO\n",
+            TSV_HEADER + "5\t1\t1\t1\t1\t1\t3\t4\t10\t5\t99\tMENU\n",
+        )
+    )
+
+    report = ocr.evaluate_strategy(
+        strategy,
+        [
+            {"start_sec": 0, "end_sec": 2, "category": "caption", "text": "HELLO"},
+            {"start_sec": 0, "end_sec": 2, "category": "ui", "text": "MENU"},
+        ],
+        0.5,
+        "original",
+        text_region="detector",
+        ocr_runner=lambda _path, _psm: next(outputs),
+        region_detector=lambda _image: [(10, 20, 40, 10), (100, 60, 50, 20)],
+    )
+
+    assert report["text_region_proposals"] == 2
+    assert report["mean_word_f1"] == 1.0
+    assert report["categories"]["caption"]["mean_word_recall"] == 1.0
+    assert report["categories"]["ui"]["mean_word_recall"] == 1.0
+    assert [item["region"] for item in report["frames"][0]["observations"]] == [
+        (11, 22, 10, 5),
+        (103, 64, 10, 5),
+    ]
 
 
 def test_checksum_bound_ground_truth_rejects_different_source(tmp_path: Path) -> None:

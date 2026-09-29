@@ -91,6 +91,17 @@ def test_valid_annotations_can_fail_adequacy_without_becoming_invalid(
     assert report["errors"] == []
     assert report["counts"]["objects"] == 1
     assert report["corpus_adequacy_gates"]["fifty_non_person_instances"] is False
+    assert report["corpus_adequacy_shortfalls"]["non_person_instances"] == {
+        "required": 50,
+        "actual": 0,
+        "remaining": 50,
+    }
+    assert report["corpus_adequacy_shortfalls"]["five_sources"]["missing"] == [
+        "sample_2.mp4",
+        "sample_3.mp4",
+        "sample_4.mp4",
+        "sample_5.mp4",
+    ]
 
 
 def test_validation_rejects_evidence_mismatch_and_invalid_box(tmp_path: Path) -> None:

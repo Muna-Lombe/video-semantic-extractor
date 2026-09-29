@@ -5,7 +5,7 @@
 
 # Visual content investigation
 
-## Investigation recap (2026-09-18)
+## Investigation recap (2026-09-29)
 
 ### Executive conclusion
 
@@ -19,11 +19,26 @@ unsupported.
 
 The investigation should therefore continue as evaluation work rather than by
 adding OCR or object output to the capsule schema. Four additional supplied videos
-now broaden the diagnostic inputs, but they are not exhaustively annotated and
-therefore provide sampling and detector-activity evidence, not accuracy evidence or
-a basis for selecting a model default. The supplied source is `youtube.com`, and the
-stated license permits sharing but prohibits commercial use; individual source URLs
-are not recorded.
+now broaden the diagnostic inputs. One human has completed a first exhaustive pass
+over all 136 retained frames, but a blind second human pass and third-person
+adjudication are still outstanding. The saved first pass is review evidence, not
+scoring-ready ground truth or a basis for selecting a model default. The supplied
+source is `youtube.com`, and the stated license permits sharing but prohibits
+commercial use; individual source URLs are not recorded.
+
+### Investigation progress
+
+| Workstream | Progress | Completed | Still required |
+| --- | ---: | --- | --- |
+| Multi-video object annotation | 50% of independent reviews | Reviewer A marked all 136 frames reviewed and completed one of two required human passes | A blind Reviewer B pass |
+| Object corpus content gates | 83% (5/6) on Reviewer A's draft | Source, non-person count, class, scale, and concentration gates pass | Two additional `composited` objects are needed; Reviewer B and adjudication may change every draft count |
+| Object adjudication | 0% | Isolated comparison and adjudication tooling is available | Adjudicator C must resolve every disagreement, then the merged fixture must pass validation and adequacy gates |
+| OCR region proposal | 100% of the planned experiment | PP-OCRv3 DB produced 307 localized proposals with separate caption/UI recall | The candidate failed overall and caption-specific quality; evaluate a detector/recognizer designed for stylized captions |
+| Production integration | 0% | Timestamp and sampling components are retained | Every proposed semantic analyzer remains blocked by its evidence gate |
+
+The percentages describe completion of the explicitly named workflow stages, not
+accuracy, corpus adequacy, or overall product readiness. Assisted model output does
+not increase the independent-review percentage.
 
 ### Current readiness
 
@@ -32,8 +47,8 @@ are not recorded.
 | Frame timestamps | Ready | Filter-time-base preservation fixes the reproduced timestamp collapse; numeric sorting fixes the ten-second filename boundary | Keep the production fix and regression coverage |
 | Frame sampling | Ready | Hybrid selection guarantees first, interval, scene, and near-final candidates with a five-second maximum gap on the source | Keep hybrid sampling and fail when the frame cap cannot preserve coverage |
 | Evidence provenance | Ready for current diagnostics | Manifests retain resolvable relative paths; sampling reports and annotation fixtures enforce source SHA-256 identity | Preserve these checks in every subsequent evaluator |
-| OCR | Blocked | Best expanded full-frame result is 0.2448 macro F1; fixed caption-band proposals regress below that baseline | Evaluate a genuine multi-region text detector, split caption and UI subsets, and do not integrate Tesseract yet |
-| Broad object detection | Blocked | NanoDet is compact and fast locally; four new videos elicit several non-person labels, but only the original person's class has exhaustive ground truth. A policy-specific validator now prevents incomplete or detached annotations from being scored | Exhaustively annotate and validate the checksum-bound multi-video corpus before selecting a confidence threshold or integrating the detector |
+| OCR | Blocked | PP-OCRv3 DB plus Tesseract improves aggregate macro F1 from 0.2448 to 0.2959 and UI recall from 0.5157 to 0.6603, but caption recall falls from 0.1136 to 0.0530 | Reject this configuration for production; retain the auditable experiment and evaluate a stylized-caption recognizer |
+| Broad object detection | Blocked | NanoDet is compact and fast locally. Reviewer A completed one exhaustive 136-frame pass, but no second independent review or adjudicated multi-video fixture exists. A policy-specific validator prevents incomplete or detached annotations from being scored | Complete Reviewer B's blind pass and third-person adjudication, then validate corpus adequacy before scoring or selecting a confidence threshold |
 | Actions, brands, products, and logos | Not evaluated | COCO object labels do not measure these required capabilities | Create separate tasks, labels, and acceptance criteria |
 | Whisper in the production-equivalent environment | Unverified | Fixture transcription exercises assembly, but the CPU PyTorch wheel was unavailable and Docker is absent on this host | Verify independently in the production container environment |
 
@@ -56,10 +71,10 @@ are not recorded.
 ### Evidence limitations
 
 - The only scored source benchmark remains one 74.138-second portrait promotional
-  video. Four additional portrait or near-portrait supplied videos now cover sports,
-  red-carpet footage, a composited presenter/UI demonstration, and a presenter with
-  a filmed monitor, but they have no exhaustive annotations and do not cover
-  landscape, animation, low light, or substantial resolution diversity.
+  video. A first reviewer has exhaustively labeled the four additional portrait or
+  near-portrait videos, but those labels are not ground truth until a blind second
+  review and adjudication are complete. The corpus still does not cover landscape,
+  animation, low light, or substantial resolution diversity.
 - The OCR fixture has 13 exhaustively annotated hybrid frames. It is adequate to
   reject the tested Tesseract configurations, but not to estimate general OCR
   performance.
@@ -84,16 +99,18 @@ replaced with assumptions or partial investigations represented as conclusions.
 
 #### Critical blockers
 
-1. **OCR accuracy is inadequate.** The best expanded full-frame result is 0.2448
-   macro F1, and the fixed caption crop is worse. Evaluate a genuine multi-region
-   text detector on independently scored caption and UI subsets.
+1. **OCR accuracy is inadequate.** PP-OCRv3 DB plus Tesseract improves aggregate
+   macro F1 to 0.2959 and UI recall to 0.6603, but caption recall regresses to 0.0530.
+   Evaluate a recognizer designed for outlined and stylized captions; do not promote
+   the aggregate gain while a required subset regresses.
 2. **Broad-object accuracy is unproven.** The only exhaustive object fixture is
    person-only. Exhaustively annotate non-person objects at varied scales across the
    supplied videos before selecting a detector or confidence threshold.
-3. **The additional videos lack exhaustive annotations.** Detector output on those
-   videos measures activity, not precision or recall. The annotation policy now
-   freezes rules for live, composited, screen-depicted, illustrated, partial, and
-   occluded objects; the two-reviewer annotation and adjudication pass remains open.
+3. **The additional videos lack adjudicated exhaustive ground truth.** Reviewer A
+   completed one exhaustive pass, but a single review cannot support precision or
+   recall. The annotation policy freezes rules for live, composited,
+   screen-depicted, illustrated, partial, and occluded objects; Reviewer B's blind
+   pass and Adjudicator C's resolution pass remain open.
 4. **The detector taxonomy is narrower than the product requirement.** COCO omits
    relevant concepts such as the visible microphone and does not cover brands,
    products, logos, actions, UI semantics, or visual descriptions. Define and test
@@ -149,17 +166,19 @@ replaced with assumptions or partial investigations represented as conclusions.
 
 1. Record the exact YouTube URL and required attribution for every supplied sample
    if that information becomes available, without inferring missing provenance.
-2. Exhaustively label non-person objects at varied scales in the checksum-bound
-   supplied corpus and explicitly tag
-   live, composited, and screen-depicted subsets.
-3. After the broader annotations exist, run the pinned NanoDet model at fixed
+2. Have Reviewer B independently inspect all 136 retained frames without access to
+   Reviewer A's annotations or candidate-detector predictions.
+3. Compare the two completed reviewer files, have Adjudicator C resolve every
+   disagreement, and validate and freeze the merged fixture.
+4. After the broader annotations exist, run the pinned NanoDet model at fixed
    confidence thresholds and report both aggregate and live, composited, and
    screen-depicted subset precision, recall, and F1.
-4. In parallel, benchmark a true text-region proposal on separate caption and UI
-   subsets; retain full-frame Tesseract mode 11 as the comparison baseline only.
-5. Define independent fixtures and metrics for actions, brands, products, and logos
+5. Replace the failed PP-OCRv3/Tesseract caption path with a candidate designed for
+   outlined and stylized captions, retaining full-frame Tesseract mode 11 and the
+   PP-OCRv3 report as fixed comparison baselines.
+6. Define independent fixtures and metrics for actions, brands, products, and logos
    before evaluating models for those requirements.
-6. Revisit production integration only after a candidate passes a predeclared gate
+7. Revisit production integration only after a candidate passes a predeclared gate
    on the broader corpus. Until then, preserve unsupported capabilities explicitly.
 
 ### Reproducible artifact map
@@ -176,6 +195,13 @@ replaced with assumptions or partial investigations represented as conclusions.
 - `scripts/diagnostics/initialize-object-annotations.py` creates a deterministic,
   prediction-blind review template from the five checksum-bound hybrid manifests
   without claiming that its initially empty object lists are reviewed negatives.
+- `scripts/diagnostics/compare-object-reviews.py` compares two completed reviewer
+  files without changing either review or claiming that disagreements are resolved.
+- `scripts/annotation-review/adjudication-server.py` provides an isolated workspace
+  in which a third human can resolve comparison entries into a merged fixture.
+- `scripts/diagnostics/generate-object-annotation-report.py` records reviewer
+  provenance checks, disagreement and adjudication state, validation results, and
+  corpus-adequacy gates without promoting an incomplete draft.
 - `scripts/fixtures/source-ocr-ground-truth.json` and
   `scripts/fixtures/source-object-ground-truth.json` define the current exhaustive
   annotation scopes.
@@ -258,9 +284,10 @@ Validity and corpus adequacy are deliberately separate results. A draft may use
 waive evidence or annotation errors. Without it, the validator also requires every
 class, subset, scale, source-diversity, and concentration threshold frozen in the
 policy. This closes a tooling gap; it does **not** close the broad-object blocker.
-No dual-reviewed multi-video fixture exists yet, so there is no new accuracy result
-and detector predictions must remain hidden from annotators until the fixture is
-adjudicated, validated, and frozen.
+Reviewer A has since completed one 136-frame pass, but no dual-reviewed multi-video
+fixture exists yet. There is therefore no new accuracy result, and detector
+predictions must remain hidden from Reviewer B and Adjudicator C until the fixture
+is adjudicated, validated, and frozen.
 
 ## Supplied multi-video diagnostic pass
 
@@ -725,6 +752,51 @@ detection proposal that can return multiple localized regions, rather than anoth
 fixed crop, and should evaluate caption and UI subsets independently. In parallel,
 the investigation can now begin the compact ONNX object-detector benchmark without
 representing OCR as production-ready.
+
+## PP-OCRv3 multi-region and category results
+
+The next OCR pass used OpenCV Zoo's English PP-OCRv3 DB detector to propose multiple
+localized text regions before running the unchanged Tesseract mode-11 recognizer.
+The 2,423,490-byte ONNX artifact has SHA-256
+`03f550c6b406fda8bf54bd8327815f6c7e2edd98cea02348c93d879254366587`.
+On the 28 hybrid frames it proposed 307 regions; all crops and recognized word boxes
+were mapped back to source-image coordinates. The report records the model identity
+instead of treating an unpinned detector as preprocessing.
+
+The ground truth now assigns every exhaustive word label to `caption` or `ui`.
+Frames containing both types use separate labels for the same narrow timestamp.
+Category recall is valid because each category's expected words are exhaustive.
+Category precision is not claimed because the fixture does not yet contain spatial
+word regions that could assign an unexpected OCR token to one category.
+
+| Configuration | Aggregate precision | Aggregate recall | Aggregate F1 | Caption recall | UI recall |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Full-frame Tesseract mode 11 | 0.3506 | 0.2282 | 0.2448 | 0.1136 | 0.5157 |
+| PP-OCRv3 regions + Tesseract mode 11 | 0.4482 | 0.2574 | 0.2959 | 0.0530 | 0.6603 |
+
+The localized proposal improves aggregate F1 and UI recall, and completely recovers
+two of six UI labels rather than one. It nevertheless worsens already-poor caption
+recall and completely recovers none of the 11 caption labels. The experiment closes
+the genuine multi-region and category-measurement tooling gaps, but it fails the
+product capability: a configuration that recognizes UI more effectively while
+missing outlined captions cannot be integrated as general visual OCR.
+
+## First-pass corpus adequacy audit
+
+The checksum-bound Reviewer A snapshot was audited against freshly extracted
+sampling evidence. Its 422 draft objects cover all five sources and include 83
+non-person objects across ten non-person classes. Five of six content-diversity
+gates pass: source coverage, non-person instance count, non-person class count,
+small/large scale coverage, and source concentration. The subset gate fails because
+the draft contains eight `composited` instances, two below the required minimum of
+ten; its `live` and `screen` counts are 352 and 62.
+
+This is a planning audit, not ground truth. The saved snapshot is structurally
+invalid until its premature adjudication status is normalized and its legacy
+numeric annotation identifiers are migrated to the validator's stable string IDs.
+Reviewer B and Adjudicator C may also change every count. The validator now emits
+machine-readable required, actual, and remaining values so the final corpus failure
+cannot be hidden behind Boolean gates or addressed by weakening the frozen policy.
 
 ## Compact ONNX object-detector results
 

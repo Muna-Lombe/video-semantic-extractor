@@ -38,8 +38,8 @@ def test_report_contains_review_state_validation_and_hashes(tmp_path: Path) -> N
         "review": {
             "independent_passes": 1,
             "predictions_reviewed_before_freeze": False,
-            "adjudication_status": "in_progress",
-            "adjudication_log": [{"frame": "sample_1.mp4/frame.jpg"}],
+            "adjudication_status": "not_started",
+            "adjudication_log": [],
             "reviewed_frames": ["sample_1.mp4/frame.jpg"],
             "manual_pass": {
                 "status": "complete",
@@ -74,13 +74,14 @@ def test_report_contains_review_state_validation_and_hashes(tmp_path: Path) -> N
 
     assert len(report["merged_fixture"]["sha256"]) == 64
     assert report["review"]["independent_passes"] == 1
-    assert report["review"]["adjudication_entries"] == 1
+    assert report["review"]["adjudication_entries"] == 0
     assert report["validation"]["valid"] is True
     assert report["validation"]["adequate"] is False
     assert report["review_comparison"]["agree"] is True
     assert report["review_provenance"]["ready"] is True
     assert report["ready_for_detector_scoring"] is False
     assert "Corpus counts" in markdown
+    assert "Additional non-person instances: 50" in markdown
     assert "adjudication" in markdown.lower()
 
 
@@ -102,7 +103,7 @@ def test_report_rejects_duplicate_reviewer_input_as_provenance(tmp_path: Path) -
         "review": {
             "independent_passes": 1,
             "predictions_reviewed_before_freeze": False,
-            "adjudication_status": "in_progress",
+            "adjudication_status": "not_started",
             "adjudication_log": [],
             "reviewed_frames": ["sample_1.mp4/frame.jpg"],
             "manual_pass": {"status": "complete", "completed_at": "2026-09-18T12:00:00Z"},

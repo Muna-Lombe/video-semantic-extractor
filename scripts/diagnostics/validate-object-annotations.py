@@ -326,6 +326,57 @@ def validate_annotations(
         "source_concentration": positive_count > 0
         and max(source_counts.values(), default=0) / positive_count <= 0.60,
     }
+    non_person_classes = len(set(class_counts) - {"person"})
+    max_source_fraction = (
+        max(source_counts.values(), default=0) / positive_count
+        if positive_count
+        else None
+    )
+    shortfalls = {
+        "review_complete": {
+            "required": True,
+            "actual": review_complete,
+            "remaining": 0 if review_complete else 1,
+        },
+        "five_sources": {
+            "required": sorted(EXPECTED_SOURCES),
+            "actual": sorted(seen_sources),
+            "missing": sorted(EXPECTED_SOURCES - seen_sources),
+        },
+        "non_person_instances": {
+            "required": 50,
+            "actual": non_person_count,
+            "remaining": max(0, 50 - non_person_count),
+        },
+        "non_person_classes": {
+            "required": 5,
+            "actual": non_person_classes,
+            "remaining": max(0, 5 - non_person_classes),
+        },
+        "subsets": {
+            subset: {
+                "required": required,
+                "actual": subset_counts[subset],
+                "remaining": max(0, required - subset_counts[subset]),
+            }
+            for subset, required in (("live", 20), ("screen", 20), ("composited", 10))
+        },
+        "area_bands": {
+            area: {
+                "required": 15,
+                "actual": area_counts[area],
+                "remaining": max(0, 15 - area_counts[area]),
+            }
+            for area in ("small", "large")
+        },
+        "source_concentration": {
+            "maximum": 0.60,
+            "actual": round(max_source_fraction, 4)
+            if max_source_fraction is not None
+            else None,
+            "passes": gates["source_concentration"],
+        },
+    }
     return {
         "valid": not errors,
         "adequate": not errors and all(gates.values()),
@@ -341,6 +392,7 @@ def validate_annotations(
             "sources_with_objects": dict(sorted(source_counts.items())),
         },
         "corpus_adequacy_gates": gates,
+        "corpus_adequacy_shortfalls": shortfalls,
     }
 
 

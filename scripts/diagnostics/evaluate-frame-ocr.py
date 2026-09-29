@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import re
 import subprocess
@@ -17,6 +18,10 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import cv2
+import numpy as np
+
+
+TEXT_CATEGORIES = frozenset(("caption", "ui"))
 
 
 @dataclass(frozen=True)
@@ -26,6 +31,50 @@ class TextObservation:
     text: str
     confidence: float
     region: tuple[int, int, int, int]
+
+
+class PPOCRTextRegionDetector:
+    """Propose multiple source-coordinate text boxes with OpenCV's PP-OCRv3 DB model."""
+
+    def __init__(
+        self,
+        model_path: Path,
+        input_size: int = 736,
+        binary_threshold: float = 0.3,
+        polygon_threshold: float = 0.5,
+        unclip_ratio: float = 2.0,
+        max_candidates: int = 200,
+    ) -> None:
+        if input_size <= 0 or input_size % 32:
+            raise ValueError("text detector input size must be a positive multiple of 32")
+        self.model_path = model_path
+        self.input_size = input_size
+        self.model = cv2.dnn_TextDetectionModel_DB(cv2.dnn.readNet(str(model_path)))
+        self.model.setBinaryThreshold(binary_threshold)
+        self.model.setPolygonThreshold(polygon_threshold)
+        self.model.setUnclipRatio(unclip_ratio)
+        self.model.setMaxCandidates(max_candidates)
+        self.model.setInputSize((input_size, input_size))
+        self.model.setInputMean((123.675, 116.28, 103.53))
+        self.model.setInputScale(1.0 / 255.0 / np.array([0.229, 0.224, 0.225]))
+
+    def __call__(self, image: np.ndarray) -> list[tuple[int, int, int, int]]:
+        """Detect text polygons and return clipped axis-aligned source-image boxes."""
+        height, width = image.shape[:2]
+        resized = cv2.resize(image, (self.input_size, self.input_size))
+        polygons, _confidences = self.model.detect(resized)
+        boxes: list[tuple[int, int, int, int]] = []
+        scale_x = width / self.input_size
+        scale_y = height / self.input_size
+        for polygon in polygons:
+            points = np.asarray(polygon).reshape(-1, 2)
+            left = max(0, int(np.floor(points[:, 0].min() * scale_x)))
+            top = max(0, int(np.floor(points[:, 1].min() * scale_y)))
+            right = min(width, int(np.ceil(points[:, 0].max() * scale_x)))
+            bottom = min(height, int(np.ceil(points[:, 1].max() * scale_y)))
+            if right > left and bottom > top:
+                boxes.append((left, top, right - left, bottom - top))
+        return sorted(set(boxes), key=lambda box: (box[1], box[0], box[2], box[3]))
 
 
 def run_tesseract(image_path: Path, page_segmentation_mode: int) -> str:
@@ -48,6 +97,15 @@ def run_tesseract(image_path: Path, page_segmentation_mode: int) -> str:
         detail = getattr(exc, "stderr", "") or str(exc)
         raise RuntimeError(detail.strip()) from exc
     return result.stdout
+
+
+def sha256_file(path: Path) -> str:
+    """Return a stable identity for an externally supplied model artifact."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def parse_tesseract_tsv(payload: str, minimum_confidence: float) -> list[TextObservation]:
@@ -80,6 +138,18 @@ def expected_text(labels: Sequence[dict[str, object]], timestamp_sec: float) -> 
         if float(label["start_sec"]) <= timestamp_sec < float(label["end_sec"])
     ]
     return " ".join(matches)
+
+
+def expected_category_text(
+    labels: Sequence[dict[str, object]], timestamp_sec: float, category: str
+) -> str:
+    """Return active exhaustive words for one declared text category."""
+    return " ".join(
+        str(label["text"])
+        for label in labels
+        if label.get("category") == category
+        and float(label["start_sec"]) <= timestamp_sec < float(label["end_sec"])
+    )
 
 
 def word_recall(expected: str, observed: str) -> float | None:
@@ -159,6 +229,36 @@ def propose_text_region(
     return output_path, offset
 
 
+def propose_text_regions(
+    image_path: Path,
+    output_directory: Path,
+    proposal: str,
+    detector: Callable[[np.ndarray], Sequence[tuple[int, int, int, int]]] | None,
+) -> list[tuple[Path, tuple[int, int]]]:
+    """Return one fixed region or multiple detector-proposed OCR crops."""
+    if proposal != "detector":
+        path, offset = propose_text_region(
+            image_path, output_directory / "fixed-region.png", proposal
+        )
+        return [(path, offset)]
+    if detector is None:
+        raise ValueError("the detector text-region proposal requires a detector model")
+    image = cv2.imread(str(image_path), cv2.IMREAD_COLOR)
+    if image is None:
+        raise RuntimeError(f"could not decode {image_path}")
+    proposals: list[tuple[Path, tuple[int, int]]] = []
+    for index, (x, y, width, height) in enumerate(detector(image)):
+        if x < 0 or y < 0 or width <= 0 or height <= 0:
+            raise RuntimeError("text detector returned an invalid region")
+        if x + width > image.shape[1] or y + height > image.shape[0]:
+            raise RuntimeError("text detector returned a region outside the source image")
+        output_path = output_directory / f"detected-region-{index:04d}.png"
+        if not cv2.imwrite(str(output_path), image[y : y + height, x : x + width]):
+            raise RuntimeError(f"could not write {output_path}")
+        proposals.append((output_path, (x, y)))
+    return proposals
+
+
 def map_observations_to_source(
     observations: Sequence[TextObservation],
     offset: tuple[int, int],
@@ -202,7 +302,20 @@ def load_ground_truth(
             raise RuntimeError(
                 "ground-truth source checksum does not match the sampling report"
             )
-    return payload["labels"], str(ground_truth_path)
+    labels = payload["labels"]
+    invalid_categories = sorted(
+        {
+            str(label.get("category"))
+            for label in labels
+            if label.get("category") not in TEXT_CATEGORIES
+        }
+    )
+    if invalid_categories:
+        raise RuntimeError(
+            "ground-truth labels require category 'caption' or 'ui': "
+            + ", ".join(invalid_categories)
+        )
+    return labels, str(ground_truth_path)
 
 
 def evaluate_strategy(
@@ -213,6 +326,10 @@ def evaluate_strategy(
     page_segmentation_mode: int = 11,
     text_region: str = "full-frame",
     ocr_runner: Callable[[Path, int], str] = run_tesseract,
+    region_detector: Callable[
+        [np.ndarray], Sequence[tuple[int, int, int, int]]
+    ]
+    | None = None,
 ) -> dict[str, object]:
     """Evaluate every frame named by a sampling diagnostic manifest."""
     with (strategy_dir / "manifest.csv").open(newline="", encoding="utf-8") as handle:
@@ -224,6 +341,13 @@ def evaluate_strategy(
     detected_labels: set[int] = set()
     previous_text: str | None = None
     changes = 0
+    proposal_count = 0
+    category_recalls: dict[str, list[float]] = {
+        category: [] for category in sorted(TEXT_CATEGORIES)
+    }
+    category_detected_labels: dict[str, set[int]] = {
+        category: set() for category in sorted(TEXT_CATEGORIES)
+    }
     with tempfile.TemporaryDirectory(prefix="ocr-preprocessed-") as temporary:
         temporary_dir = Path(temporary)
         frames_root = (strategy_dir / "frames").resolve()
@@ -231,26 +355,41 @@ def evaluate_strategy(
             source = (frames_root / row["filename"]).resolve()
             if not source.is_relative_to(frames_root):
                 raise RuntimeError(f"manifest frame escapes frame root: {row['filename']}")
-            proposed, (offset_x, offset_y) = propose_text_region(
+            frame_directory = temporary_dir / f"{index:06d}"
+            frame_directory.mkdir()
+            proposals = propose_text_regions(
                 source,
-                temporary_dir / f"{index:06d}-region.png",
+                frame_directory,
                 text_region,
+                region_detector,
             )
-            prepared = preprocess(
-                proposed, temporary_dir / f"{index:06d}-preprocessed.png", mode
-            )
-            observations = parse_tesseract_tsv(
-                ocr_runner(prepared, page_segmentation_mode), minimum_confidence
-            )
-            observations = map_observations_to_source(
-                observations, (offset_x, offset_y), mode
-            )
+            proposal_count += len(proposals)
+            observations: list[TextObservation] = []
+            for proposal_index, (proposed, offset) in enumerate(proposals):
+                prepared = preprocess(
+                    proposed,
+                    frame_directory / f"preprocessed-{proposal_index:04d}.png",
+                    mode,
+                )
+                proposed_observations = parse_tesseract_tsv(
+                    ocr_runner(prepared, page_segmentation_mode), minimum_confidence
+                )
+                observations.extend(
+                    map_observations_to_source(proposed_observations, offset, mode)
+                )
             observed = " ".join(item.text for item in observations)
             timestamp = float(row["timestamp_sec"])
             expected = expected_text(labels, timestamp)
             recall = word_recall(expected, observed)
             precision = word_precision(expected, observed)
             f1_score = harmonic_mean(precision, recall)
+            category_scores: dict[str, float | None] = {}
+            for category in sorted(TEXT_CATEGORIES):
+                category_expected = expected_category_text(labels, timestamp, category)
+                category_recall = word_recall(category_expected, observed)
+                category_scores[category] = category_recall
+                if category_recall is not None:
+                    category_recalls[category].append(category_recall)
             if recall is not None:
                 recalls.append(recall)
             if precision is not None:
@@ -263,6 +402,9 @@ def evaluate_strategy(
                     and word_recall(str(label["text"]), observed) == 1.0
                 ):
                     detected_labels.add(label_index)
+                    category = label.get("category")
+                    if category in TEXT_CATEGORIES:
+                        category_detected_labels[str(category)].add(label_index)
             normalized = " ".join(normalize_words(observed))
             if previous_text is not None and normalized != previous_text:
                 changes += 1
@@ -276,6 +418,8 @@ def evaluate_strategy(
                     "word_precision": precision,
                     "word_recall": recall,
                     "word_f1": f1_score,
+                    "category_word_recall": category_scores,
+                    "text_region_proposals": len(proposals),
                     "observations": [asdict(item) for item in observations],
                 }
             )
@@ -292,6 +436,37 @@ def evaluate_strategy(
             round(len(detected_labels) / len(labels), 4) if labels else None
         ),
         "frames_with_any_text": sum(bool(frame["observed_text"]) for frame in frames),
+        "text_region_proposals": proposal_count,
+        "categories": {
+            category: {
+                "labeled_frame_count": len(category_recalls[category]),
+                "mean_word_recall": (
+                    round(
+                        sum(category_recalls[category])
+                        / len(category_recalls[category]),
+                        4,
+                    )
+                    if category_recalls[category]
+                    else None
+                ),
+                "ground_truth_labels": sum(
+                    label.get("category") == category for label in labels
+                ),
+                "ground_truth_labels_detected": len(
+                    category_detected_labels[category]
+                ),
+                "ground_truth_label_recall": (
+                    round(
+                        len(category_detected_labels[category])
+                        / sum(label.get("category") == category for label in labels),
+                        4,
+                    )
+                    if any(label.get("category") == category for label in labels)
+                    else None
+                ),
+            }
+            for category in sorted(TEXT_CATEGORIES)
+        },
         "adjacent_ocr_changes": changes,
         "frames": frames,
     }
@@ -302,6 +477,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate OCR on frame-sampling artifacts")
     parser.add_argument("sampling_directory", type=Path)
     parser.add_argument("output_report", type=Path)
+    parser.add_argument(
+        "--strategy",
+        action="append",
+        default=[],
+        help="sampling strategy to evaluate; repeat as needed (default: all)",
+    )
     parser.add_argument("--ground-truth", type=Path)
     parser.add_argument("--minimum-confidence", type=float, default=0.5)
     parser.add_argument(
@@ -317,16 +498,31 @@ def main() -> None:
     )
     parser.add_argument(
         "--text-region",
-        choices=("full-frame", "caption-band"),
+        choices=("full-frame", "caption-band", "detector"),
         default="full-frame",
-        help="OCR the full image or only its lower caption band",
+        help="OCR the full image, lower caption band, or PP-OCRv3 text proposals",
+    )
+    parser.add_argument(
+        "--text-detector-model",
+        type=Path,
+        help="OpenCV Zoo PP-OCRv3 DB ONNX model (required for --text-region detector)",
     )
     args = parser.parse_args()
     if not 0 <= args.minimum_confidence <= 1:
         parser.error("minimum confidence must be between 0 and 1")
     if not 0 <= args.page_segmentation_mode <= 13:
         parser.error("page segmentation mode must be between 0 and 13")
+    if args.text_region == "detector" and args.text_detector_model is None:
+        parser.error("--text-detector-model is required for --text-region detector")
+    if args.text_region != "detector" and args.text_detector_model is not None:
+        parser.error("--text-detector-model requires --text-region detector")
+    region_detector = (
+        PPOCRTextRegionDetector(args.text_detector_model)
+        if args.text_detector_model is not None
+        else None
+    )
     labels, ground_truth = load_ground_truth(args.ground_truth, args.sampling_directory)
+    requested_strategies = set(args.strategy)
     strategies = {
         path.name: evaluate_strategy(
             path,
@@ -335,18 +531,31 @@ def main() -> None:
             args.preprocess,
             args.page_segmentation_mode,
             args.text_region,
+            region_detector=region_detector,
         )
         for path in sorted(args.sampling_directory.iterdir())
         if (path / "manifest.csv").is_file()
+        and (not requested_strategies or path.name in requested_strategies)
     }
     if not strategies:
-        parser.error("sampling directory contains no strategy manifests")
+        parser.error("sampling directory contains no requested strategy manifests")
     report = {
         "engine": "tesseract_cli",
         "minimum_confidence": args.minimum_confidence,
         "preprocess": args.preprocess,
         "page_segmentation_mode": args.page_segmentation_mode,
         "text_region": args.text_region,
+        "text_detector": (
+            {
+                "family": "PP-OCRv3 DB English",
+                "model_path": str(args.text_detector_model),
+                "model_sha256": sha256_file(args.text_detector_model),
+                "model_size_bytes": args.text_detector_model.stat().st_size,
+                "input_size": [736, 736],
+            }
+            if args.text_detector_model is not None
+            else None
+        ),
         "ground_truth": ground_truth,
         "strategies": strategies,
     }
