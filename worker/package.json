@@ -8,7 +8,7 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "deploy:adjudication": "wrangler deploy --config wrangler.adjudication.toml"
+    "deploy:adjudication": "wrangler deploy --config wrangler.toml"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260702.1",

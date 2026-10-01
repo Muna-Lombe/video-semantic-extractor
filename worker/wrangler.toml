@@ -1,5 +1,5 @@
 # @type configuration
-# @purpose Configure deployment of the semantic capsule gateway.
+# @purpose Configure deployment of the hosted annotation review service.
 name = "video-semantic-extractor"
 main = "src/adjudication.ts"
 compatibility_date = "2026-09-01"
@@ -13,6 +13,3 @@ run_worker_first = true
 binding = "REVIEW_BUCKET"
 bucket_name = "video-annotation-reviews"
 preview_bucket_name = "video-annotation-reviews-preview"
-
-[vars]
-UPSTREAM_API_URL = "https://api.example.com/capsule"
