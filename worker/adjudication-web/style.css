@@ -7,9 +7,10 @@ h1 { margin: 0; }
 button, input, textarea { font: inherit; }
 button { padding: .55rem .8rem; border: 0; border-radius: 4px; background: #176e69; color: #fff; font-weight: 700; cursor: pointer; }
 button:disabled { opacity: .45; cursor: not-allowed; }
-.login-card { max-width: 38rem; margin: 5rem auto; padding: 2rem; background: #fff; border: 1px solid #ccd7d2; }
-.login-card label { display: block; margin-top: 1rem; font-weight: 700; }
-.login-card input { width: 100%; padding: .65rem; margin: .35rem 0 1rem; }
+.card { margin: 5rem auto; padding: 2rem; background: #fff; border: 1px solid #ccd7d2; }
+.narrow { max-width: 38rem; }
+.card label { display: block; margin-top: 1rem; font-weight: 700; }
+.card input { width: 100%; padding: .65rem; margin: .35rem 0 1rem; }
 header { padding: 1rem 1.5rem; background: #fff; border-bottom: 1px solid #ccd7d2; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
 #message { color: #59666c; }
 main { display: grid; grid-template-columns: 18rem 1fr; min-height: calc(100vh - 74px); }
@@ -21,4 +22,6 @@ img { display: block; max-width: 100%; max-height: 42vh; margin: auto; backgroun
 .columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; margin-top: 1rem; }
 article { padding: 1rem; background: #fff; border: 1px solid #ccd7d2; }
 pre, textarea { width: 100%; min-height: 18rem; white-space: pre-wrap; font: 12px/1.4 monospace; }
+.columns.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.hint, .status { color: #59666c; }
 @media (max-width: 900px) { main, .columns { display: block; } aside { border: 0; } .columns article { margin-top: .8rem; } }

@@ -39,7 +39,30 @@ sampling report SHA-256, rejects unsafe or duplicate frame paths, and writes emp
 negative labels. It refuses to overwrite an existing output unless `--force` is
 provided.
 
-## Local review SPA
+## Hosted review service
+
+The preferred workflow is the Cloudflare-hosted service. An administrator creates
+one review from the initialized template and an exact HTTPS frame URL map through
+`POST /api/v1/admin/reviews`. The response returns unique, assignment-scoped
+invitation URLs for Reviewer A, Reviewer B, and Adjudicator C. Raw invitation
+secrets are returned only once and are stored as hashes by the service. Invitations
+expire after seven days by default; administrators can configure a shorter lifetime
+or revoke an assignment without exposing its secret.
+
+Reviewers open their respective `/review/#token=...` invitation URLs and need no
+local checkout or runtime. Each credential can read and modify only its own
+assignment. The adjudicator opens `/adjudicate/#token=...`; that workspace remains
+locked until both independent passes are complete. Public `GET /api/v1`,
+`GET /list`, and `GET /openapi.json` describe input and output formats without
+listing active assignments or secrets. Authenticated `GET /api/v1/me` returns only
+the caller's assignment.
+
+Completed results are private by default. Only the administrator or the matching
+adjudicator can read `GET /api/v1/reviews/<review-id>/result`. Use
+`GET /api/v1/admin/reviews` for an administrator-only status list; it never returns
+raw invitation secrets.
+
+## Local review SPA (offline fallback)
 
 Start one server per reviewer, using a separate output JSON path:
 
@@ -211,10 +234,10 @@ validation, and fixture freezing. Their predictions may not replace Reviewer B.
 Automation may generate the comparison and organize its evidence, but a human
 adjudicator makes and owns every resolution recorded in the final fixture.
 
-The preferred adjudication service is the standalone Cloudflare Worker in
-`worker/src/adjudication.ts`. It keeps active sessions under the R2 `sessions/`
-prefix, publishes completed merged annotations under `results/`, and serves both
-the protected review API and its browser UI. The UI source is directly inspectable
+The preferred review service is the standalone Cloudflare Worker in
+`worker/src/adjudication.ts`. It keeps active reviews and completed merged
+annotations in R2 and serves the protected reviewer and adjudicator APIs and their
+browser UI. The UI source is directly inspectable
 under `worker/adjudication-web/` (`index.html`, `app.js`, and `style.css`) and is
 served at the deployed Worker's `/` route through Cloudflare Static Assets. Create
 the two R2 buckets and deploy it once:
@@ -223,43 +246,42 @@ the two R2 buckets and deploy it once:
 cd worker
 npx wrangler r2 bucket create video-annotation-reviews
 npx wrangler r2 bucket create video-annotation-reviews-preview
-npx wrangler secret put ADJUDICATION_TOKEN --config wrangler.adjudication.toml
+npx wrangler secret put ADMIN_TOKEN --config wrangler.toml
 npm run deploy:adjudication
 ```
 
-Start a session by posting both completed reviewer JSON payloads. `frame_urls` is
-optional, but the UI can display evidence only when it maps each
-`<source>/<filename>` key to an HTTPS URL:
+Create the review before either reviewer begins. `frame_urls` must map the exact
+template `<source>/<filename>` set to HTTPS URLs:
 
 ```bash
-curl -X POST "https://<worker>/api/reviews" \
-  -H "Authorization: Bearer $ADJUDICATION_TOKEN" \
+curl -X POST "https://<worker>/api/v1/admin/reviews" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   --data @- <<JSON
-{"id":"source-objects-v1","reviewer_a":$(cat /tmp/video-sample-diagnostics/reviewer-a.json),"reviewer_b":$(cat /tmp/video-sample-diagnostics/reviewer-b.json),"frame_urls":{}}
+{"id":"source-objects-v1","template":$(cat /tmp/video-sample-diagnostics/initialized-template.json),"frame_urls":{"sample_1/frame.jpg":"https://evidence.example/sample_1/frame.jpg"}}
 JSON
 ```
 
-Open `https://<worker>/?review=source-objects-v1`. The Worker requires both manual
-passes to be complete, verifies policy and evidence identity, and never modifies
-the submitted reviewer payloads. Its UI groups disagreement entries by frame,
-shows Reviewer A and Reviewer B beside the evidence, and lets Adjudicator C select
-either review or edit the merged frame JSON. Completion remains blocked until every
-disagreement frame has a logged resolution.
+The create response returns the three invitation URLs exactly once. After Reviewer
+A and Reviewer B complete their isolated assignments, the adjudicator URL unlocks.
+Its UI groups disagreement entries by frame, shows both submissions beside the
+evidence, and lets Adjudicator C select either review or edit the merged frame JSON.
+Completion remains blocked until every disagreement frame has a logged resolution.
 
-After completion, retrieve the published artifact with an ordinary unauthenticated
-GET request. R2 has no directories, so the `results/` key prefix is the Cloudflare
-equivalent of the former local output directory:
+After completion, retrieve the private artifact using the administrator or matching
+adjudicator token:
 
 ```bash
-curl "https://<worker>/results/source-objects-v1.json" \
+curl "https://<worker>/api/v1/reviews/source-objects-v1/result" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
   --output /tmp/video-sample-diagnostics/source-object-ground-truth.json
 ```
 
-Mutable API calls require the Worker secret. Completed results are deliberately
-public; use non-sensitive IDs and payloads, or add an access policy before using
-the service with sensitive material. Use only one active adjudicator per review,
-because R2 session objects do not offer transactional multi-writer updates.
+Use only one active adjudicator per review because R2 objects do not offer
+transactional multi-writer updates. The public `/list` endpoint documents API
+formats but never enumerates active assignments; the administrator-only
+`/api/v1/admin/reviews` route provides operational status without invitation
+secrets.
 
 The local `scripts/annotation-review/adjudication-server.py` remains available as
 an offline fallback when evidence cannot be hosted at HTTPS URLs.

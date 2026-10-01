@@ -54,8 +54,9 @@ only for a trusted private deployment.
 ## Human object annotation review
 
 The multi-video object fixture is intentionally initialized with empty annotation
-lists. To perform one prediction-blind human pass, create a reviewer-specific copy
-and start the local review SPA from the repository root:
+lists. The preferred deployed workflow creates a hosted review as described below.
+For an offline fallback, create a reviewer-specific copy and start the local review
+SPA from the repository root:
 
 ```bash
 cp /tmp/video-sample-diagnostics/multi-video-object-ground-truth.json \
@@ -65,15 +66,23 @@ python scripts/annotation-review/server.py \
     /tmp/video-sample-diagnostics/reviewer-a.json
 ```
 
-Open `http://127.0.0.1:8765/`. The reviewer draws source-pixel boxes, selects the
+For deployed reviews, an administrator creates a hosted review through
+`POST /api/v1/admin/reviews` and securely shares the three unique invitation URLs
+returned for Reviewer A, Reviewer B, and Adjudicator C. Reviewers need only a
+browser; assignment-scoped tokens prevent either reviewer from accessing the
+other's workspace. `GET /api/v1` and `GET /openapi.json` document the human- and
+agent-accessible API without disclosing active assignments.
+
+The local application remains available as an offline fallback. Open
+`http://127.0.0.1:8765/`. The reviewer draws source-pixel boxes, selects the
 COCO class and `live`/`composited`/`screen` subset, records out-of-taxonomy notes,
 marks each frame reviewed, and saves JSON metadata. The server reads images from the checksum-bound sampling
 directory and never embeds or copies image data into the annotation file. Repeat
 with `reviewer-b.json` for the independent second pass, then compare both files
 with `scripts/diagnostics/compare-object-reviews.py` before adjudication. The
-standalone Cloudflare adjudication Worker serves the third-reviewer UI, persists
-work in R2, and publishes completed merged JSON at
-`GET /results/<review-id>.json`.
+hosted Cloudflare review service unlocks the third-reviewer UI, persists work in
+R2, and serves completed merged JSON privately at
+`GET /api/v1/reviews/<review-id>/result`.
 
 See [`docs/annotation-review-workflow.md`](docs/annotation-review-workflow.md) for
 the complete SPA, browser-assistance, agent-bundle, JSONC import, comparison, and
@@ -85,17 +94,14 @@ validation workflow.
 cd worker
 npm install
 npm test
-npx wrangler secret put CAPSULE_API_TOKEN # optional
+npx wrangler secret put ADMIN_TOKEN
 npx wrangler deploy
 ```
 
-Set `UPSTREAM_API_URL` in `worker/wrangler.toml` to the deployed backend. The
-worker accepts only JSON requests, validates URLs, and forwards a request ID and
-optional bearer token.
-
-Deploy the separate adjudication Worker with `npm run deploy:adjudication` after
-creating its R2 buckets and `ADJUDICATION_TOKEN`; see
-[`worker/README.md`](worker/README.md) for initialization and result URLs.
+Create the R2 buckets named in `worker/wrangler.toml` before deployment. The Worker
+hosts reviewer and adjudicator workspaces, assignment-scoped APIs, and private
+results. See [`worker/README.md`](worker/README.md) for initialization, invitation,
+API-discovery, and result-retrieval examples.
 
 ## Capsule contract
 

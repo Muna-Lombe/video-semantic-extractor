@@ -9,7 +9,7 @@ export interface Env {
 
 export interface AdjudicationEnv {
   REVIEW_BUCKET: R2Bucket;
-  ADJUDICATION_TOKEN: string;
+  ADMIN_TOKEN: string;
   ASSETS: Fetcher;
 }
 

@@ -1,4 +1,4 @@
-/** @type test @purpose Verify Worker-hosted adjudication, persistence, and result access. */
+/** @type test @purpose Verify hosted review assignment isolation, discovery, adjudication, and private results. */
 import { describe, expect, it } from "vitest";
 import worker from "./adjudication";
 import type { AdjudicationEnv } from "./types";
@@ -13,69 +13,120 @@ class MemoryBucket {
   async put(key: string, value: string | ReadableStream | ArrayBuffer) {
     this.values.set(key, typeof value === "string" ? value : await new Response(value).text());
   }
+  async list(options?: { prefix?: string }) {
+    const prefix = options?.prefix ?? "";
+    return { objects: [...this.values.keys()].filter((key) => key.startsWith(prefix)).map((key) => ({ key })) };
+  }
 }
 
-function review(label: string) {
+function template() {
   return {
     policy_version: "2026-09-18",
-    review: { independent_passes: 1, adjudication_status: "not_started", manual_pass: { status: "complete" } },
-    sources: [{ source: "sample.mp4", source_sha256: "a".repeat(64), frames: [{ filename: "frame.jpg", timestamp_sec: 1, objects: [{ id: 1, label, subset: "live", region: [1, 2, 20, 30] }], out_of_taxonomy: [] }] }],
+    review: { independent_passes: 0, adjudication_status: "not_started", reviewed_frames: [] },
+    sources: [{ source: "sample.mp4", source_sha256: "a".repeat(64), frames: [{ filename: "frame.jpg", timestamp_sec: 1, objects: [], out_of_taxonomy: [] }] }],
   };
 }
-
-function request(path: string, method = "GET", body?: unknown, token = "secret") {
-  return new Request(`https://review.test${path}`, { method, headers: { authorization: `Bearer ${token}`, ...(body ? { "content-type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined });
+function submission(label: string) {
+  const value: any = template();
+  value.review.reviewed_frames = ["sample.mp4/frame.jpg"];
+  value.sources[0].frames[0].objects = [{ id: `${label}-1`, label, subset: "live", region: [1, 2, 20, 30] }];
+  return value;
 }
-
+function request(path: string, method = "GET", body?: unknown, token?: string) {
+  return new Request(`https://review.test${path}`, { method, headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...(body ? { "content-type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined });
+}
 function environment(bucket = new MemoryBucket()): AdjudicationEnv {
   return {
     REVIEW_BUCKET: bucket as unknown as R2Bucket,
-    ADJUDICATION_TOKEN: "secret",
-    ASSETS: { fetch: async () => new Response("<h1>Adjudicator C</h1>", { headers: { "content-type": "text/html" } }) } as unknown as Fetcher,
+    ADMIN_TOKEN: "admin-secret",
+    ASSETS: { fetch: async () => new Response("<h1>Secure annotation workspace</h1>", { headers: { "content-type": "text/html" } }) } as unknown as Fetcher,
   };
 }
+async function create(env: AdjudicationEnv, id = "review-1") {
+  const response = await worker.fetch(request("/api/v1/admin/reviews", "POST", { id, template: template(), frame_urls: { "sample.mp4/frame.jpg": "https://evidence.example/frame.jpg" } }, "admin-secret"), env);
+  expect(response.status).toBe(201);
+  return await response.json() as any;
+}
 
-describe("adjudication worker", () => {
-  it("serves its UI without authentication", async () => {
+describe("hosted review worker", () => {
+  it("publishes safe API discovery without listing active work", async () => {
     const env = environment();
-    const response = await worker.fetch(request("/", "GET", undefined, "wrong"), env);
+    const response = await worker.fetch(request("/list"), env);
     expect(response.status).toBe(200);
-    expect(await response.text()).toContain("Adjudicator C");
+    const catalog = await response.json() as any;
+    expect(catalog.openapi).toBe("https://review.test/openapi.json");
+    expect(catalog.endpoints).toContainEqual(expect.objectContaining({ path: "/api/v1/me", auth: "assignment" }));
+    expect(JSON.stringify(catalog)).not.toContain("review-1");
+    const specification = await worker.fetch(request("/openapi.json"), env);
+    expect(specification.status).toBe(200);
+    expect((await specification.json() as any).openapi).toBe("3.1.0");
   });
 
-  it("creates, resolves, completes, and exposes a result through GET", async () => {
-    const bucket = new MemoryBucket();
-    const env = environment(bucket);
-    const reviewerA = review("person"), reviewerB = review("chair");
-    let response = await worker.fetch(request("/api/reviews", "POST", { id: "review-1", reviewer_a: reviewerA, reviewer_b: reviewerB, frame_urls: { "sample.mp4/frame.jpg": "https://evidence.example/frame.jpg" } }), env);
-    expect(response.status).toBe(201);
-    response = await worker.fetch(request("/api/reviews/review-1/complete", "POST", {}), env);
+  it("creates unique invitation URLs and never returns their secrets from the admin list", async () => {
+    const env = environment();
+    const created = await create(env);
+    const invitations = created.invitations;
+    expect(new Set(Object.values(invitations).map((value: any) => value.api_token)).size).toBe(3);
+    expect(invitations["reviewer-a"].url).toContain("/review/#token=");
+    expect(invitations.adjudicator.url).toContain("/adjudicate/#token=");
+    const listed = await worker.fetch(request("/api/v1/admin/reviews", "GET", undefined, "admin-secret"), env);
+    const listText = await listed.text();
+    expect(listText).toContain("review-1");
+    expect(listText).not.toContain(invitations["reviewer-a"].api_token);
+    expect(listText).not.toContain("token_hash");
+    const revoked = await worker.fetch(request("/api/v1/admin/reviews/review-1/assignments/reviewer-a/revoke", "POST", {}, "admin-secret"), env);
+    expect(revoked.status).toBe(200);
+    const denied = await worker.fetch(request("/api/v1/me", "GET", undefined, invitations["reviewer-a"].api_token), env);
+    expect(denied.status).toBe(401);
+  });
+
+  it("isolates reviewer assignments and completes the three-person workflow", async () => {
+    const bucket = new MemoryBucket(), env = environment(bucket), created = await create(env);
+    const reviewerA = created.invitations["reviewer-a"], reviewerB = created.invitations["reviewer-b"], adjudicator = created.invitations.adjudicator;
+
+    let response = await worker.fetch(request(`/api/v1/assignments/${reviewerB.assignment_id}`, "GET", undefined, reviewerA.api_token), env);
+    expect(response.status).toBe(403);
+    response = await worker.fetch(request(`/api/v1/adjudications/${adjudicator.assignment_id}`, "GET", undefined, adjudicator.api_token), env);
+    expect(response.status).toBe(409);
+
+    for (const [invitation, payload] of [[reviewerA, submission("person")], [reviewerB, submission("chair")]] as const) {
+      response = await worker.fetch(request(`/api/v1/assignments/${invitation.assignment_id}`, "PUT", payload, invitation.api_token), env);
+      expect(response.status).toBe(200);
+      response = await worker.fetch(request(`/api/v1/assignments/${invitation.assignment_id}/complete`, "POST", {}, invitation.api_token), env);
+      expect(response.status).toBe(200);
+    }
+
+    response = await worker.fetch(request(`/api/v1/adjudications/${adjudicator.assignment_id}`, "GET", undefined, adjudicator.api_token), env);
+    expect(response.status).toBe(200);
+    const state = await response.json() as any;
+    expect(state.comparison.agree).toBe(false);
+    response = await worker.fetch(request(`/api/v1/adjudications/${adjudicator.assignment_id}/complete`, "POST", {}, adjudicator.api_token), env);
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: "resolve every disagreement frame before completion" });
-    response = await worker.fetch(request("/api/reviews/review-1/resolve", "POST", { source: "sample.mp4", filename: "frame.jpg", frame: reviewerA.sources[0].frames[0], resolution: "reviewer_a" }), env);
+    response = await worker.fetch(request(`/api/v1/adjudications/${adjudicator.assignment_id}/frames/sample.mp4/frame.jpg`, "PUT", { frame: submission("person").sources[0].frames[0], resolution: "reviewer_a" }, adjudicator.api_token), env);
     expect(response.status).toBe(200);
-    response = await worker.fetch(request("/api/reviews/review-1/complete", "POST", {}), env);
+    response = await worker.fetch(request(`/api/v1/adjudications/${adjudicator.assignment_id}/complete`, "POST", {}, adjudicator.api_token), env);
     expect(response.status).toBe(200);
-    response = await worker.fetch(new Request("https://review.test/results/review-1.json"), env);
+
+    response = await worker.fetch(request("/api/v1/reviews/review-1/result", "GET", undefined, reviewerA.api_token), env);
+    expect(response.status).toBe(403);
+    response = await worker.fetch(request("/api/v1/reviews/review-1/result", "GET", undefined, adjudicator.api_token), env);
     expect(response.status).toBe(200);
     const result = await response.json() as any;
     expect(result.review.adjudication_status).toBe("complete");
     expect(result.review.independent_passes).toBe(2);
-    expect(result.sources[0].frames[0].objects[0].label).toBe("person");
     expect(bucket.values.has("results/review-1.json")).toBe(true);
   });
 
-  it("protects mutable review routes", async () => {
+  it("rejects incomplete frame coverage and non-HTTPS or incomplete evidence maps", async () => {
     const env = environment();
-    const response = await worker.fetch(request("/api/reviews/missing/state", "GET", undefined, "wrong"), env);
-    expect(response.status).toBe(401);
-  });
-
-  it("rejects incomplete reviewer input", async () => {
-    const env = environment();
-    const incomplete = review("person"); incomplete.review.manual_pass.status = "in_progress";
-    const response = await worker.fetch(request("/api/reviews", "POST", { id: "review-2", reviewer_a: incomplete, reviewer_b: review("chair") }), env);
+    let response = await worker.fetch(request("/api/v1/admin/reviews", "POST", { id: "bad", template: template(), frame_urls: {} }, "admin-secret"), env);
     expect(response.status).toBe(400);
-    expect(await response.json()).toEqual({ error: "Reviewer A manual pass is not complete" });
+    const created = await create(env, "coverage");
+    const reviewer = created.invitations["reviewer-a"], payload = template();
+    response = await worker.fetch(request(`/api/v1/assignments/${reviewer.assignment_id}`, "PUT", payload, reviewer.api_token), env);
+    expect(response.status).toBe(200);
+    response = await worker.fetch(request(`/api/v1/assignments/${reviewer.assignment_id}/complete`, "POST", {}, reviewer.api_token), env);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "every manifest frame must be reviewed exactly once before completion" });
   });
 });
