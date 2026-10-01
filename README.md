@@ -3,6 +3,7 @@
 @purpose Explain the Video Semantic Extractor architecture, setup, and usage.
 -->
 
+
 # Video Semantic Extractor
 
 Video Semantic Extractor reduces a video to an LLM-friendly **VideoCapsule**: sparse
