@@ -25,12 +25,23 @@ keyframes contain brightness and edge-density measurements. Object detection,
 OCR, embeddings, and an external summarizer are represented by stable schema
 fields and extension points rather than pretend model output.
 
+The project is now separating this production extraction path from an internal
+**model-evaluation and pipeline-development control plane**. The human-facing
+foundation is `/internals`, with APIs under `/api/internal/v1`. Internals will manage the
+dataset -> sampling job -> frame set -> template -> review campaign -> ground truth
+-> evaluation -> governed model/pipeline-release chain. An initial `/internals`
+status shell, authenticated overview API, and D1 schema now establish that boundary;
+the managed pipeline resources remain incremental work rather than complete features.
+See [`docs/internals-roadmap.md`](docs/internals-roadmap.md) for the implemented/planned
+boundary, priorities, and migration policy.
+
 ## Repository layout
 
 ```text
 backend/   Python extraction library, CLI, API, and tests
 worker/    Cloudflare Worker gateway and tests
 examples/  A compact, canonical VideoCapsule
+docs/      Workflows, investigation evidence, and the Internals roadmap
 ```
 
 ## Backend quick start
@@ -88,6 +99,39 @@ R2, and serves completed merged JSON privately at
 See [`docs/annotation-review-workflow.md`](docs/annotation-review-workflow.md) for
 the complete SPA, browser-assistance, agent-bundle, JSONC import, comparison, and
 validation workflow.
+
+The focused Reviewer A, Reviewer B, and Adjudicator C invitation experiences will
+remain focused rather than becoming pages in the full Internals navigation. Review
+coordination and progress belong in Internals; an assignee's invitation should open
+only that assignee's scoped task.
+
+## Internal development roadmap
+
+The next productization track is an authenticated `/internals` workspace for
+dataset preparation, durable sampling and evaluation jobs, registered templates,
+review coordination, ground-truth governance, model registration, and pipeline
+release governance. Existing diagnostic commands remain supported as a legacy
+fallback and reproducibility interface after managed jobs are introduced; managed
+jobs should invoke the same versioned engines rather than replace them with a
+second implementation.
+
+The first vertical slice is dataset -> sampling job -> immutable frame set ->
+registered template, followed by template-referenced review campaigns. Its current
+increment registers HTTPS source URLs in a dedicated dataset D1 database, marks
+the dataset `ready`, freezes its initial version, and records durable `queued` sampling-job
+metadata in the control-plane D1 database. It does **not** yet run sampling or fetch
+the registered media: the existing CLI remains the operational legacy/fallback path
+until an executor can claim jobs and register their outputs. Cross-database
+references are validated by the application because separate D1 databases cannot
+provide foreign keys or atomic transactions across that boundary. Large immutable
+media and reports belong in object storage. See the
+[`Internals implementation roadmap`](docs/internals-roadmap.md) for priorities and
+current status.
+
+The provisioned bindings are `CONTROL_DB` (`video-semantic-extractor`) for job and
+governance state and `DATASET_DB` (`video-semantic-extractor-dataset`) for dataset,
+version, and source-registration metadata. Deployment IDs and migration commands
+are documented in [`worker/README.md`](worker/README.md).
 
 ## Worker quick start
 

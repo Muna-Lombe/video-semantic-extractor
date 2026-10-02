@@ -1,0 +1,124 @@
+<!-- @type implementation @purpose Provide the internal pipeline control-plane workspace. -->
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Internal dataset, sampling, and review operations for Video Semantic Extractor.">
+    <title>Internals · Video Semantic Extractor</title>
+    <link rel="stylesheet" href="/internals/style.css">
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to content</a>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Internals navigation">
+        <a class="brand" href="/internals/" aria-label="Video Semantic Extractor Internals home">
+          <span class="brand-mark" aria-hidden="true">VS</span>
+          <span><strong>Video Semantic</strong><small>Internals</small></span>
+        </a>
+        <nav>
+          <a href="#overview" data-route="overview" class="active"><span aria-hidden="true">⌂</span> Overview</a>
+          <a href="#datasets" data-route="datasets"><span aria-hidden="true">▤</span> Datasets</a>
+          <a href="#sampling" data-route="sampling"><span aria-hidden="true">◫</span> Sampling jobs</a>
+        </nav>
+        <div class="sidebar-section">
+          <p>Focused workspaces</p>
+          <a href="/review/"><span aria-hidden="true">✓</span> Review assignment</a>
+          <a href="/adjudicate/"><span aria-hidden="true">⇄</span> Adjudication</a>
+        </div>
+        <div class="sidebar-footer">
+          <span class="environment"><i aria-hidden="true"></i> Internal control plane</span>
+          <button id="sign-out" class="text-button" type="button" hidden>Clear session</button>
+        </div>
+      </aside>
+
+      <div class="main-column">
+        <header class="topbar">
+          <button id="menu-toggle" class="icon-button" type="button" aria-label="Toggle navigation" aria-expanded="false">☰</button>
+          <div><p class="eyebrow">Development workspace</p><h1 id="page-title">Overview</h1></div>
+          <div class="connection" id="connection"><span></span> Not connected</div>
+        </header>
+
+        <main id="content" tabindex="-1">
+          <section id="login-panel" class="login-card" aria-labelledby="login-title">
+            <div>
+              <p class="eyebrow">Administrator access</p>
+              <h2 id="login-title">Connect to Internals</h2>
+              <p>Enter the administrator token to load control-plane data. It is stored only in this browser tab.</p>
+            </div>
+            <form id="login-form">
+              <label for="admin-token">Administrator token</label>
+              <div class="input-action"><input id="admin-token" type="password" autocomplete="current-password" required><button type="submit">Connect</button></div>
+              <p id="login-status" class="form-status" role="status"></p>
+            </form>
+          </section>
+
+          <div id="workspace" hidden>
+            <section class="page" data-page="overview">
+              <div class="hero">
+                <div><p class="eyebrow">Control plane</p><h2>Pipeline operations at a glance</h2><p>Coordinate datasets, schedule sampling work, and hand prepared artifacts into focused review workflows.</p></div>
+                <button class="secondary" type="button" data-refresh>Refresh data</button>
+              </div>
+              <div id="overview-cards" class="metric-grid" aria-live="polite"></div>
+              <div class="content-grid">
+                <article class="panel span-two">
+                  <div class="panel-heading"><div><p class="eyebrow">Pipeline</p><h3>Development flow</h3></div><span class="badge neutral">Foundation</span></div>
+                  <ol class="pipeline">
+                    <li class="available"><span>1</span><div><strong>Dataset</strong><small>Register source media</small></div></li>
+                    <li><span>2</span><div><strong>Sampling</strong><small>Schedule frame extraction</small></div></li>
+                    <li><span>3</span><div><strong>Template</strong><small>Generate governed artifact</small></div></li>
+                    <li><span>4</span><div><strong>Review</strong><small>Annotate and adjudicate</small></div></li>
+                    <li><span>5</span><div><strong>Evaluate</strong><small>Measure model quality</small></div></li>
+                  </ol>
+                </article>
+                <article class="panel notice">
+                  <p class="eyebrow">Execution status</p><h3>Scheduling only</h3>
+                  <p>Sampling jobs created here are durable scheduling records. Managed workers do not execute them yet; continue using the legacy CLI for sampling output.</p>
+                  <a href="#sampling" data-route-link="sampling">View sampling jobs →</a>
+                </article>
+              </div>
+            </section>
+
+            <section class="page" data-page="datasets" hidden>
+              <div class="page-heading"><div><p class="eyebrow">Source governance</p><h2>Datasets</h2><p>Register and track the media collections used by internal development pipelines.</p></div><button type="button" data-dialog-open="dataset-dialog">New dataset</button></div>
+              <div class="panel table-panel"><div class="table-toolbar"><label class="search"><span class="sr-only">Filter datasets</span><input id="dataset-filter" type="search" placeholder="Filter datasets…"></label><button class="text-button" type="button" data-refresh>Refresh</button></div><div id="datasets-table"></div></div>
+            </section>
+
+            <section class="page" data-page="sampling" hidden>
+              <div class="page-heading"><div><p class="eyebrow">Frame preparation</p><h2>Sampling jobs</h2><p>Create durable job records and inspect their scheduling state.</p></div><button type="button" data-dialog-open="sampling-dialog">Schedule job</button></div>
+              <div class="callout"><strong>Managed execution is not active.</strong> New jobs are queued as scheduling records only. Use the legacy CLI to run sampling until a worker executor is connected.</div>
+              <div class="panel table-panel"><div class="table-toolbar"><span id="sampling-summary" class="muted">Loading jobs…</span><button class="text-button" type="button" data-refresh>Refresh</button></div><div id="sampling-table"></div></div>
+            </section>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <dialog id="dataset-dialog">
+      <form id="dataset-form">
+        <div class="dialog-heading"><div><p class="eyebrow">New resource</p><h2>Create dataset</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div>
+        <label for="dataset-name">Name</label><input id="dataset-name" name="name" required maxlength="120">
+        <label for="dataset-description">Description <span>Optional</span></label><textarea id="dataset-description" name="description" rows="4" maxlength="1000"></textarea>
+        <label for="dataset-sources">Source video URLs <span>One HTTPS URL per line</span></label><textarea id="dataset-sources" name="sources" rows="6" required aria-describedby="dataset-sources-help" placeholder="https://media.example/video-one.mp4&#10;https://media.example/video-two.mp4"></textarea>
+        <p id="dataset-sources-help" class="field-help">At least one source is required. Each source becomes part of the immutable initial dataset version.</p>
+        <p class="muted">New datasets and their initial versions begin in draft status. Freeze or mark the version ready before scheduling sampling.</p>
+        <p class="form-status" role="status"></p><div class="dialog-actions"><button class="secondary" type="button" data-dialog-close>Cancel</button><button type="submit">Create dataset</button></div>
+      </form>
+    </dialog>
+
+    <dialog id="sampling-dialog">
+      <form id="sampling-form">
+        <div class="dialog-heading"><div><p class="eyebrow">Scheduling record</p><h2>Schedule sampling job</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div>
+        <div class="callout compact"><strong>No executor yet.</strong> This records a queued job; it does not run sampling.</div>
+        <label for="sampling-dataset">Dataset version</label><select id="sampling-dataset" name="dataset_version_id" required aria-describedby="sampling-dataset-help"></select>
+        <p id="sampling-dataset-help" class="field-help">Only latest versions with ready or frozen status can be scheduled.</p>
+        <label for="sampling-strategy">Method</label><select id="sampling-strategy" name="method"><option value="hybrid">Hybrid (scene + interval)</option><option value="scene">Scene change</option><option value="interval">Fixed interval</option></select>
+        <div class="form-grid"><div><label for="sampling-threshold">Scene threshold</label><input id="sampling-threshold" name="scene_threshold" type="number" min="0" max="1" step="0.01" value="0.3"></div><div><label for="sampling-interval">Interval (seconds)</label><input id="sampling-interval" name="interval_seconds" type="number" min="0.001" step="0.001" value="5"></div><div><label for="sampling-limit">Maximum frames</label><input id="sampling-limit" name="max_frames" type="number" min="1" step="1" value="250"></div><div><label for="sampling-final">Final frame</label><select id="sampling-final" name="include_final_frame"><option value="true">Include final frame</option><option value="false">Do not include</option></select></div></div>
+        <p class="form-status" role="status"></p><div class="dialog-actions"><button class="secondary" type="button" data-dialog-close>Cancel</button><button type="submit">Queue job</button></div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <script type="module" src="/internals/app.js"></script>
+  </body>
+</html>
