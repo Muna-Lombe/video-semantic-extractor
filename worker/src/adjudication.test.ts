@@ -38,8 +38,10 @@ function request(path: string, method = "GET", body?: unknown, token?: string) {
 function environment(bucket = new MemoryBucket()): AdjudicationEnv {
   return {
     REVIEW_BUCKET: bucket as unknown as R2Bucket,
+    CONTROL_DB: {} as D1Database,
+    DATASET_DB: {} as D1Database,
     ADMIN_TOKEN: "admin-secret",
-    ASSETS: { fetch: async () => new Response("<h1>Secure annotation workspace</h1>", { headers: { "content-type": "text/html" } }) } as unknown as Fetcher,
+    ASSETS: { fetch: async (request: Request) => new Response(new URL(request.url).pathname.startsWith("/internals/") ? "<h1>Internals workspace</h1>" : "<h1>Secure annotation workspace</h1>", { headers: { "content-type": "text/html" } }) } as unknown as Fetcher,
   };
 }
 async function create(env: AdjudicationEnv, id = "review-1") {
@@ -49,6 +51,30 @@ async function create(env: AdjudicationEnv, id = "review-1") {
 }
 
 describe("hosted review worker", () => {
+  it("serves an honest Internals foundation while protecting its overview API", async () => {
+    const env = environment();
+    const page = await worker.fetch(request("/internals/"), env);
+    expect(page.status).toBe(200);
+    expect(page.headers.get("x-robots-tag")).toBe("noindex");
+    const markup = await page.text();
+    expect(markup).toContain("Internals workspace");
+
+    expect((await worker.fetch(request("/api/internal/v1/overview"), env)).status).toBe(401);
+    const assignmentEnv = environment();
+    const created = await create(assignmentEnv, "internal-auth");
+    expect((await worker.fetch(request("/api/internal/v1/overview", "GET", undefined, created.invitations["reviewer-a"].api_token), assignmentEnv)).status).toBe(403);
+
+    const response = await worker.fetch(request("/api/internal/v1/overview", "GET", undefined, "admin-secret"), env);
+    expect(response.status).toBe(200);
+    const overview = await response.json() as any;
+    expect(overview.maturity).toBe("foundation");
+    expect(overview.control_plane).toEqual(expect.objectContaining({ binding: "CONTROL_DB", engine: "D1" }));
+    expect(overview.invitation_experiences).toEqual(expect.objectContaining({ review: "/review/", adjudication: "/adjudicate/" }));
+    expect(overview.areas).toContainEqual(expect.objectContaining({ id: "reviews", status: "available" }));
+    expect(overview.areas).toContainEqual(expect.objectContaining({ id: "datasets", status: "available" }));
+    expect(overview.areas).toContainEqual(expect.objectContaining({ id: "sampling", status: "queued_metadata" }));
+  });
+
   it("publishes safe API discovery without listing active work", async () => {
     const env = environment();
     const response = await worker.fetch(request("/list"), env);
@@ -59,7 +85,11 @@ describe("hosted review worker", () => {
     expect(JSON.stringify(catalog)).not.toContain("review-1");
     const specification = await worker.fetch(request("/openapi.json"), env);
     expect(specification.status).toBe(200);
-    expect((await specification.json() as any).openapi).toBe("3.1.0");
+    const openapi = await specification.json() as any;
+    expect(openapi.openapi).toBe("3.1.0");
+    expect(openapi.paths).toHaveProperty("/api/internal/v1/overview");
+    expect(openapi.paths).toHaveProperty("/api/internal/v1/datasets");
+    expect(openapi.paths).toHaveProperty("/api/internal/v1/sampling-jobs");
   });
 
   it("creates unique invitation URLs and never returns their secrets from the admin list", async () => {

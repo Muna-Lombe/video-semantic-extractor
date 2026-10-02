@@ -1,5 +1,6 @@
 /** @type implementation @purpose Host isolated reviewer and adjudicator assignments backed by R2. */
 import { compareReviews, type JsonRecord } from "./review-comparison";
+import { handleInternalsApi } from "./internals";
 import type { AdjudicationEnv } from "./types";
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
@@ -94,6 +95,35 @@ function reviewSummary(review: ReviewRecord) {
     result_ready: review.assignments.adjudicator.status === "complete",
   };
 }
+const INTERNAL_AREAS = [
+  { id: "datasets", label: "Datasets", status: "available", summary: "D1-backed dataset registration and immutable initial versions are available." },
+  { id: "sampling", label: "Sampling jobs", status: "queued_metadata", summary: "Durable queued records are available; sampling execution still uses the legacy CLI." },
+  { id: "templates", label: "Templates", status: "legacy_cli", summary: "Templates are currently generated as files; registered artifacts and reference-based review creation are planned." },
+  { id: "reviews", label: "Review campaigns", status: "available", summary: "Assignment-scoped review and adjudication APIs are available through the existing review service." },
+  { id: "ground-truth", label: "Ground truth", status: "planned", summary: "Governed, versioned ground-truth resources are not implemented yet." },
+  { id: "evaluations", label: "Evaluations", status: "legacy_cli", summary: "Diagnostic CLIs remain available; durable evaluation runs are not implemented yet." },
+  { id: "models", label: "Models", status: "planned", summary: "Model registration and lifecycle governance are not implemented yet." },
+  { id: "releases", label: "Pipeline releases", status: "planned", summary: "Pipeline promotion, activation, and rollback are not implemented yet." },
+] as const;
+function internalOverview() {
+  return {
+    name: "Video Semantic Extractor Internals",
+    maturity: "foundation",
+    notice: "This workspace is an incremental control-plane foundation, not a complete model-development platform.",
+    authentication: "Temporary administrator bearer token; user identities and RBAC are planned.",
+    control_plane: {
+      binding: "CONTROL_DB",
+      engine: "D1",
+      status: "schema_foundation",
+      databases: {
+        control: { binding: "CONTROL_DB", name: "video-semantic-extractor" },
+        datasets: { binding: "DATASET_DB", name: "video-semantic-extractor-dataset" },
+      },
+    },
+    invitation_experiences: { review: "/review/", adjudication: "/adjudicate/", status: "preserved" },
+    areas: INTERNAL_AREAS,
+  };
+}
 function apiDescription(origin: string) {
   return {
     name: "Video annotation review API",
@@ -115,6 +145,13 @@ function apiDescription(origin: string) {
       { method: "GET", path: "/api/v1/admin/reviews", auth: "administrator", output: "ReviewSummary[]; never includes invitation secrets" },
       { method: "POST", path: "/api/v1/admin/reviews/{id}/assignments/{role}/revoke", auth: "administrator", input: "empty JSON object", output: "RevocationResult" },
       { method: "GET", path: "/api/v1/reviews/{id}/result", auth: "administrator or matching adjudicator", output: "Completed merged annotation" },
+      { method: "GET", path: "/api/internal/v1/overview", auth: "administrator", output: "Internals capability and implementation status" },
+      { method: "GET", path: "/api/internal/v1/datasets", auth: "administrator", output: "Paginated datasets" },
+      { method: "POST", path: "/api/internal/v1/datasets", auth: "administrator", input: "CreateDataset", output: "Dataset and initial version" },
+      { method: "GET", path: "/api/internal/v1/datasets/{id}", auth: "administrator", output: "Dataset and versions" },
+      { method: "GET", path: "/api/internal/v1/sampling-jobs", auth: "administrator", output: "Paginated sampling-job records" },
+      { method: "POST", path: "/api/internal/v1/sampling-jobs", auth: "administrator", input: "CreateSamplingJob", output: "Queued metadata; does not execute sampling" },
+      { method: "GET", path: "/api/internal/v1/sampling-jobs/{id}", auth: "administrator", output: "Sampling-job record" },
     ],
   };
 }
@@ -139,6 +176,17 @@ function openApi(origin: string): JsonRecord {
         post: { summary: "Create a review and one-time invitation URLs", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateReview" } } } }, responses: { "201": { description: "Created" } } },
       },
       "/api/v1/admin/reviews/{id}/assignments/{role}/revoke": { post: { summary: "Revoke an assignment token", security: [{ bearerAuth: [] }], responses: { "200": { description: "Revoked" } } } },
+      "/api/internal/v1/overview": { get: { summary: "Inspect Internals capabilities and implementation status", security: [{ bearerAuth: [] }], responses: { "200": { description: "Internals overview" } } } },
+      "/api/internal/v1/datasets": {
+        get: { summary: "List registered datasets", security: [{ bearerAuth: [] }], responses: { "200": { description: "Datasets" } } },
+        post: { summary: "Register a dataset and its initial version", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateDataset" } } } }, responses: { "201": { description: "Dataset created" } } },
+      },
+      "/api/internal/v1/datasets/{id}": { get: { summary: "Read a dataset and its versions", security: [{ bearerAuth: [] }], responses: { "200": { description: "Dataset" } } } },
+      "/api/internal/v1/sampling-jobs": {
+        get: { summary: "List sampling-job records", security: [{ bearerAuth: [] }], responses: { "200": { description: "Sampling jobs" } } },
+        post: { summary: "Persist queued sampling-job metadata without executing it", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateSamplingJob" } } } }, responses: { "202": { description: "Sampling request recorded" } } },
+      },
+      "/api/internal/v1/sampling-jobs/{id}": { get: { summary: "Read a sampling-job record", security: [{ bearerAuth: [] }], responses: { "200": { description: "Sampling job" } } } },
     },
     components: {
       securitySchemes: { bearerAuth: { type: "http", scheme: "bearer" } },
@@ -146,6 +194,8 @@ function openApi(origin: string): JsonRecord {
         CreateReview: { type: "object", required: ["id", "template", "frame_urls"], properties: { id: { type: "string", pattern: ID_PATTERN.source }, template: { type: "object" }, frame_urls: { type: "object", additionalProperties: { type: "string", format: "uri" } }, expires_in_hours: { type: "integer", minimum: 1, maximum: 720, default: 168 } } },
         ReviewerSubmission: { type: "object", required: ["policy_version", "review", "sources"], properties: { policy_version: {}, review: { type: "object" }, sources: { type: "array" } } },
         AdjudicationResolution: { type: "object", required: ["frame", "resolution"], properties: { frame: { type: "object" }, resolution: { enum: ["reviewer_a", "reviewer_b", "edited", "ambiguous"] } } },
+        CreateDataset: { type: "object", additionalProperties: false, required: ["name", "sources"], properties: { name: { type: "string", minLength: 1, maxLength: 120 }, description: { type: "string", maxLength: 2000 }, sources: { type: "array", minItems: 1, maxItems: 100, items: { type: "object", additionalProperties: false, required: ["url"], properties: { url: { type: "string", format: "uri", pattern: "^https://" }, display_name: { type: "string", minLength: 1, maxLength: 200 } } } } } },
+        CreateSamplingJob: { type: "object", additionalProperties: false, required: ["dataset_version_id", "method"], properties: { dataset_version_id: { type: "string" }, method: { enum: ["scene", "interval", "hybrid"] }, scene_threshold: { type: "number", minimum: 0, maximum: 1 }, interval_seconds: { type: "number", exclusiveMinimum: 0 }, max_frames: { type: "integer", minimum: 1 }, include_final_frame: { type: "boolean", default: true } } },
       },
     },
   };
@@ -284,6 +334,14 @@ async function evidence(env: AdjudicationEnv, token: TokenRecord, source: string
 
 export default { async fetch(request: Request, env: AdjudicationEnv): Promise<Response> {
   const url = new URL(request.url), path = url.pathname, method = request.method;
+  if (method === "GET" && (path === "/internals" || path === "/internals/" || path === "/internals/app.js" || path === "/internals/style.css")) {
+    const assetPath = path === "/internals" ? "/internals/" : path;
+    const response = await env.ASSETS.fetch(new Request(new URL(assetPath, url), request));
+    const headers = new Headers(response.headers);
+    headers.set("cache-control", path.endsWith(".js") || path.endsWith(".css") ? "private, max-age=300" : "no-store");
+    headers.set("x-robots-tag", "noindex");
+    return new Response(response.body, { status: response.status, headers });
+  }
   if (method === "GET" && ["/", "/review/", "/adjudicate/", "/app.js", "/style.css"].includes(path)) {
     const assetUrl = new URL(path === "/review/" || path === "/adjudicate/" ? "/" : path, url);
     return env.ASSETS.fetch(new Request(assetUrl, request));
@@ -295,6 +353,15 @@ export default { async fetch(request: Request, env: AdjudicationEnv): Promise<Re
   const actor = await principal(request, env);
   if (!actor) return json({ error: "unauthorized" }, 401);
   try {
+    if (path === "/api/internal/v1/overview") {
+      if (actor.kind !== "admin") return json({ error: "forbidden" }, 403);
+      return method === "GET" ? json(internalOverview()) : json({ error: "method not allowed" }, 405);
+    }
+    if (path.startsWith("/api/internal/v1/")) {
+      if (actor.kind !== "admin") return json({ error: "forbidden" }, 403);
+      const response = await handleInternalsApi(request, env);
+      if (response) return response;
+    }
     if (path === "/api/v1/me" && method === "GET") {
       if (actor.kind !== "assignment" || !actor.token) return json({ actor: { role: "administrator" }, links: { reviews: "/api/v1/admin/reviews" } });
       const token = actor.token;

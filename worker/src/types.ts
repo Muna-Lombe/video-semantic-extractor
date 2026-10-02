@@ -9,6 +9,8 @@ export interface Env {
 
 export interface AdjudicationEnv {
   REVIEW_BUCKET: R2Bucket;
+  CONTROL_DB: D1Database;
+  DATASET_DB: D1Database;
   ADMIN_TOKEN: string;
   ASSETS: Fetcher;
 }
