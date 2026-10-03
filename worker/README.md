@@ -43,15 +43,17 @@ npx wrangler r2 bucket create video-annotation-reviews-preview
 npx wrangler d1 migrations apply video-semantic-extractor --remote --config wrangler.toml
 npx wrangler d1 migrations apply video-semantic-extractor-dataset --remote --config wrangler.toml
 npx wrangler secret put ADMIN_TOKEN --config wrangler.toml
+npx wrangler secret put RUNNER_TOKEN --config wrangler.toml
 npm run deploy:adjudication
 ```
 
 `GET /internals` serves the interactive dataset and sampling workspace, while
 `GET /api/internal/v1/overview` returns its administrator-authenticated capability
-report. The current executable slice registers datasets in D1 and stores sampling-job
-requests as durable `queued` metadata. Queuing does not execute sampling: there is
-currently no job consumer or sampling runner, so the existing diagnostic CLI
-remains the operational legacy/fallback path. Frame-set artifacts, template
+report. The current executable slice registers datasets in D1, stores sampling-job
+requests as durable `queued` metadata, and provides a runner protocol for claiming
+and reporting work. Queuing and claim APIs do not execute sampling: there is
+currently no job consumer or sampling runner process in this repository, so the
+existing diagnostic CLI remains the operational legacy/fallback path. Frame-set artifacts, template
 registration, managed evaluation, and governance remain incremental work. See
 `../docs/internals-architecture.md` and `../docs/internals-roadmap.md`.
 
@@ -64,12 +66,63 @@ GET  /api/internal/v1/datasets/<dataset-id>
 GET  /api/internal/v1/sampling-jobs
 POST /api/internal/v1/sampling-jobs
 GET  /api/internal/v1/sampling-jobs/<job-id>
+POST /api/internal/v1/sampling-jobs/<job-id>/cancel
+POST /api/internal/v1/sampling-jobs/<job-id>/retry
+
+POST /api/internal/v1/runner/sampling-jobs/claim
+POST /api/internal/v1/runner/sampling-jobs/<job-id>/heartbeat
+POST /api/internal/v1/runner/sampling-jobs/<job-id>/complete
+POST /api/internal/v1/runner/sampling-jobs/<job-id>/fail
 ```
 
 Creating a dataset also creates its initial immutable version. Creating a sampling
 job references that dataset version plus a sampling strategy/configuration and
 only persists a `queued` record. Listing a queued job confirms durable scheduling
 metadata; it is not evidence that sampling has started or produced artifacts.
+
+The runner endpoints use `Authorization: Bearer $RUNNER_TOKEN`, independently of
+the administrator token. A runner claims work with a stable `runner_id` and an
+optional bounded `lease_seconds`. An atomic claim returns either `data: null` when
+no job is eligible, or one job plus a one-time lease token. Heartbeat, completion,
+and failure calls must send that credential in `X-Job-Lease-Token`; stale,
+expired, or superseded leases cannot mutate the job. Each claim creates an attempt
+record, and the job stores its attempt count, current runner, and lease expiry.
+Heartbeats extend ownership. Failure may end the job or atomically requeue it;
+administrators may cancel eligible work or retry a failed/cancelled job.
+
+Expired leases are reconciled during the next claim: abandoned cancellation
+requests become `cancelled`, exhausted jobs become `failed`, and eligible jobs may
+be reclaimed. Heartbeat and terminal mutations recheck the active lease and
+expected state in the same D1 transaction used to update attempt history; a failed
+attempt-record insert compensates by releasing the newly claimed job.
+
+Sampling creation optionally accepts an `idempotency_key`. Repeating the same
+request returns the original job, while reusing that key with a different dataset,
+configuration, or retry limit returns `409 idempotency_conflict`.
+
+Completion currently records runner-supplied output **metadata only**. It does not
+upload, inspect, checksum, or validate frame manifests or sampled images. These
+APIs define durable orchestration and make an external runner possible, but they
+are not a sampling implementation and do not make managed sampling operational on
+their own.
+
+The runner request shapes are intentionally small:
+
+```json
+// POST /api/internal/v1/runner/sampling-jobs/claim
+{"runner_id":"sampling-runner-1","lease_seconds":300}
+
+// POST /api/internal/v1/runner/sampling-jobs/<job-id>/complete
+{"output":{"manifest_key":"sampling/example/manifest.json"}}
+
+// POST /api/internal/v1/runner/sampling-jobs/<job-id>/fail
+{"error_message":"source download failed","requeue":true}
+```
+
+The heartbeat request accepts an empty JSON object (`{}`), or lease/progress
+metadata. Send the claim response's lease token as
+`X-Job-Lease-Token` on heartbeat, complete, and fail. Do not log or persist that
+one-time token as ordinary job metadata.
 
 Dataset creation accepts source media as HTTPS URL registrations. The service
 creates the dataset and its initial version in `DATASET_DB`, records the sources,

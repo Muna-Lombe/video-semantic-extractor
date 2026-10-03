@@ -73,7 +73,7 @@
                 </article>
                 <article class="panel notice">
                   <p class="eyebrow">Execution status</p><h3>Scheduling only</h3>
-                  <p>Sampling jobs created here are durable scheduling records. Managed workers do not execute them yet; continue using the legacy CLI for sampling output.</p>
+                  <p>Sampling jobs are durable records, but execution requires a connected runner. Continue using the legacy CLI when no runner is available.</p>
                   <a href="#sampling" data-route-link="sampling">View sampling jobs →</a>
                 </article>
               </div>
@@ -86,7 +86,7 @@
 
             <section class="page" data-page="sampling" hidden>
               <div class="page-heading"><div><p class="eyebrow">Frame preparation</p><h2>Sampling jobs</h2><p>Create durable job records and inspect their scheduling state.</p></div><button type="button" data-dialog-open="sampling-dialog">Schedule job</button></div>
-              <div class="callout"><strong>Managed execution is not active.</strong> New jobs are queued as scheduling records only. Use the legacy CLI to run sampling until a worker executor is connected.</div>
+              <div class="callout"><strong>Execution requires a runner.</strong> Jobs remain queued until a compatible runner claims them. The legacy CLI remains available when no managed runner is connected.</div>
               <div class="panel table-panel"><div class="table-toolbar"><span id="sampling-summary" class="muted">Loading jobs…</span><button class="text-button" type="button" data-refresh>Refresh</button></div><div id="sampling-table"></div></div>
             </section>
           </div>
@@ -101,7 +101,7 @@
         <label for="dataset-description">Description <span>Optional</span></label><textarea id="dataset-description" name="description" rows="4" maxlength="1000"></textarea>
         <label for="dataset-sources">Source video URLs <span>One HTTPS URL per line</span></label><textarea id="dataset-sources" name="sources" rows="6" required aria-describedby="dataset-sources-help" placeholder="https://media.example/video-one.mp4&#10;https://media.example/video-two.mp4"></textarea>
         <p id="dataset-sources-help" class="field-help">At least one source is required. Each source becomes part of the immutable initial dataset version.</p>
-        <p class="muted">New datasets and their initial versions begin in draft status. Freeze or mark the version ready before scheduling sampling.</p>
+        <p class="muted">Creating a dataset marks it ready and freezes its immutable initial version, so it can be scheduled immediately.</p>
         <p class="form-status" role="status"></p><div class="dialog-actions"><button class="secondary" type="button" data-dialog-close>Cancel</button><button type="submit">Create dataset</button></div>
       </form>
     </dialog>
@@ -109,7 +109,7 @@
     <dialog id="sampling-dialog">
       <form id="sampling-form">
         <div class="dialog-heading"><div><p class="eyebrow">Scheduling record</p><h2>Schedule sampling job</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div>
-        <div class="callout compact"><strong>No executor yet.</strong> This records a queued job; it does not run sampling.</div>
+        <div class="callout compact"><strong>Runner required.</strong> This creates a durable queued job. It will run only when a compatible runner is connected.</div>
         <label for="sampling-dataset">Dataset version</label><select id="sampling-dataset" name="dataset_version_id" required aria-describedby="sampling-dataset-help"></select>
         <p id="sampling-dataset-help" class="field-help">Only latest versions with ready or frozen status can be scheduled.</p>
         <label for="sampling-strategy">Method</label><select id="sampling-strategy" name="method"><option value="hybrid">Hybrid (scene + interval)</option><option value="scene">Scene change</option><option value="interval">Fixed interval</option></select>

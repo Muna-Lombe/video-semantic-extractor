@@ -72,7 +72,7 @@ describe("hosted review worker", () => {
     expect(overview.invitation_experiences).toEqual(expect.objectContaining({ review: "/review/", adjudication: "/adjudicate/" }));
     expect(overview.areas).toContainEqual(expect.objectContaining({ id: "reviews", status: "available" }));
     expect(overview.areas).toContainEqual(expect.objectContaining({ id: "datasets", status: "available" }));
-    expect(overview.areas).toContainEqual(expect.objectContaining({ id: "sampling", status: "queued_metadata" }));
+    expect(overview.areas).toContainEqual(expect.objectContaining({ id: "sampling", status: "runner_protocol" }));
   });
 
   it("publishes safe API discovery without listing active work", async () => {
@@ -90,6 +90,7 @@ describe("hosted review worker", () => {
     expect(openapi.paths).toHaveProperty("/api/internal/v1/overview");
     expect(openapi.paths).toHaveProperty("/api/internal/v1/datasets");
     expect(openapi.paths).toHaveProperty("/api/internal/v1/sampling-jobs");
+    expect(openapi.paths).toHaveProperty("/api/internal/v1/runner/sampling-jobs/claim");
   });
 
   it("creates unique invitation URLs and never returns their secrets from the admin list", async () => {

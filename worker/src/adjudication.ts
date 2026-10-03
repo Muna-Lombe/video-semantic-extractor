@@ -1,6 +1,7 @@
 /** @type implementation @purpose Host isolated reviewer and adjudicator assignments backed by R2. */
 import { compareReviews, type JsonRecord } from "./review-comparison";
 import { handleInternalsApi } from "./internals";
+import { handleAdminJobAction, handleRunnerApi } from "./job-lifecycle";
 import type { AdjudicationEnv } from "./types";
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
@@ -97,7 +98,7 @@ function reviewSummary(review: ReviewRecord) {
 }
 const INTERNAL_AREAS = [
   { id: "datasets", label: "Datasets", status: "available", summary: "D1-backed dataset registration and immutable initial versions are available." },
-  { id: "sampling", label: "Sampling jobs", status: "queued_metadata", summary: "Durable queued records are available; sampling execution still uses the legacy CLI." },
+  { id: "sampling", label: "Sampling jobs", status: "runner_protocol", summary: "Durable claims, leases, attempts, and lifecycle APIs are available; no managed runner process ships yet." },
   { id: "templates", label: "Templates", status: "legacy_cli", summary: "Templates are currently generated as files; registered artifacts and reference-based review creation are planned." },
   { id: "reviews", label: "Review campaigns", status: "available", summary: "Assignment-scoped review and adjudication APIs are available through the existing review service." },
   { id: "ground-truth", label: "Ground truth", status: "planned", summary: "Governed, versioned ground-truth resources are not implemented yet." },
@@ -152,6 +153,12 @@ function apiDescription(origin: string) {
       { method: "GET", path: "/api/internal/v1/sampling-jobs", auth: "administrator", output: "Paginated sampling-job records" },
       { method: "POST", path: "/api/internal/v1/sampling-jobs", auth: "administrator", input: "CreateSamplingJob", output: "Queued metadata; does not execute sampling" },
       { method: "GET", path: "/api/internal/v1/sampling-jobs/{id}", auth: "administrator", output: "Sampling-job record" },
+      { method: "POST", path: "/api/internal/v1/sampling-jobs/{id}/cancel", auth: "administrator", output: "Cancellation state" },
+      { method: "POST", path: "/api/internal/v1/sampling-jobs/{id}/retry", auth: "administrator", output: "Requeued sampling job" },
+      { method: "POST", path: "/api/internal/v1/runner/sampling-jobs/claim", auth: "runner", input: "RunnerClaim", output: "Job and one-time lease token" },
+      { method: "POST", path: "/api/internal/v1/runner/sampling-jobs/{id}/heartbeat", auth: "runner lease", output: "Extended lease and cancellation state" },
+      { method: "POST", path: "/api/internal/v1/runner/sampling-jobs/{id}/complete", auth: "runner lease", output: "Completed metadata" },
+      { method: "POST", path: "/api/internal/v1/runner/sampling-jobs/{id}/fail", auth: "runner lease", output: "Failed, cancelled, or requeued state" },
     ],
   };
 }
@@ -187,6 +194,12 @@ function openApi(origin: string): JsonRecord {
         post: { summary: "Persist queued sampling-job metadata without executing it", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateSamplingJob" } } } }, responses: { "202": { description: "Sampling request recorded" } } },
       },
       "/api/internal/v1/sampling-jobs/{id}": { get: { summary: "Read a sampling-job record", security: [{ bearerAuth: [] }], responses: { "200": { description: "Sampling job" } } } },
+      "/api/internal/v1/sampling-jobs/{id}/cancel": { post: { summary: "Cancel or request cancellation of a sampling job", security: [{ bearerAuth: [] }], responses: { "200": { description: "Cancellation state" } } } },
+      "/api/internal/v1/sampling-jobs/{id}/retry": { post: { summary: "Retry failed or cancelled sampling work", security: [{ bearerAuth: [] }], responses: { "200": { description: "Requeued" } } } },
+      "/api/internal/v1/runner/sampling-jobs/claim": { post: { summary: "Atomically claim eligible sampling work", security: [{ bearerAuth: [] }], responses: { "200": { description: "Job lease or no available work" } } } },
+      "/api/internal/v1/runner/sampling-jobs/{id}/heartbeat": { post: { summary: "Extend a sampling-job lease", security: [{ bearerAuth: [] }], responses: { "200": { description: "Lease extended" } } } },
+      "/api/internal/v1/runner/sampling-jobs/{id}/complete": { post: { summary: "Complete a leased sampling job with output metadata", security: [{ bearerAuth: [] }], responses: { "200": { description: "Completed" } } } },
+      "/api/internal/v1/runner/sampling-jobs/{id}/fail": { post: { summary: "Fail, cancel, or requeue a leased sampling job", security: [{ bearerAuth: [] }], responses: { "200": { description: "Transition recorded" } } } },
     },
     components: {
       securitySchemes: { bearerAuth: { type: "http", scheme: "bearer" } },
@@ -195,7 +208,7 @@ function openApi(origin: string): JsonRecord {
         ReviewerSubmission: { type: "object", required: ["policy_version", "review", "sources"], properties: { policy_version: {}, review: { type: "object" }, sources: { type: "array" } } },
         AdjudicationResolution: { type: "object", required: ["frame", "resolution"], properties: { frame: { type: "object" }, resolution: { enum: ["reviewer_a", "reviewer_b", "edited", "ambiguous"] } } },
         CreateDataset: { type: "object", additionalProperties: false, required: ["name", "sources"], properties: { name: { type: "string", minLength: 1, maxLength: 120 }, description: { type: "string", maxLength: 2000 }, sources: { type: "array", minItems: 1, maxItems: 100, items: { type: "object", additionalProperties: false, required: ["url"], properties: { url: { type: "string", format: "uri", pattern: "^https://" }, display_name: { type: "string", minLength: 1, maxLength: 200 } } } } } },
-        CreateSamplingJob: { type: "object", additionalProperties: false, required: ["dataset_version_id", "method"], properties: { dataset_version_id: { type: "string" }, method: { enum: ["scene", "interval", "hybrid"] }, scene_threshold: { type: "number", minimum: 0, maximum: 1 }, interval_seconds: { type: "number", exclusiveMinimum: 0 }, max_frames: { type: "integer", minimum: 1 }, include_final_frame: { type: "boolean", default: true } } },
+        CreateSamplingJob: { type: "object", additionalProperties: false, required: ["dataset_version_id", "method"], properties: { dataset_version_id: { type: "string" }, method: { enum: ["scene", "interval", "hybrid"] }, scene_threshold: { type: "number", minimum: 0, maximum: 1 }, interval_seconds: { type: "number", exclusiveMinimum: 0 }, max_frames: { type: "integer", minimum: 1 }, include_final_frame: { type: "boolean", default: true }, idempotency_key: { type: "string", minLength: 1, maxLength: 200 }, max_attempts: { type: "integer", minimum: 1, maximum: 10, default: 3 } } },
       },
     },
   };
@@ -350,6 +363,12 @@ export default { async fetch(request: Request, env: AdjudicationEnv): Promise<Re
   if (method === "GET" && path === "/openapi.json") return json(openApi(url.origin));
   if (method === "GET" && path === "/docs") return Response.redirect(`${url.origin}/api/v1`, 302);
   if (method === "GET" && path === "/health") return json({ status: "ok" });
+  try {
+    const runnerResponse = await handleRunnerApi(request, env);
+    if (runnerResponse) return runnerResponse;
+  } catch {
+    return json({ error: "runner request failed" }, 500);
+  }
   const actor = await principal(request, env);
   if (!actor) return json({ error: "unauthorized" }, 401);
   try {
@@ -359,6 +378,8 @@ export default { async fetch(request: Request, env: AdjudicationEnv): Promise<Re
     }
     if (path.startsWith("/api/internal/v1/")) {
       if (actor.kind !== "admin") return json({ error: "forbidden" }, 403);
+      const lifecycleResponse = await handleAdminJobAction(request, env);
+      if (lifecycleResponse) return lifecycleResponse;
       const response = await handleInternalsApi(request, env);
       if (response) return response;
     }

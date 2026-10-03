@@ -19,13 +19,14 @@ class MemoryStatement {
       const [id, dataset_version_id, source_url, display_name, ordinal, created_at] = this.values;
       this.database.sources.push({ id, dataset_version_id, source_url, url: source_url, display_name, ordinal, created_at });
     } else if (this.sql.startsWith("INSERT INTO internal_jobs ")) {
-      const [id, input_json, created_at, updated_at] = this.values;
-      this.database.jobs.push({ id, job_type: "sampling", status: "queued", input_json, progress_json: null, output_json: null, error_message: null, created_at, started_at: null, completed_at: null, updated_at });
+      const [id, input_json, idempotency_key, max_attempts, created_at, updated_at] = this.values;
+      this.database.jobs.push({ id, job_type: "sampling", status: "queued", input_json, idempotency_key, progress_json: null, output_json: null, error_message: null, attempt_count: 0, max_attempts, created_at, started_at: null, completed_at: null, updated_at });
     } else throw new Error(`unsupported run: ${this.sql}`);
     return { success: true };
   }
   async first<T>() {
     if (this.sql.startsWith("SELECT id, status FROM dataset_versions")) return (this.database.versions.find((row) => row.id === this.values[0]) ?? null) as T | null;
+    if (this.sql.includes("idempotency_key = ?")) return (this.database.jobs.find((row) => row.idempotency_key === this.values[0]) ?? null) as T | null;
     if (this.sql.includes("FROM datasets WHERE id")) {
       const row = this.database.datasets.find((item) => item.id === this.values[0]);
       if (!row) return null;
@@ -109,10 +110,24 @@ describe("Internals control-plane API", () => {
     expect(created.status).toBe(202);
     const payload = await created.json() as any;
     expect(payload.data).toEqual(expect.objectContaining({ type: "sampling", status: "queued" }));
-    expect(payload.meta).toEqual({ execution_scheduled: false, runner: "legacy_cli" });
+    expect(payload.meta).toEqual({ execution_scheduled: false, runner: "external" });
 
     const listed = await response(request("/api/internal/v1/sampling-jobs"), env);
     expect((await listed.json() as any).data).toContainEqual(expect.objectContaining({ id: payload.data.id, input: expect.objectContaining({ dataset_version_id: versionId, method: "hybrid" }) }));
+  });
+
+  it("deduplicates identical requests and rejects idempotency-key reuse", async () => {
+    const env = environment();
+    const datasetResponse = await response(request("/api/internal/v1/datasets", "POST", { name: "Idempotent corpus", sources: [{ url: "https://media.example/sample.mp4" }] }), env);
+    const versionId = (await datasetResponse.json() as any).data.initial_version.id;
+    const initial = { dataset_version_id: versionId, method: "interval", interval_seconds: 5, idempotency_key: "sampling-run-1", max_attempts: 2 };
+    expect((await response(request("/api/internal/v1/sampling-jobs", "POST", initial), env)).status).toBe(202);
+    const duplicate = await response(request("/api/internal/v1/sampling-jobs", "POST", initial), env);
+    expect(duplicate.status).toBe(200);
+    expect((await duplicate.json() as any).meta.deduplicated).toBe(true);
+    const conflict = await response(request("/api/internal/v1/sampling-jobs", "POST", { ...initial, interval_seconds: 10 }), env);
+    expect(conflict.status).toBe(409);
+    expect((await conflict.json() as any).error.code).toBe("idempotency_conflict");
   });
 
   it("rejects invalid input and non-administrator credentials", async () => {

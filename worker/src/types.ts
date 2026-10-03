@@ -12,6 +12,7 @@ export interface AdjudicationEnv {
   CONTROL_DB: D1Database;
   DATASET_DB: D1Database;
   ADMIN_TOKEN: string;
+  RUNNER_TOKEN?: string;
   ASSETS: Fetcher;
 }
 

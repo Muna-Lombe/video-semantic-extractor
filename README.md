@@ -119,9 +119,13 @@ The first vertical slice is dataset -> sampling job -> immutable frame set ->
 registered template, followed by template-referenced review campaigns. Its current
 increment registers HTTPS source URLs in a dedicated dataset D1 database, marks
 the dataset `ready`, freezes its initial version, and records durable `queued` sampling-job
-metadata in the control-plane D1 database. It does **not** yet run sampling or fetch
-the registered media: the existing CLI remains the operational legacy/fallback path
-until an executor can claim jobs and register their outputs. Cross-database
+metadata in the control-plane D1 database. The control plane also exposes a
+runner-authenticated claim/lease protocol, heartbeats, attempt history, completion
+and failure reporting, requeue behavior, and administrator cancel/retry operations.
+It does **not** yet run sampling or fetch the registered media: no sampling runner
+process ships with the service, so the existing CLI remains the operational
+legacy/fallback path until an executor invokes the shared engine and registers its
+outputs. Cross-database
 references are validated by the application because separate D1 databases cannot
 provide foreign keys or atomic transactions across that boundary. Large immutable
 media and reports belong in object storage. See the

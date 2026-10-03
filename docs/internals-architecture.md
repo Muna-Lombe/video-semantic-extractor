@@ -107,14 +107,32 @@ are:
 - a sampling report and warnings;
 - the implementation version and reproducibility configuration.
 
-The target lifecycle is:
+The durable lifecycle is:
 
 ```text
 draft -> queued -> running -> succeeded
                   |
                   +---------> failed
 queued/running --------------> cancelled
+failed/cancelled ------------> queued (explicit administrator retry)
 ```
+
+An external runner authenticates with a dedicated runner credential and atomically
+claims one eligible queued job. The claim creates a durable attempt record,
+associates a stable runner identity, moves the job to `running`, and returns a
+one-time lease token with a bounded expiry. Only the holder of the current lease
+may heartbeat, report completion, or report failure. Heartbeats extend the lease;
+an expired or superseded lease cannot mutate the job. A failed attempt may be
+requeued within the configured retry policy, while administrator cancel and retry
+operations remain separately authorized and durably recorded. General audit-event
+coverage is still planned.
+
+Every state mutation rechecks the current job state, lease hash, and lease expiry;
+stale callers receive a conflict instead of a false success response. Claim-time
+reconciliation closes expired attempts, converts abandoned cancellation requests
+to `cancelled`, converts exhausted jobs to `failed`, and leaves retry-eligible jobs
+available for a new attempt. Idempotency keys identify the complete canonical
+sampling request, so the same key cannot silently alias different inputs.
 
 The application, not the administrator, resolves frame artifacts to protected
 evidence URLs. A frame set can be validated, inspected, compared with another
@@ -124,13 +142,16 @@ The existing sampling commands remain available for offline and recovery use.
 Their output format should stay importable into Internals so legacy work can be
 registered without rerunning expensive jobs.
 
-The first executable slice deliberately separates **control-plane scheduling**
+The first executable slice deliberately separates **control-plane orchestration**
 from **job execution**. It registers datasets, ready/frozen versions, and HTTPS
 sources in `DATASET_DB`, and persists sampling-job metadata in `CONTROL_DB` with
-an initial `queued` state. That makes the request durable and
-queryable, but it does not mean that a sampler is running: a queue consumer or
-other executor must later claim the job, invoke the shared sampling engine, write
-its artifacts, and advance the lifecycle. Until that executor exists, operators
+an initial `queued` state. Runner-authenticated endpoints provide atomic claims
+with expiring leases, heartbeats, completion/failure reports, requeue behavior,
+and attempt audit records; administrator endpoints provide cancellation and retry.
+That makes the request and orchestration durable and queryable, but it does not
+mean that a sampler is running. No sampling engine or runner process ships with
+this slice. An external executor must claim the job, invoke the shared sampling
+engine, write its artifacts, and advance the lifecycle. Until that executor exists, operators
 continue to run the existing CLI for actual sampling and may use its outputs for
 the later import/registration path.
 
@@ -222,11 +243,21 @@ asynchronous jobs. Every managed job requires:
 - explicit state transitions with timestamps;
 - queued execution separated from HTTP request lifetimes;
 - progress and attempt records;
+- authenticated runners and atomic claim semantics;
+- exclusive, expiring leases renewed by heartbeat;
 - bounded retries and clear terminal failure details;
 - cancellation semantics;
 - output artifact references and checksums;
 - structured logs and audit events;
 - retention and orphan-artifact cleanup rules.
+
+For the sampling slice, runner authentication uses a service bearer credential,
+while each successful claim returns a separate one-time lease token. The lease
+token, not the general runner credential, authorizes heartbeat and terminal report
+operations for that attempt. Attempt history is retained as audit evidence;
+requeueing or administrator retry creates a new attempt rather than erasing a
+prior one. Completion records output metadata, but artifact upload and validation
+remain a later pipeline responsibility.
 
 The CLI remains useful for local diagnosis, offline recovery, and automation. CLI
 commands should call shared domain libraries, emit the same manifest/report schema,
@@ -363,9 +394,9 @@ Progress values are planning estimates, not measured completion claims.
 
 | Phase | Scope | Status | Estimate |
 | --- | --- | --- | ---: |
-| 0. Architecture | Product/Internals boundary, resources, storage, security, migration | In progress | 80% |
-| 1. Control-plane foundation | D1 schema, migrations, identities/RBAC, jobs, artifacts, audit log | In progress; both databases are bound, dataset/source registry and queued job metadata exist | 40% |
-| 2. Dataset-to-template slice | Dataset import, sampling job, frame-set inspection, template generation | In progress; ready/frozen source versions and scheduling metadata exist, execution does not | 25% |
+| 0. Architecture | Product/Internals boundary, resources, storage, security, migration | In progress | 85% |
+| 1. Control-plane foundation | D1 schema, migrations, identities/RBAC, jobs, artifacts, audit log | In progress; durable sampling claims, leases, attempts, cancellation, and retry exist, but RBAC and runners do not | 50% |
+| 2. Dataset-to-template slice | Dataset import, sampling job, frame-set inspection, template generation | In progress; orchestration exists, but no sampling runner, artifacts, frame-set registration, or template generation ships | 30% |
 | 3. Review integration | Template references, campaign UI, focused invitations, progress, ground truth | Partially implemented | 55% |
 | 4. Durable evaluations | Managed diagnostic runners, metrics, comparisons, reproducibility | Planned; CLI engines exist | 20% |
 | 5. Governance | Model registry, ground-truth approval, pipeline releases, rollback | Planned | 5% |
@@ -389,7 +420,7 @@ Progress values are planning estimates, not measured completion claims.
 
 | Current problem | Decision |
 | --- | --- |
-| Sampling runs manually outside the service | Add it as the first managed Internals pipeline; retain CLI execution/import. |
+| Sampling runs manually outside the service | Durable orchestration now supports external runners, but no runner process ships; add the shared-engine executor and retain CLI execution/import. |
 | Templates are loose generated files | Register immutable template artifacts in D1 with content in R2. |
 | Review creation accepts raw templates and URL maps | Migrate to validated template references and managed evidence resolution; keep a compatibility route temporarily. |
 | Diagnostics are not durable jobs | Wrap shared diagnostic engines in queued, retryable, auditable jobs. |

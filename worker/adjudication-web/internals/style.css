@@ -64,6 +64,9 @@ input, textarea, select { width: 100%; padding: .72rem .8rem; border: 1px solid 
 .badge.neutral { color: #52645d; background: #edf1ee; }
 .badge.queued { color: #7d451f; background: var(--orange-soft); }
 .badge.ready, .badge.active, .badge.succeeded { color: #28624e; background: var(--green-soft); }
+.badge.running { color: #15547a; background: #e2f1fa; }
+.badge.failed { color: #982f25; background: #fde8e5; }
+.badge.cancelled { color: #5e6260; background: #e9edeb; }
 .pipeline { display: grid; grid-template-columns: repeat(5,1fr); gap: .35rem; padding: 0; margin: 1.25rem 0 0; list-style: none; }
 .pipeline li { position: relative; display: flex; gap: .55rem; align-items: center; color: var(--muted); }
 .pipeline li:not(:last-child)::after { content: ""; position: absolute; left: calc(100% - .25rem); width: .5rem; border-top: 1px solid #b9c6c0; }
@@ -82,6 +85,11 @@ th, td { padding: .8rem 1rem; border-bottom: 1px solid #e7ebe8; text-align: left
 th { color: var(--muted); background: #fafbfa; font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; }
 td strong, td small { display: block; }
 td small, .muted { color: var(--muted); }
+.sampling-jobs td > .badge { display: inline-block; margin-bottom: .25rem; }
+.sampling-jobs .actions { text-align: right; }
+.job-action { padding: .45rem .7rem; font-size: .8rem; white-space: nowrap; }
+.job-action.danger { color: #922f26; border: 1px solid #d9aaa5; background: #fff; }
+.job-action.danger:hover { color: #fff; background: #a53c31; }
 .empty-state { padding: 3rem 1rem; color: var(--muted); text-align: center; }
 dialog { width: min(560px, calc(100% - 2rem)); padding: 0; border: 0; border-radius: .85rem; box-shadow: 0 24px 80px rgba(8,30,24,.3); }
 dialog::backdrop { background: rgba(9,27,22,.62); }

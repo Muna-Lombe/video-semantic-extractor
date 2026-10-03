@@ -1,9 +1,9 @@
 /**
  * D1-backed control-plane routes for the first Internals vertical slice.
  *
- * This module records datasets and durable sampling-job metadata. It does not
- * execute sampling: the existing diagnostic CLI remains the only runner until
- * a queue consumer is introduced.
+ * This module records datasets and durable sampling-job metadata. Sampling is
+ * executed outside the Worker through the authenticated lease protocol; the
+ * existing diagnostic CLI remains available as a legacy/manual option.
  */
 import type { AdjudicationEnv } from "./types";
 
@@ -94,6 +94,12 @@ function jobRow(row: Record<string, unknown>) {
     started_at: row.started_at,
     completed_at: row.completed_at,
     updated_at: row.updated_at,
+    attempt_count: Number(row.attempt_count ?? 0),
+    max_attempts: Number(row.max_attempts ?? 3),
+    lease_owner: row.lease_owner ?? null,
+    lease_expires_at: row.lease_expires_at ?? null,
+    heartbeat_at: row.heartbeat_at ?? null,
+    cancellation_requested_at: row.cancellation_requested_at ?? null,
   };
 }
 
@@ -168,7 +174,7 @@ async function getDataset(datasetId: string, env: AdjudicationEnv): Promise<Resp
 async function createSamplingJob(request: Request, env: AdjudicationEnv): Promise<Response> {
   const value = await body(request);
   if (value instanceof Response) return value;
-  const unknown = exactKeys(value, ["dataset_version_id", "method", "scene_threshold", "interval_seconds", "max_frames", "include_final_frame"]);
+  const unknown = exactKeys(value, ["dataset_version_id", "method", "scene_threshold", "interval_seconds", "max_frames", "include_final_frame", "idempotency_key", "max_attempts"]);
   if (unknown.length) return error("invalid_request", "request contains unknown fields", 400, { fields: unknown });
   if (typeof value.dataset_version_id !== "string" || !value.dataset_version_id) return error("invalid_request", "dataset_version_id is required", 400);
   if (typeof value.method !== "string" || !SAMPLING_METHODS.has(value.method as SamplingMethod)) return error("invalid_request", "method must be scene, interval, or hybrid", 400);
@@ -179,14 +185,35 @@ async function createSamplingJob(request: Request, env: AdjudicationEnv): Promis
   if (value.include_final_frame !== undefined && typeof value.include_final_frame !== "boolean") return error("invalid_request", "include_final_frame must be a boolean", 400);
   if ((value.method === "scene" || value.method === "hybrid") && value.scene_threshold === undefined) return error("invalid_request", "scene_threshold is required for scene and hybrid sampling", 400);
   if ((value.method === "interval" || value.method === "hybrid") && value.interval_seconds === undefined) return error("invalid_request", "interval_seconds is required for interval and hybrid sampling", 400);
+  if (value.idempotency_key !== undefined && (typeof value.idempotency_key !== "string" || !/^[a-zA-Z0-9._:-]{1,200}$/.test(value.idempotency_key))) return error("invalid_request", "idempotency_key must contain 1-200 safe characters", 400);
+  const maxAttempts = value.max_attempts ?? 3;
+  if (!Number.isInteger(maxAttempts) || Number(maxAttempts) < 1 || Number(maxAttempts) > 10) return error("invalid_request", "max_attempts must be an integer from 1 through 10", 400);
 
   const version = await env.DATASET_DB.prepare("SELECT id, status FROM dataset_versions WHERE id = ?").bind(value.dataset_version_id).first<{ id: string; status: string }>();
   if (!version) return error("not_found", "dataset version not found", 404);
   if (version.status !== "frozen" && version.status !== "ready") return error("invalid_state", "only ready or frozen dataset versions can be sampled", 409);
   const input = { dataset_version_id: value.dataset_version_id, method: value.method, ...(value.scene_threshold === undefined ? {} : { scene_threshold: value.scene_threshold }), ...(value.interval_seconds === undefined ? {} : { interval_seconds: value.interval_seconds }), ...(value.max_frames === undefined ? {} : { max_frames: value.max_frames }), include_final_frame: value.include_final_frame ?? true };
+  const inputJson = JSON.stringify(input);
+  const idempotentResponse = (existing: Record<string, unknown>): Response => {
+    if (String(existing.input_json) !== inputJson || Number(existing.max_attempts) !== Number(maxAttempts)) {
+      return error("idempotency_conflict", "idempotency_key is already associated with a different sampling request", 409);
+    }
+    return json({ data: jobRow(existing), meta: { execution_scheduled: false, runner: "external", deduplicated: true } });
+  };
+  if (typeof value.idempotency_key === "string") {
+    const existing = await env.CONTROL_DB.prepare("SELECT * FROM internal_jobs WHERE job_type = 'sampling' AND idempotency_key = ?").bind(value.idempotency_key).first<Record<string, unknown>>();
+    if (existing) return idempotentResponse(existing);
+  }
   const jobId = id("job"), now = new Date().toISOString();
-  await env.CONTROL_DB.prepare("INSERT INTO internal_jobs (id, job_type, status, input_json, created_at, updated_at) VALUES (?, 'sampling', 'queued', ?, ?, ?)").bind(jobId, JSON.stringify(input), now, now).run();
-  return json({ data: { id: jobId, type: "sampling", status: "queued", input, progress: null, output: null, error_message: null, created_at: now, started_at: null, completed_at: null, updated_at: now }, meta: { execution_scheduled: false, runner: "legacy_cli" } }, 202);
+  try {
+    await env.CONTROL_DB.prepare("INSERT INTO internal_jobs (id, job_type, status, input_json, idempotency_key, max_attempts, created_at, updated_at) VALUES (?, 'sampling', 'queued', ?, ?, ?, ?, ?)").bind(jobId, inputJson, value.idempotency_key ?? null, maxAttempts, now, now).run();
+  } catch (cause) {
+    if (typeof value.idempotency_key !== "string") throw cause;
+    const existing = await env.CONTROL_DB.prepare("SELECT * FROM internal_jobs WHERE job_type = 'sampling' AND idempotency_key = ?").bind(value.idempotency_key).first<Record<string, unknown>>();
+    if (!existing) throw cause;
+    return idempotentResponse(existing);
+  }
+  return json({ data: { id: jobId, type: "sampling", status: "queued", input, progress: null, output: null, error_message: null, attempt_count: 0, max_attempts: maxAttempts, lease_owner: null, lease_expires_at: null, heartbeat_at: null, cancellation_requested_at: null, created_at: now, started_at: null, completed_at: null, updated_at: now }, meta: { execution_scheduled: false, runner: "external" } }, 202);
 }
 
 async function listSamplingJobs(url: URL, env: AdjudicationEnv): Promise<Response> {

@@ -103,7 +103,16 @@ The following are working foundations, not the complete Internals control plane:
   register/list datasets with HTTPS source URLs in `DATASET_DB`, while sampling
   requests are recorded in `CONTROL_DB`. Dataset creation atomically records the
   sources, marks the dataset `ready`, and freezes the initial version. New sampling requests remain
-  `queued`; no worker currently fetches the URLs, claims a job, or executes it.
+  `queued` until claimed.
+- A durable sampling-job orchestration protocol: a separately authenticated
+  external runner can atomically claim work with an expiring lease, heartbeat it,
+  and report completion or failure. Attempts are audited; failure can requeue work;
+  administrators can cancel or retry eligible jobs.
+
+No sampling engine, queue consumer, or runner process ships yet. The protocol can
+coordinate an external runner, but nothing in the deployed Worker fetches source
+media or invokes FFmpeg/the sampler. Completion currently accepts output metadata;
+it does not upload or validate sampling artifacts.
 
 The existing hosted review API still accepts embedded template JSON and frame URLs,
 uses a shared administrator token, and stores mutable review records as objects.
@@ -115,7 +124,7 @@ Those are prototype constraints to migrate, not the target control-plane model.
 | --- | --- | --- |
 | Overview | Current capability status and implementation maturity | Foundation implemented; operational metrics planned |
 | Datasets | Versioned source-media collections and provenance | Dedicated D1 registry accepts HTTPS source URLs, marks the dataset ready, and freezes its initial version |
-| Sampling | Create, monitor, retry, and inspect durable sampling jobs | Queued metadata implemented; executor, attempts, progress, and artifacts planned |
+| Sampling | Create, monitor, retry, and inspect durable sampling jobs | Claims, leases, attempts, heartbeat, fail/requeue, cancel, and retry implemented; runner process, progress, and artifacts planned |
 | Frame sets | Browse immutable manifests, evidence, coverage, and checksums | Planned |
 | Policies | Version annotation rules, schemas, taxonomy, and lifecycle | Policy document exists; registry planned |
 | Templates | Generate, validate, register, and version templates | CLI generation exists; registry planned |
@@ -130,7 +139,7 @@ Those are prototype constraints to migrate, not the target control-plane model.
 Percentages below measure delivery of the named phase only. They are planning
 estimates, not model accuracy or whole-product completion.
 
-### Phase 0 — Contracts and architecture (in progress, 75%)
+### Phase 0 — Contracts and architecture (in progress, 85%)
 
 - [x] Establish the Product versus Internals boundary.
 - [x] Preserve focused invitation experiences.
@@ -138,10 +147,11 @@ estimates, not model accuracy or whole-product completion.
 - [x] Define the initial resource schema, IDs, provenance, and state machines.
 - [x] Select D1 for transactional metadata and R2 for immutable artifacts; retain
   Durable Objects as an option for serialized coordination.
-- [ ] Define the durable job execution design.
+- [x] Define the durable job orchestration contract: runner authentication,
+  atomic claim, leases, heartbeat, terminal reporting, cancellation, and retry.
 - [ ] Define identity, RBAC, and audit-event contracts.
 
-### Phase 1 — Control-plane foundation (in progress, 40%)
+### Phase 1 — Control-plane foundation (in progress, 50%)
 
 - Add authenticated internal users and explicit roles.
 - [x] Add the initial D1-backed dataset registry and durable queued sampling-job
@@ -150,8 +160,10 @@ estimates, not model accuracy or whole-product completion.
   their ownership boundary and cross-database consistency constraints.
 - Evolve the D1 migrations for versions, attempts, progress, approvals, and audit
   events as each vertical slice becomes executable.
-- Add durable job execution with idempotency, retries, cancellation, progress, and
-  failure records.
+- [x] Add durable sampling-job claims, expiring leases, attempt records,
+  heartbeat, failure/requeue, and administrator cancellation/retry.
+- Add a real runner process, idempotent engine invocation, detailed progress, and
+  artifact registration/validation.
 - Add immutable artifact references backed by object storage.
 - [x] Expand the initial `/internals` status shell with dataset and sampling
   screens backed by administrator-guarded resource APIs.
@@ -162,7 +174,7 @@ This phase is a prerequisite for presenting later phases as reliable hosted
 workflows. A shared `ADMIN_TOKEN` may remain as a development bootstrap but is not
 the final authorization design.
 
-### Phase 2 — Dataset-to-template vertical slice (in progress, 25%)
+### Phase 2 — Dataset-to-template vertical slice (in progress, 30%)
 
 The reusable sampling and initializer engines exist. Dataset records and queued
 sampling metadata are managed resources, but there is no sampling executor yet.
@@ -172,8 +184,10 @@ sampling metadata are managed resources, but there is no sampling executor yet.
   dataset state.
 - [x] Schedule sampling requests and persist their initial `queued` lifecycle
   state.
-- [ ] Add an executor that claims queued work and persists attempts, progress,
-  terminal states, and failures.
+- [x] Add the control-plane protocol that claims queued work and persists leases,
+  attempts, terminal reports, cancellation, and retries.
+- [ ] Ship an executor that fetches inputs and invokes the shared sampling engine;
+  the repository currently contains no runner process.
 - Register immutable frame sets, manifests, checksums, and evidence artifacts.
 - Register versioned policies and annotation schemas.
 - Generate and validate a template from a frame-set ID plus policy-version ID.
@@ -213,9 +227,9 @@ The diagnostic engines exist; durable scheduling and registered outputs do not.
 
 1. Decide which concurrency-sensitive workflows require Durable Object
    serialization in addition to D1 transactions.
-2. Select the executor/queue mechanism and define claim, lease,
-   retry/idempotency, and crash-recovery semantics. A D1 `queued` record alone is
-   durable scheduling metadata, not an execution system.
+2. Select and ship the executor/queue runtime around the implemented claim and
+   lease protocol, including engine idempotency, artifact upload, and crash
+   recovery. Durable orchestration APIs alone are not an execution system.
 3. Define internal identities and the initial role matrix: operator/researcher,
    review coordinator, reviewer, adjudicator, and release approver.
 4. Define artifact retention, deletion, licensing, and access policies.
@@ -226,7 +240,7 @@ The diagnostic engines exist; durable scheduling and registered outputs do not.
 
 | Problem | Decision | Planned phase |
 | --- | --- | --- |
-| Sampling execution is still manual outside the service | The API now persists queued requests; add a claiming executor while retaining CLI execution/import | 1-2 |
+| Sampling execution is still manual outside the service | The API now persists requests and exposes leased claims/attempts; ship an external runner while retaining CLI execution/import | 1-2 |
 | Templates are files rather than registered artifacts | Store transactional metadata separately from immutable template content in object storage | 1-2 |
 | Review creation accepts raw templates and URL maps | Accept validated template references after registry migration; preserve compatibility temporarily | 2-3 |
 | Diagnostics are not durable jobs | Wrap the existing engines with durable scheduling and provenance | 1, 4 |
@@ -253,12 +267,17 @@ complete.
 
 ### Current slice boundary
 
-The current slice stops at durable intent: a dataset can be registered from HTTPS
-source URLs, the dataset is marked `ready`, its initial version is `frozen`, and a sampling request can
-be stored as `queued`. URL registration does not fetch or validate media bytes.
-This is **not** complete sampling. No
-queue consumer, Worker trigger, container runner, or other executor currently
-claims the record, runs FFmpeg/the sampler, uploads a manifest or frames, or marks
-the job `running`, `succeeded`, or `failed`. The existing command-line workflow is
+The current slice stops at durable orchestration: a dataset can be registered from
+HTTPS source URLs, the dataset is marked `ready`, its initial version is `frozen`,
+and a sampling request can be stored as `queued`. An authenticated external runner
+can claim it atomically with an expiring lease, heartbeat the lease, and report
+completion or failure; attempts are audited, failure may requeue the job, and an
+administrator can cancel or retry eligible work. URL registration does not fetch
+or validate media bytes, and completion records metadata rather than validating
+sampling artifacts.
+
+This is **not** complete sampling. No queue consumer, Worker trigger, container
+runner, or other executor process ships in the repository to invoke FFmpeg/the
+sampler or upload a manifest and frames. The existing command-line workflow is
 therefore still the operational path for producing sampling artifacts, as well as
 the supported legacy/fallback interface after managed execution is introduced.

@@ -31,6 +31,11 @@ function formatDate(value) {
   return Number.isNaN(date.valueOf()) ? String(value) : new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
+function firstPresent(item, ...keys) {
+  for (const key of keys) if (item?.[key] !== undefined && item[key] !== null && item[key] !== "") return item[key];
+  return null;
+}
+
 function statusBadge(status = "draft") {
   return `<span class="badge ${escapeHtml(status)}">${escapeHtml(String(status).replaceAll("_", " "))}</span>`;
 }
@@ -85,10 +90,37 @@ function renderDatasets() {
 function renderSampling() {
   $("sampling-summary").textContent = `${samplingJobs.length} scheduling record${samplingJobs.length === 1 ? "" : "s"}`;
   if (!samplingJobs.length) {
-    $("sampling-table").innerHTML = '<div class="empty-state"><strong>No sampling jobs yet</strong><p>Schedule a durable record, then use the legacy CLI while managed execution is being built.</p></div>';
+    $("sampling-table").innerHTML = '<div class="empty-state"><strong>No sampling jobs yet</strong><p>Schedule a durable record. A connected runner can claim it, or you can continue to use the legacy CLI.</p></div>';
     return;
   }
-  $("sampling-table").innerHTML = `<table><thead><tr><th>Job</th><th>Dataset version</th><th>Method</th><th>Status</th><th>Created</th></tr></thead><tbody>${samplingJobs.map((item) => `<tr><td><strong>${escapeHtml(item.name || item.id)}</strong><small>${escapeHtml(item.id || "")}</small></td><td>${escapeHtml(item.input?.dataset_version_id || "—")}</td><td>${escapeHtml(item.input?.method || "—")}</td><td>${statusBadge(item.status || "queued")}</td><td>${escapeHtml(formatDate(item.created_at))}</td></tr>`).join("")}</tbody></table>`;
+  $("sampling-table").innerHTML = `<table class="sampling-jobs"><thead><tr><th>Job</th><th>Dataset / method</th><th>Lifecycle</th><th>Runner</th><th>Created</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>${samplingJobs.map((item) => {
+    const status = item.status || "queued";
+    const attempt = firstPresent(item, "attempt", "attempt_count", "attempts");
+    const maxAttempts = firstPresent(item, "max_attempts");
+    const runner = firstPresent(item, "runner_id", "lease_owner", "claimed_by", "worker_id") || firstPresent(item.lease, "runner_id", "owner", "holder");
+    const leaseUntil = firstPresent(item, "lease_expires_at", "lease_until") || firstPresent(item.lease, "expires_at", "until");
+    const action = ["queued", "running"].includes(status)
+      ? `<button class="job-action danger" type="button" data-job-action="cancel" data-job-id="${escapeHtml(item.id)}">Cancel</button>`
+      : ["failed", "cancelled"].includes(status)
+        ? `<button class="job-action secondary" type="button" data-job-action="retry" data-job-id="${escapeHtml(item.id)}">Retry</button>`
+        : "";
+    const attemptLabel = attempt === null ? "No attempts recorded" : `Attempt ${escapeHtml(attempt)}${maxAttempts === null ? "" : ` of ${escapeHtml(maxAttempts)}`}`;
+    return `<tr><td><strong>${escapeHtml(item.name || item.id)}</strong><small>${escapeHtml(item.id || "")}</small></td><td><strong>${escapeHtml(item.input?.dataset_version_id || "—")}</strong><small>${escapeHtml(item.input?.method || "—")}</small></td><td>${statusBadge(status)}<small>${attemptLabel}</small></td><td><strong>${escapeHtml(runner || "Unassigned")}</strong><small>${leaseUntil ? `Lease until ${escapeHtml(formatDate(leaseUntil))}` : "No active lease"}</small></td><td>${escapeHtml(formatDate(item.created_at))}</td><td class="actions">${action}</td></tr>`;
+  }).join("")}</tbody></table>`;
+}
+
+async function runJobAction(button) {
+  const { jobAction, jobId } = button.dataset;
+  if (!jobAction || !jobId) return;
+  button.disabled = true;
+  try {
+    await api(`/sampling-jobs/${encodeURIComponent(jobId)}/${jobAction}`, { method: "POST" });
+    toast(jobAction === "cancel" ? "Cancellation requested." : "Sampling job queued for retry.");
+    await loadAll();
+  } catch (error) {
+    toast(error.message);
+    button.disabled = false;
+  }
 }
 
 function populateDatasetSelect() {
@@ -150,6 +182,10 @@ document.querySelectorAll("[data-refresh]").forEach((button) => button.onclick =
 document.querySelectorAll("[data-dialog-open]").forEach((button) => button.onclick = () => $(button.dataset.dialogOpen).showModal());
 document.querySelectorAll("[data-dialog-close]").forEach((button) => button.onclick = () => button.closest("dialog").close());
 $("dataset-filter").addEventListener("input", renderDatasets);
+$("sampling-table").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-job-action]");
+  if (button) runJobAction(button);
+});
 $("dataset-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const form = event.currentTarget;
