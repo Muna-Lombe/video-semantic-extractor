@@ -48,7 +48,7 @@ or finalize frame sets. Those capabilities still require a dedicated runner.
 
 Do not expose the container Worker as the main Internals hostname. Keep the
 control-plane/review Worker and container API as distinct services, then either
-configure the gateway in `worker/src/index.ts` with the container URL or add an
+configure the gateway in `workers/capsule-gateway/src/index.ts` with the container URL or add an
 explicit authenticated service-binding design. The Python API currently has no
 end-user authentication, so do not deploy it publicly until access control and
 cost limits are defined.
@@ -56,14 +56,15 @@ cost limits are defined.
 The Cloudflare deployment uses the same Dockerfile as the Compose deployment.
 Build and push the image to Cloudflare's container registry from the repository
 root, then update the account ID in
-`deployments/cloudflare/wrangler.toml`. The Worker entry point binds a single
+`workers/wrangler.capsule-container.toml`. The Worker entry point binds a single
 named Durable Object container to the Python API on port 8000:
 
 ```bash
 docker build -f deployments/Dockerfile \
 	-t registry.cloudflare.com/ACCOUNT_ID/video-semantic-extractor:latest .
 docker push registry.cloudflare.com/ACCOUNT_ID/video-semantic-extractor:latest
-npx wrangler deploy --config deployments/cloudflare/wrangler.toml
+cd workers
+npx wrangler deploy --config wrangler.capsule-container.toml
 ```
 
 Cloudflare Container support must be enabled for the account and the selected
@@ -78,8 +79,8 @@ The image installs the CPU-only PyTorch wheel because Cloudflare Containers do
 not provide a CUDA runtime. This avoids pulling the much larger NVIDIA runtime
 packages and keeps the image suitable for the available container environment.
 
-The Worker entry point in `worker/src/container.ts` is intentionally separate
-from the existing `worker/src/index.ts` gateway. Use the existing Worker when
+The Worker entry point in `workers/capsule-container/src/container.ts` is intentionally separate
+from the existing `workers/capsule-gateway/src/index.ts` gateway. Use the existing Worker when
 the Python API is hosted elsewhere; use this configuration when Cloudflare
 should host the Python API itself. Neither entry point implements the Internals
 sampling runner protocol.
@@ -103,7 +104,7 @@ prompt wake-ups without replacing atomic claims.
 
 The runner implementation is in `backend/video_semantic_extractor/sampling_runner.py`,
 its image is defined by `deployments/SamplingRunner.Dockerfile`, and its Worker is
-configured by `deployments/cloudflare/wrangler.sampling-runner.toml`. Deploy the
+configured by `workers/wrangler.sampling-runner.toml`. Deploy the
 control-plane Worker and its migrations first. Then build and push the runner image,
 set the runner Worker's copy of the same `RUNNER_TOKEN`, and deploy it:
 
@@ -112,8 +113,9 @@ docker build -f deployments/SamplingRunner.Dockerfile \
   -t registry.cloudflare.com/ACCOUNT_ID/video-semantic-extractor-sampling-runner:latest .
 docker push registry.cloudflare.com/ACCOUNT_ID/video-semantic-extractor-sampling-runner:latest
 npx wrangler secret put RUNNER_TOKEN \
-  --config deployments/cloudflare/wrangler.sampling-runner.toml
-npx wrangler deploy --config deployments/cloudflare/wrangler.sampling-runner.toml
+  --config workers/wrangler.sampling-runner.toml
+cd workers
+npx wrangler deploy --config wrangler.sampling-runner.toml
 ```
 
 Replace `ACCOUNT_ID` in both the command and runner Wrangler configuration. The
@@ -123,6 +125,36 @@ sources with the existing SSRF and size protections, maintains a heartbeat threa
 uploads checksum-bound frames, and finalizes `frame-set-manifest.v1`. Remote rollout,
 real-media execution, and Container resource sizing still require verification in
 an authenticated Cloudflare account.
+
+## Cloudflare project layout
+
+`workers/` is the single Cloudflare project root for all Worker deployments in
+this repository. It contains the shared Node package, source, static assets,
+migrations, and every Wrangler configuration:
+
+```text
+workers/
+├── control-plane/                   control-plane code, assets, and migrations
+├── capsule-container/               Product capsule Container adapter code
+├── capsule-gateway/                 optional external-backend gateway code
+├── sampling-runner/                 sampling runner code
+├── wrangler.toml                    control-plane and review Worker config
+├── wrangler.capsule-container.toml  Product capsule Container Worker config
+└── wrangler.sampling-runner.toml    sampling-runner Worker config
+```
+
+Set the Cloudflare Workers Builds root directory to `workers` for each Worker
+project, and select the matching Wrangler configuration or npm deploy script. Do
+not set the build root to an individual nested Worker directory: the root-level
+Wrangler configuration and shared Node package would not be visible. Do not put
+Wrangler configuration under `deployments/`, either, because that directory is
+outside the configured build root.
+
+`deployments/` remains the repository-root build context for Dockerfiles, Compose,
+and host prerequisite scripts. Container images must therefore be built and pushed
+from the repository root before the corresponding Wrangler deployment runs from
+`workers/`. This split keeps all Cloudflare-visible Worker inputs under one root
+without duplicating the Python backend into the Worker package.
 
 ## Configuration and operations
 

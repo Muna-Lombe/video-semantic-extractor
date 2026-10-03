@@ -1,5 +1,7 @@
+# @type configuration
+# @purpose Configure the managed sampling-runner Worker and Container deployment.
 name = "video-semantic-extractor-sampling-runner"
-main = "../../worker/src/sampling-runner.ts"
+main = "sampling-runner/src/sampling-runner.ts"
 compatibility_date = "2026-09-01"
 
 [[containers]]

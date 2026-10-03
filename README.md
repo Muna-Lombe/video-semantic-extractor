@@ -39,7 +39,7 @@ boundary, priorities, and migration policy.
 
 ```text
 backend/   Python extraction library, CLI, API, and tests
-worker/    Cloudflare Worker gateway and tests
+workers/   Unified Cloudflare project: Worker sources, configs, assets, and tests
 examples/  A compact, canonical VideoCapsule
 docs/      Workflows, investigation evidence, and the Internals roadmap
 ```
@@ -122,10 +122,10 @@ the dataset `ready`, freezes its initial version, and records durable `queued` s
 metadata in the control-plane D1 database. The control plane also exposes a
 runner-authenticated claim/lease protocol, heartbeats, attempt history, completion
 and failure reporting, requeue behavior, and administrator cancel/retry operations.
-It does **not** yet run sampling or fetch the registered media: no sampling runner
-process ships with the service, so the existing CLI remains the operational
-legacy/fallback path until an executor invokes the shared engine and registers its
-outputs. Cross-database
+The separately deployed sampling-runner Worker and Container now execute that
+protocol with the shared engine and register verified frame-set outputs. Remote
+Cloudflare rollout and real-media verification remain open, so the existing CLI
+remains the operational fallback until that verification is complete. Cross-database
 references are validated by the application because separate D1 databases cannot
 provide foreign keys or atomic transactions across that boundary. Large immutable
 media and reports belong in object storage. See the
@@ -135,21 +135,21 @@ current status.
 The provisioned bindings are `CONTROL_DB` (`video-semantic-extractor`) for job and
 governance state and `DATASET_DB` (`video-semantic-extractor-dataset`) for dataset,
 version, and source-registration metadata. Deployment IDs and migration commands
-are documented in [`worker/README.md`](worker/README.md).
+are documented in [`workers/README.md`](workers/README.md).
 
 ## Worker quick start
 
 ```bash
-cd worker
+cd workers
 npm install
 npm test
 npx wrangler secret put ADMIN_TOKEN
 npx wrangler deploy
 ```
 
-Create the R2 buckets named in `worker/wrangler.toml` before deployment. The Worker
+Create the R2 buckets named in `workers/wrangler.toml` before deployment. The Worker
 hosts reviewer and adjudicator workspaces, assignment-scoped APIs, and private
-results. See [`worker/README.md`](worker/README.md) for initialization, invitation,
+results. See [`workers/README.md`](workers/README.md) for initialization, invitation,
 API-discovery, and result-retrieval examples.
 
 ## Capsule contract
@@ -174,7 +174,7 @@ coordinates directly and never invent objects, speakers, or events for empty fie
 
 ```bash
 cd backend && python -m pytest
-cd worker && npm test && npm run typecheck
+cd workers && npm test && npm run typecheck
 ```
 
 Large model weights and generated media are not committed. Whisper is loaded only

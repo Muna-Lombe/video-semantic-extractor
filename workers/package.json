@@ -1,7 +1,7 @@
 {
   "_type": "configuration",
   "_purpose": "Define Worker scripts and development dependencies.",
-  "name": "video-semantic-extractor-worker",
+  "name": "video-semantic-extractor-workers",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -13,7 +13,8 @@
     "migrate:remote": "npm run migrate:control:remote && npm run migrate:dataset:remote",
     "deploy:adjudication": "npx wrangler deploy --config wrangler.toml",
     "deploy:production": "npm run migrate:remote && npm run deploy:adjudication",
-    "deploy:sampling-runner": "npx wrangler deploy --config ../deployments/cloudflare/wrangler.sampling-runner.toml"
+    "deploy:capsule-container": "npx wrangler deploy --config wrangler.capsule-container.toml",
+    "deploy:sampling-runner": "npx wrangler deploy --config wrangler.sampling-runner.toml"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260702.1",
