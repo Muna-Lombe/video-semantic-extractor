@@ -8,7 +8,12 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "deploy:adjudication": "wrangler deploy --config wrangler.toml"
+    "migrate:control:remote": "npx wrangler d1 migrations apply CONTROL_DB --remote --config wrangler.toml",
+    "migrate:dataset:remote": "npx wrangler d1 migrations apply DATASET_DB --remote --config wrangler.toml",
+    "migrate:remote": "npm run migrate:control:remote && npm run migrate:dataset:remote",
+    "deploy:adjudication": "npx wrangler deploy --config wrangler.toml",
+    "deploy:production": "npm run migrate:remote && npm run deploy:adjudication",
+    "deploy:sampling-runner": "npx wrangler deploy --config ../deployments/cloudflare/wrangler.sampling-runner.toml"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260702.1",

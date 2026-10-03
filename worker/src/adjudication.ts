@@ -98,7 +98,7 @@ function reviewSummary(review: ReviewRecord) {
 }
 const INTERNAL_AREAS = [
   { id: "datasets", label: "Datasets", status: "available", summary: "D1-backed dataset registration and immutable initial versions are available." },
-  { id: "sampling", label: "Sampling jobs", status: "artifact_protocol", summary: "Durable leases, verified artifact uploads, and frame-set finalization are available; no managed runner process ships yet." },
+  { id: "sampling", label: "Sampling jobs", status: "runner_available", summary: "A separate cron-driven Container runner uses durable leases, heartbeats, verified uploads, and frame-set finalization; remote rollout remains to be verified." },
   { id: "frame-sets", label: "Frame sets", status: "available", summary: "Sampling finalization registers immutable manifests and administrator APIs expose membership and private evidence." },
   { id: "templates", label: "Templates", status: "legacy_cli", summary: "Templates are currently generated as files; registered artifacts and reference-based review creation are planned." },
   { id: "reviews", label: "Review campaigns", status: "available", summary: "Assignment-scoped review and adjudication APIs are available through the existing review service." },
@@ -161,6 +161,7 @@ function apiDescription(origin: string) {
       { method: "GET", path: "/api/internal/v1/frame-sets/{id}/manifest", auth: "administrator", output: "Private canonical manifest" },
       { method: "GET", path: "/api/internal/v1/frame-sets/{id}/frames/{frame_id}/evidence", auth: "administrator", output: "Private frame bytes" },
       { method: "POST", path: "/api/internal/v1/runner/sampling-jobs/claim", auth: "runner", input: "RunnerClaim", output: "Job and one-time lease token" },
+      { method: "GET", path: "/api/internal/v1/runner/dataset-versions/{id}/sources", auth: "runner", output: "Ordered registered source URLs" },
       { method: "POST", path: "/api/internal/v1/runner/sampling-jobs/{id}/heartbeat", auth: "runner lease", output: "Extended lease and cancellation state" },
       { method: "POST", path: "/api/internal/v1/runner/sampling-jobs/{id}/artifacts", auth: "runner lease", input: "ArtifactReservation", output: "Server-generated artifact ID and upload path" },
       { method: "PUT", path: "/api/internal/v1/runner/sampling-jobs/{id}/artifacts/{artifact_id}", auth: "runner lease", input: "Raw image bytes", output: "Verified artifact metadata" },
@@ -209,6 +210,7 @@ function openApi(origin: string): JsonRecord {
       "/api/internal/v1/frame-sets/{id}/manifest": { get: { summary: "Retrieve a private frame-set manifest", security: [{ bearerAuth: [] }], responses: { "200": { description: "Manifest bytes" } } } },
       "/api/internal/v1/frame-sets/{id}/frames/{frame_id}/evidence": { get: { summary: "Retrieve private frame evidence", security: [{ bearerAuth: [] }], responses: { "200": { description: "Frame bytes" } } } },
       "/api/internal/v1/runner/sampling-jobs/claim": { post: { summary: "Atomically claim eligible sampling work", security: [{ bearerAuth: [] }], responses: { "200": { description: "Job lease or no available work" } } } },
+      "/api/internal/v1/runner/dataset-versions/{id}/sources": { get: { summary: "Resolve ordered sources for managed sampling", security: [{ bearerAuth: [] }], responses: { "200": { description: "Dataset-version sources" } } } },
       "/api/internal/v1/runner/sampling-jobs/{id}/heartbeat": { post: { summary: "Extend a sampling-job lease", security: [{ bearerAuth: [] }], responses: { "200": { description: "Lease extended" } } } },
       "/api/internal/v1/runner/sampling-jobs/{id}/artifacts": { post: { summary: "Reserve a lease-bound frame artifact", security: [{ bearerAuth: [] }], responses: { "201": { description: "Artifact reservation" } } } },
       "/api/internal/v1/runner/sampling-jobs/{id}/artifacts/{artifact_id}": { put: { summary: "Upload and checksum-verify reserved frame bytes", security: [{ bearerAuth: [] }], responses: { "200": { description: "Verified upload" } } } },
@@ -362,6 +364,7 @@ async function evidence(env: AdjudicationEnv, token: TokenRecord, source: string
 
 export default { async fetch(request: Request, env: AdjudicationEnv): Promise<Response> {
   const url = new URL(request.url), path = url.pathname, method = request.method;
+  if (method === "GET" && path === "/") return Response.redirect(`${url.origin}/internals/`, 302);
   if (method === "GET" && (path === "/internals" || path === "/internals/" || path === "/internals/app.js" || path === "/internals/style.css")) {
     const assetPath = path === "/internals" ? "/internals/" : path;
     const response = await env.ASSETS.fetch(new Request(new URL(assetPath, url), request));
@@ -370,7 +373,7 @@ export default { async fetch(request: Request, env: AdjudicationEnv): Promise<Re
     headers.set("x-robots-tag", "noindex");
     return new Response(response.body, { status: response.status, headers });
   }
-  if (method === "GET" && ["/", "/review/", "/adjudicate/", "/app.js", "/style.css"].includes(path)) {
+  if (method === "GET" && ["/review/", "/adjudicate/", "/app.js", "/style.css"].includes(path)) {
     const assetUrl = new URL(path === "/review/" || path === "/adjudicate/" ? "/" : path, url);
     return env.ASSETS.fetch(new Request(assetUrl, request));
   }

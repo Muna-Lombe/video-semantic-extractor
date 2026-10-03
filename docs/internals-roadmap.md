@@ -109,11 +109,12 @@ The following are working foundations, not the complete Internals control plane:
   and report completion or failure. Attempts are audited; failure can requeue work;
   administrators can cancel or retry eligible jobs.
 
-No sampling engine, queue consumer, or runner process ships yet. The protocol can
-coordinate an external runner, but nothing in the deployed Worker fetches source
-media or invokes FFmpeg/the sampler. A leased external runner can now reserve and
-upload checksum-verified frame images and finalize a schema-validated immutable
-frame set; source-media ingestion and the executor itself remain open.
+A separate cron-driven sampling-runner Worker and Container now ship. They claim
+leased work, resolve registered sources through a private Service binding, perform
+bounded downloads, invoke FFmpeg/the shared sampler, heartbeat, upload verified
+frames, and finalize immutable frame sets. Remote Cloudflare rollout and real-media
+verification remain open; the control-plane Worker intentionally does not execute
+sampling itself.
 
 The existing hosted review API still accepts embedded template JSON and frame URLs,
 uses a shared administrator token, and stores mutable review records as objects.
@@ -125,8 +126,8 @@ Those are prototype constraints to migrate, not the target control-plane model.
 | --- | --- | --- |
 | Overview | Current capability status and implementation maturity | Foundation implemented; operational metrics planned |
 | Datasets | Versioned source-media collections and provenance | Dedicated D1 registry accepts HTTPS source URLs, marks the dataset ready, and freezes its initial version |
-| Sampling | Create, monitor, retry, and inspect durable sampling jobs | Claims, leases, attempts, verified frame upload/finalization, fail/requeue, cancel, and retry implemented; runner process remains planned |
-| Frame sets | Browse immutable manifests, evidence, coverage, and checksums | Registration, relational membership, administrator inspection, and private evidence APIs implemented; UI planned |
+| Sampling | Create, monitor, retry, and inspect durable sampling jobs | Runner, claims, leases, attempts, verified upload/finalization, failure/requeue, cancel, and retry implemented; remote rollout remains unverified |
+| Frame sets | Browse immutable manifests, evidence, coverage, and checksums | Registration, relational membership, administrator UI, and private evidence retrieval implemented |
 | Policies | Version annotation rules, schemas, taxonomy, and lifecycle | Policy document exists; registry planned |
 | Templates | Generate, validate, register, and version templates | CLI generation exists; registry planned |
 | Reviews | Create template-referenced campaigns and monitor progress | Hosted workflow exists; Internals integration planned |
@@ -140,7 +141,7 @@ Those are prototype constraints to migrate, not the target control-plane model.
 Percentages below measure delivery of the named phase only. They are planning
 estimates, not model accuracy or whole-product completion.
 
-### Phase 0 — Contracts and architecture (in progress, 85%)
+### Phase 0 — Contracts and architecture (in progress, 90%)
 
 - [x] Establish the Product versus Internals boundary.
 - [x] Preserve focused invitation experiences.
@@ -152,9 +153,11 @@ estimates, not model accuracy or whole-product completion.
   atomic claim, leases, heartbeat, terminal reporting, cancellation, and retry.
 - [x] Define `frame-set-manifest.v1`, including multi-source provenance, engine
   configuration, frame timestamps/reasons, media types, sizes, and checksums.
+- [x] Select a separate sampling-runner Worker and Container connected to the
+  Internals Worker through a private Service binding.
 - [ ] Define identity, RBAC, and audit-event contracts.
 
-### Phase 1 — Control-plane foundation (in progress, 65%)
+### Phase 1 — Control-plane foundation (in progress, 80%)
 
 - Add authenticated internal users and explicit roles.
 - [x] Add the initial D1-backed dataset registry and durable queued sampling-job
@@ -165,13 +168,17 @@ estimates, not model accuracy or whole-product completion.
   events as each vertical slice becomes executable.
 - [x] Add durable sampling-job claims, expiring leases, attempt records,
   heartbeat, failure/requeue, and administrator cancellation/retry.
-- Add a real runner process, idempotent engine invocation, and detailed progress.
+- [x] Add a separate cron-driven sampling-runner Worker and Container with bounded
+  source download, shared-engine invocation, heartbeats, and verified finalization.
+- Verify the runner against real remote media and tune Container resources.
 - [x] Add lease-bound immutable frame uploads, byte/checksum/media verification,
   and idempotent frame-set finalization backed by private object storage.
 - [x] Bind a dedicated private Internals R2 bucket separately from hosted review
   storage; retention and orphan cleanup remain open.
 - [x] Expand the initial `/internals` status shell with dataset and sampling
   screens backed by administrator-guarded resource APIs.
+- [x] Add a dedicated Frame Sets screen for browsing manifests, provenance,
+  checksums, and authenticated private frame evidence.
 - Continue adding resource-specific screens and operations for later pipeline
   stages.
 
@@ -179,10 +186,11 @@ This phase is a prerequisite for presenting later phases as reliable hosted
 workflows. A shared `ADMIN_TOKEN` may remain as a development bootstrap but is not
 the final authorization design.
 
-### Phase 2 — Dataset-to-template vertical slice (in progress, 45%)
+### Phase 2 — Dataset-to-template vertical slice (in progress, 65%)
 
-The reusable sampling and initializer engines exist. Dataset records and queued
-sampling metadata are managed resources, but there is no sampling executor yet.
+The reusable sampling and initializer engines exist. Dataset records, queued
+sampling metadata, and a separately deployable sampling executor are implemented;
+remote rollout and template registration remain open.
 
 - [x] Register HTTPS source URLs with an initial ready/frozen dataset version.
 - [x] Bind each sampling request to a dataset-version ID rather than mutable
@@ -191,8 +199,8 @@ sampling metadata are managed resources, but there is no sampling executor yet.
   state.
 - [x] Add the control-plane protocol that claims queued work and persists leases,
   attempts, terminal reports, cancellation, and retries.
-- [ ] Ship an executor that fetches inputs and invokes the shared sampling engine;
-  the repository currently contains no runner process.
+- [x] Ship an executor that fetches bounded public inputs, invokes the shared
+  sampling engine, heartbeats its lease, and registers verified artifacts.
 - [x] Define the strict `frame-set-manifest.v1` validation contract.
 - [x] Register immutable frame sets, manifests, checksums, source membership, and
   frame evidence artifacts with administrator inspection and private retrieval.
@@ -230,13 +238,13 @@ The diagnostic engines exist; durable scheduling and registered outputs do not.
 - Add candidate, approved, active, superseded, and rollback release transitions.
 - Keep experimental artifacts unable to enter production without explicit approval.
 
-## Decisions required before implementation
+## Decisions and implementation prerequisites
 
 1. Decide which concurrency-sensitive workflows require Durable Object
    serialization in addition to D1 transactions.
-2. Select and ship the executor/queue runtime around the implemented claim and
-   lease protocol, including engine idempotency, artifact upload, and crash
-   recovery. Durable orchestration APIs alone are not an execution system.
+2. Deploy and verify the implemented sampling-runner Worker and Container against
+   real media. Its `CONTROL_PLANE` Service binding and periodic claims are present;
+   remote resource sizing, rollout behavior, and crash-recovery exercises remain.
 3. Define internal identities and the initial role matrix: operator/researcher,
    review coordinator, reviewer, adjudicator, and release approver.
 4. Define artifact retention, deletion, licensing, and access policies.
@@ -263,7 +271,7 @@ operator can:
 
 1. register a versioned dataset;
 2. schedule and observe a durable sampling job;
-3. inspect its immutable frame-set manifest and evidence;
+3. inspect its immutable frame-set manifest and evidence; **implemented**
 4. generate a schema-valid registered template from that frame set and an active
    policy version; and
 5. create a review campaign by template ID without pasting JSON or per-frame URLs.
@@ -274,17 +282,18 @@ complete.
 
 ### Current slice boundary
 
-The current slice stops at durable orchestration: a dataset can be registered from
-HTTPS source URLs, the dataset is marked `ready`, its initial version is `frozen`,
-and a sampling request can be stored as `queued`. An authenticated external runner
-can claim it atomically with an expiring lease, heartbeat the lease, and report
-completion or failure; attempts are audited, failure may requeue the job, and an
-administrator can cancel or retry eligible work. URL registration does not fetch
-or validate media bytes, and completion records metadata rather than validating
-sampling artifacts.
+The current slice stops at verified artifact registration: a dataset can be
+registered from HTTPS source URLs, the dataset is marked `ready`, its initial
+version is `frozen`, and a sampling request can be stored as `queued`. An
+authenticated external runner can claim it atomically, heartbeat its lease, upload
+checksum-verified frame images, and finalize a schema-valid immutable manifest;
+attempts are audited, failure may requeue the job, and an administrator can cancel
+or retry eligible work. URL registration still does not fetch or validate source
+media bytes.
 
-This is **not** complete sampling. No queue consumer, Worker trigger, container
-runner, or other executor process ships in the repository to invoke FFmpeg/the
-sampler or upload a manifest and frames. The existing command-line workflow is
-therefore still the operational path for producing sampling artifacts, as well as
-the supported legacy/fallback interface after managed execution is introduced.
+The repository now ships the cron-triggered Worker, sampling Container, bounded
+source downloader, FFmpeg executor, heartbeat loop, verified artifact upload, and
+manifest finalization path. This is not yet an operationally verified hosted
+pipeline: the runner image and Service binding have not been deployed in an
+authenticated Cloudflare account or exercised against real remote media. The
+existing command-line workflow therefore remains the supported fallback.

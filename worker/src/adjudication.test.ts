@@ -52,6 +52,17 @@ async function create(env: AdjudicationEnv, id = "review-1") {
 }
 
 describe("hosted review worker", () => {
+  it("uses Internals as the root landing page while preserving focused assignment routes", async () => {
+    const env = environment();
+    const root = await worker.fetch(request("/"), env);
+    expect(root.status).toBe(302);
+    expect(root.headers.get("location")).toBe("https://review.test/internals/");
+
+    const review = await worker.fetch(request("/review/"), env);
+    expect(review.status).toBe(200);
+    expect(await review.text()).toContain("Secure annotation workspace");
+  });
+
   it("serves an honest Internals foundation while protecting its overview API", async () => {
     const env = environment();
     const page = await worker.fetch(request("/internals/"), env);
@@ -73,7 +84,7 @@ describe("hosted review worker", () => {
     expect(overview.invitation_experiences).toEqual(expect.objectContaining({ review: "/review/", adjudication: "/adjudicate/" }));
     expect(overview.areas).toContainEqual(expect.objectContaining({ id: "reviews", status: "available" }));
     expect(overview.areas).toContainEqual(expect.objectContaining({ id: "datasets", status: "available" }));
-    expect(overview.areas).toContainEqual(expect.objectContaining({ id: "sampling", status: "artifact_protocol" }));
+    expect(overview.areas).toContainEqual(expect.objectContaining({ id: "sampling", status: "runner_available" }));
     expect(overview.areas).toContainEqual(expect.objectContaining({ id: "frame-sets", status: "available" }));
   });
 
@@ -93,6 +104,7 @@ describe("hosted review worker", () => {
     expect(openapi.paths).toHaveProperty("/api/internal/v1/datasets");
     expect(openapi.paths).toHaveProperty("/api/internal/v1/sampling-jobs");
     expect(openapi.paths).toHaveProperty("/api/internal/v1/runner/sampling-jobs/claim");
+    expect(openapi.paths).toHaveProperty("/api/internal/v1/runner/dataset-versions/{id}/sources");
   });
 
   it("creates unique invitation URLs and never returns their secrets from the admin list", async () => {

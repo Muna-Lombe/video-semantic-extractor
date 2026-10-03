@@ -25,8 +25,19 @@ revoke an assignment through
 `POST /api/v1/admin/reviews/<id>/assignments/<role>/revoke`. Completed results are private by
 default and are available only to the administrator or matching adjudicator.
 
-Create the buckets and administrator secret before deploying. The checked-in
-configuration binds two provisioned D1 databases with deliberately different
+### Production release order
+
+The root URL is the operator entry point and redirects to `/internals/`. Reviewer
+and adjudicator invitations remain focused on `/review/` and `/adjudicate/`; do
+not send reviewers to the root URL.
+
+Do **not** put provisioning or remote migration commands in the `[build]` section
+of `wrangler.toml`. A Wrangler custom build is for compilation and can also run
+during local development. Resource mutation belongs in an explicit, authenticated
+production release step. The R2 and D1 declarations in `wrangler.toml` describe
+bindings; they do not replace applying the checked-in D1 migrations.
+
+The checked-in configuration binds two D1 databases with deliberately different
 responsibilities:
 
 | Binding | Database | Database ID | Responsibility |
@@ -34,20 +45,28 @@ responsibilities:
 | `CONTROL_DB` | `video-semantic-extractor` | `627b7ce9-4af7-4909-a1e6-8b310a28ac5a` | jobs, reviews, governance, and other mutable control-plane state |
 | `DATASET_DB` | `video-semantic-extractor-dataset` | `77adb815-acc2-47b2-a671-52df5f78e388` | dataset, immutable version, and source-registration metadata |
 
-Apply each database's checked-in migrations to its matching binding/database.
-Do not recreate the databases or substitute one ID for the other:
+For a new environment, provision the named R2 buckets once and set both secrets.
+Treat bucket creation as bootstrap, not as a command to repeat on every build.
+Apply each database's checked-in migrations to its matching binding and then
+deploy the Worker. Do not recreate the databases or substitute one ID for the
+other:
 
 ```bash
 npx wrangler r2 bucket create video-annotation-reviews
 npx wrangler r2 bucket create video-annotation-reviews-preview
 npx wrangler r2 bucket create video-semantic-extractor-internal-artifacts
 npx wrangler r2 bucket create video-semantic-extractor-internal-artifacts-preview
-npx wrangler d1 migrations apply video-semantic-extractor --remote --config wrangler.toml
-npx wrangler d1 migrations apply video-semantic-extractor-dataset --remote --config wrangler.toml
 npx wrangler secret put ADMIN_TOKEN --config wrangler.toml
 npx wrangler secret put RUNNER_TOKEN --config wrangler.toml
-npm run deploy:adjudication
+npm run deploy:production
 ```
+
+`deploy:production` runs `wrangler d1 migrations apply` for `CONTROL_DB` and
+`DATASET_DB` before `wrangler deploy`. In Cloudflare Workers Builds, set that npm
+script as the **deploy command**, not the build command. Migrations and Worker
+publication are separate remote operations and cannot be made atomic, so schema
+changes must remain backward-compatible with the currently deployed Worker until
+the new Worker is live. A migration failure stops the script before publication.
 
 `INTERNAL_ARTIFACTS_BUCKET` is a private storage boundary for immutable Internals
 artifacts. It is intentionally separate from `REVIEW_BUCKET`, which contains the
@@ -59,14 +78,15 @@ byte size, and SHA-256 digest. Structural validation alone does not prove that a
 object exists; finalization must also compare these declarations with R2 object
 metadata and bytes.
 
-`GET /internals` serves the interactive dataset and sampling workspace, while
+`GET /` redirects operators to `/internals/`. `GET /internals` serves the
+interactive dataset, sampling, and Frame Sets workspace, while
 `GET /api/internal/v1/overview` returns its administrator-authenticated capability
 report. The current executable slice registers datasets in D1, stores sampling-job
 requests as durable `queued` metadata, and provides a runner protocol for claiming
-and reporting work. Queuing and claim APIs do not execute sampling: there is
-currently no job consumer or sampling runner process in this repository, so the
-existing diagnostic CLI remains the operational legacy/fallback path. Frame-set artifacts, template
-registration, managed evaluation, and governance remain incremental work. See
+and reporting work. The separately deployed sampling-runner Worker and Container
+consume that protocol; the control-plane Worker itself never executes FFmpeg.
+Until that deployment is remotely verified, the diagnostic CLI remains the
+operational fallback. Template registration, managed evaluation, and governance remain incremental work. See
 `../docs/internals-architecture.md` and `../docs/internals-roadmap.md`.
 
 The current administrator-protected control-plane slice exposes:
@@ -86,6 +106,7 @@ GET  /api/internal/v1/frame-sets/<frame-set-id>/manifest
 GET  /api/internal/v1/frame-sets/<frame-set-id>/frames/<frame-id>/evidence
 
 POST /api/internal/v1/runner/sampling-jobs/claim
+GET  /api/internal/v1/runner/dataset-versions/<dataset-version-id>/sources
 POST /api/internal/v1/runner/sampling-jobs/<job-id>/heartbeat
 POST /api/internal/v1/runner/sampling-jobs/<job-id>/artifacts
 PUT  /api/internal/v1/runner/sampling-jobs/<job-id>/artifacts/<artifact-id>
@@ -107,6 +128,12 @@ expired, or superseded leases cannot mutate the job. Each claim creates an attem
 record, and the job stores its attempt count, current runner, and lease expiry.
 Heartbeats extend ownership. Failure may end the job or atomically requeue it;
 administrators may cancel eligible work or retry a failed/cancelled job.
+
+The runner-only dataset-version route returns the ordered registered HTTPS sources
+needed by a claimed execution. It never returns source data to administrator or
+assignment credentials. The separate sampling-runner Worker reaches this route
+through its `CONTROL_PLANE` Service binding and injects the runner credential in a
+Container outbound handler.
 
 Expired leases are reconciled during the next claim: abandoned cancellation
 requests become `cancelled`, exhausted jobs become `failed`, and eligible jobs may

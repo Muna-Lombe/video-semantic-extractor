@@ -116,13 +116,27 @@ class MemoryJobs {
   }
 }
 
+class MemoryDatasetStatement {
+  constructor(private sql: string, private values: unknown[] = []) {}
+  bind(...values: unknown[]) { return new MemoryDatasetStatement(this.sql, values); }
+  async first<T>() {
+    if (this.sql.startsWith("SELECT id, status FROM dataset_versions") && this.values[0] === "dsv_1") return { id: "dsv_1", status: "frozen" } as T;
+    return null;
+  }
+  async all<T>() {
+    if (this.sql.startsWith("SELECT id, source_url AS url") && this.values[0] === "dsv_1") return { results: [{ id: "src_1", url: "https://media.example/video.mp4", display_name: "Video", ordinal: 0 }] as T[] };
+    return { results: [] as T[] };
+  }
+}
+
 function job(overrides: Row = {}): Row {
   return { id: "job_1", job_type: "sampling", status: "queued", input_json: "{}", progress_json: null, output_json: null, error_message: null, attempt_count: 0, max_attempts: 3, created_at: "2026-10-02T00:00:00.000Z", started_at: null, completed_at: null, updated_at: "2026-10-02T00:00:00.000Z", cancellation_requested_at: null, ...overrides };
 }
 function environment(database = new MemoryJobs()): AdjudicationEnv {
-  return { CONTROL_DB: database as unknown as D1Database, DATASET_DB: {} as D1Database, REVIEW_BUCKET: {} as R2Bucket, INTERNAL_ARTIFACTS_BUCKET: {} as R2Bucket, ADMIN_TOKEN: "admin", RUNNER_TOKEN: "runner", ASSETS: {} as Fetcher };
+  return { CONTROL_DB: database as unknown as D1Database, DATASET_DB: { prepare: (sql: string) => new MemoryDatasetStatement(sql) } as unknown as D1Database, REVIEW_BUCKET: {} as R2Bucket, INTERNAL_ARTIFACTS_BUCKET: {} as R2Bucket, ADMIN_TOKEN: "admin", RUNNER_TOKEN: "runner", ASSETS: {} as Fetcher };
 }
 const request = (path: string, payload: unknown, token = "runner", lease?: string) => new Request(`https://internal.test${path}`, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json", ...(lease ? { "x-job-lease-token": lease } : {}) }, body: JSON.stringify(payload) });
+const get = (path: string, token = "runner") => new Request(`https://internal.test${path}`, { headers: { authorization: `Bearer ${token}` } });
 
 async function claim(database: MemoryJobs) {
   const response = await handleRunnerApi(request("/api/internal/v1/runner/sampling-jobs/claim", { runner_id: "runner-1", lease_seconds: 60 }), environment(database));
@@ -183,5 +197,14 @@ describe("sampling job lifecycle", () => {
     expect((await handleRunnerApi(request("/api/internal/v1/runner/sampling-jobs/claim", { runner_id: "runner-1" }, "wrong"), env))?.status).toBe(401);
     expect((await handleRunnerApi(request("/api/internal/v1/runner/sampling-jobs/%ZZ/heartbeat", {}, "runner", "wrong"), env))?.status).toBe(400);
     expect((await handleRunnerApi(request("/api/internal/v1/runner/sampling-jobs/job_1/heartbeat", {}, "runner", "wrong"), env))?.status).toBe(409);
+  });
+
+  it("provides frozen dataset sources only to the runner", async () => {
+    const env = environment();
+    const response = await handleRunnerApi(get("/api/internal/v1/runner/dataset-versions/dsv_1/sources"), env);
+    expect(response?.status).toBe(200);
+    expect((await response!.json() as any).data.sources).toEqual([{ id: "src_1", url: "https://media.example/video.mp4", display_name: "Video", ordinal: 0 }]);
+    expect((await handleRunnerApi(get("/api/internal/v1/runner/dataset-versions/dsv_1/sources", "wrong"), env))?.status).toBe(401);
+    expect((await handleRunnerApi(get("/api/internal/v1/runner/dataset-versions/missing/sources"), env))?.status).toBe(404);
   });
 });

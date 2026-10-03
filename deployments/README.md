@@ -40,6 +40,19 @@ The API is available at `http://localhost:8000`; submit a JSON request to
 
 ## Cloudflare Containers deployment
 
+This deployment is **optional and separate** from the currently deployed
+Internals/review Worker. Deploy it only when the product needs the hosted
+`POST /capsule` extraction API. It is not a sampling-job consumer: deploying it
+does not claim Internals jobs, send heartbeats, ingest registered dataset sources,
+or finalize frame sets. Those capabilities still require a dedicated runner.
+
+Do not expose the container Worker as the main Internals hostname. Keep the
+control-plane/review Worker and container API as distinct services, then either
+configure the gateway in `worker/src/index.ts` with the container URL or add an
+explicit authenticated service-binding design. The Python API currently has no
+end-user authentication, so do not deploy it publicly until access control and
+cost limits are defined.
+
 The Cloudflare deployment uses the same Dockerfile as the Compose deployment.
 Build and push the image to Cloudflare's container registry from the repository
 root, then update the account ID in
@@ -68,7 +81,48 @@ packages and keeps the image suitable for the available container environment.
 The Worker entry point in `worker/src/container.ts` is intentionally separate
 from the existing `worker/src/index.ts` gateway. Use the existing Worker when
 the Python API is hosted elsewhere; use this configuration when Cloudflare
-should host the Python API itself.
+should host the Python API itself. Neither entry point implements the Internals
+sampling runner protocol.
+
+### Planned sampling-runner Container
+
+Managed sampling will use a **different** Cloudflare deployment from the capsule
+Container above. The sampling-runner Worker will own a sampling Container Durable
+Object binding and a `CONTROL_PLANE` Service binding to the Internals Worker. Its
+scheduled or queue-driven handler will claim jobs, supervise heartbeats, invoke
+the shared sampling engine in the Container, and return artifacts through the
+existing lease-bound runner API.
+
+Do not add the Product capsule Container as a binding of the Internals Worker and
+do not point the runner at the public `workers.dev` hostname. The binding direction
+is runner to control plane: `env.CONTROL_PLANE.fetch()` privately invokes the
+existing Worker. The runner credential still applies at the API boundary because
+private routing and authorization solve different problems. A control-plane-to-
+runner binding is unnecessary for the polling design; a queue can later provide
+prompt wake-ups without replacing atomic claims.
+
+The runner implementation is in `backend/video_semantic_extractor/sampling_runner.py`,
+its image is defined by `deployments/SamplingRunner.Dockerfile`, and its Worker is
+configured by `deployments/cloudflare/wrangler.sampling-runner.toml`. Deploy the
+control-plane Worker and its migrations first. Then build and push the runner image,
+set the runner Worker's copy of the same `RUNNER_TOKEN`, and deploy it:
+
+```bash
+docker build -f deployments/SamplingRunner.Dockerfile \
+  -t registry.cloudflare.com/ACCOUNT_ID/video-semantic-extractor-sampling-runner:latest .
+docker push registry.cloudflare.com/ACCOUNT_ID/video-semantic-extractor-sampling-runner:latest
+npx wrangler secret put RUNNER_TOKEN \
+  --config deployments/cloudflare/wrangler.sampling-runner.toml
+npx wrangler deploy --config deployments/cloudflare/wrangler.sampling-runner.toml
+```
+
+Replace `ACCOUNT_ID` in both the command and runner Wrangler configuration. The
+cron trigger invokes one guarded `/run-once` execution each minute. The Container
+claims at most one job per invocation, rejects concurrent work as `busy`, downloads
+sources with the existing SSRF and size protections, maintains a heartbeat thread,
+uploads checksum-bound frames, and finalizes `frame-set-manifest.v1`. Remote rollout,
+real-media execution, and Container resource sizing still require verification in
+an authenticated Cloudflare account.
 
 ## Configuration and operations
 
