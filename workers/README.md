@@ -1,6 +1,33 @@
 <!-- @type documentation @purpose Document the Cloudflare gateway. -->
 # Worker gateway
 
+## Project and deployment layout
+
+This directory is the unified Cloudflare project root. Wrangler TOML files stay at
+the root because Cloudflare selects them as deployment entry points. Each Worker's
+code and Worker-specific resources are nested under the Worker's name:
+
+| Configuration | Deployment |
+| --- | --- |
+| `wrangler.toml` | Internals control plane and hosted review service |
+| `wrangler.capsule-container.toml` | Optional Product capsule API Container |
+| `wrangler.sampling-runner.toml` | Managed sampling-runner Container |
+
+```text
+workers/
+├── control-plane/      review/Internals code, static assets, and D1 migrations
+├── capsule-container/  Product capsule Container adapter
+├── capsule-gateway/    optional external-backend gateway
+└── sampling-runner/    sampling Container scheduler and private proxy
+```
+
+Configure `workers` as the root directory in Cloudflare Workers Builds. A build
+whose root is this directory cannot read a configuration stored in
+`deployments/cloudflare`, which is why Wrangler configuration is colocated here.
+Dockerfiles and Compose definitions stay in `../deployments` because their build
+context is the whole repository; build and push those images separately before
+deploying either Container Worker.
+
 The Worker validates `POST /capsule`, applies a 2 KiB request-body limit, and
 forwards the request to `UPSTREAM_API_URL`. Set the optional secret
 `CAPSULE_API_TOKEN` when the backend requires bearer authentication.
@@ -10,9 +37,9 @@ URL and the backend performs the bounded download.
 
 ## Hosted review service
 
-`src/adjudication.ts` hosts the complete three-person workflow: two isolated,
+`control-plane/src/adjudication.ts` hosts the complete three-person workflow: two isolated,
 prediction-blind reviewer assignments followed by an adjudicator assignment. The
-shared UI is in `adjudication-web/`, and R2 persists review state, token indexes,
+shared UI is in `control-plane/adjudication-web/`, and R2 persists review state, token indexes,
 and completed results. Reviewers need only a browser and their unique invitation
 URL; they do not need the repository or a local Python server.
 
@@ -72,7 +99,7 @@ the new Worker is live. A migration failure stops the script before publication.
 artifacts. It is intentionally separate from `REVIEW_BUCKET`, which contains the
 hosted review workflow's mutable records. Do not attach a public development URL
 or custom domain to the Internals bucket. The canonical sampling output contract
-is implemented by `src/frame-set-manifest.ts`: `frame-set-manifest.v1` binds every
+is implemented by `control-plane/src/frame-set-manifest.ts`: `frame-set-manifest.v1` binds every
 frame to one registered dataset source, timestamp, sampling reason, media type,
 byte size, and SHA-256 digest. Structural validation alone does not prove that an
 object exists; finalization must also compare these declarations with R2 object

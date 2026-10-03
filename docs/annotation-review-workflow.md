@@ -235,15 +235,15 @@ Automation may generate the comparison and organize its evidence, but a human
 adjudicator makes and owns every resolution recorded in the final fixture.
 
 The preferred review service is the standalone Cloudflare Worker in
-`worker/src/adjudication.ts`. It keeps active reviews and completed merged
+`workers/control-plane/src/adjudication.ts`. It keeps active reviews and completed merged
 annotations in R2 and serves the protected reviewer and adjudicator APIs and their
 browser UI. The UI source is directly inspectable
-under `worker/adjudication-web/` (`index.html`, `app.js`, and `style.css`) and is
+under `workers/control-plane/adjudication-web/` (`index.html`, `app.js`, and `style.css`) and is
 served at the deployed Worker's `/` route through Cloudflare Static Assets. Create
 the two R2 buckets and deploy it once:
 
 ```bash
-cd worker
+cd workers
 npx wrangler r2 bucket create video-annotation-reviews
 npx wrangler r2 bucket create video-annotation-reviews-preview
 npx wrangler secret put ADMIN_TOKEN --config wrangler.toml

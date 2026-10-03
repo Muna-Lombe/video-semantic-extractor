@@ -1,7 +1,7 @@
 # @type configuration
 # @purpose Configure deployment of the hosted annotation review service.
 name = "video-semantic-extractor"
-main = "src/adjudication.ts"
+main = "control-plane/src/adjudication.ts"
 compatibility_date = "2026-09-01"
 
 # Resource bindings are declarative, but D1 migrations are an explicit release
@@ -11,7 +11,7 @@ compatibility_date = "2026-09-01"
 # also runs custom builds for local development.
 
 [assets]
-directory = "./adjudication-web"
+directory = "./control-plane/adjudication-web"
 binding = "ASSETS"
 run_worker_first = true
 
@@ -31,10 +31,10 @@ preview_bucket_name = "video-semantic-extractor-internal-artifacts-preview"
 binding = "CONTROL_DB"
 database_name = "video-semantic-extractor"
 database_id = "627b7ce9-4af7-4909-a1e6-8b310a28ac5a"
-migrations_dir = "migrations/control"
+migrations_dir = "control-plane/migrations/control"
 
 [[d1_databases]]
 binding = "DATASET_DB"
 database_name = "video-semantic-extractor-dataset"
 database_id = "77adb815-acc2-47b2-a671-52df5f78e388"
-migrations_dir = "migrations/dataset"
+migrations_dir = "control-plane/migrations/dataset"

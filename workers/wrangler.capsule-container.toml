@@ -1,5 +1,7 @@
+# @type configuration
+# @purpose Configure the optional Product capsule Container Worker deployment.
 name = "video-semantic-extractor-container"
-main = "../../worker/src/container.ts"
+main = "capsule-container/src/container.ts"
 compatibility_date = "2026-09-01"
 
 # Build and push the image from the repository root before deploying. Cloudflare
