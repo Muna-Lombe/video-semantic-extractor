@@ -105,24 +105,29 @@ prompt wake-ups without replacing atomic claims.
 The runner implementation is in `backend/video_semantic_extractor/sampling_runner.py`,
 its image is defined by `deployments/SamplingRunner.Dockerfile`, and its Worker is
 configured by `workers/wrangler.sampling-runner.toml`. Deploy the
-control-plane Worker and its migrations first. Then build and push the runner image,
-set the runner Worker's copy of the same `RUNNER_TOKEN`, and deploy it:
+control-plane Worker and its migrations first. Then build and push the runner image
+under the release tag in the Wrangler configuration, set the runner Worker's copy
+of the same `RUNNER_TOKEN`, and deploy it:
 
 ```bash
 docker build -f deployments/SamplingRunner.Dockerfile \
-  -t registry.cloudflare.com/ACCOUNT_ID/video-semantic-extractor-sampling-runner:latest .
-docker push registry.cloudflare.com/ACCOUNT_ID/video-semantic-extractor-sampling-runner:latest
+  -t registry.cloudflare.com/ACCOUNT_ID/video-semantic-extractor-sampling-runner:2026-10-03.1 .
+docker push registry.cloudflare.com/ACCOUNT_ID/video-semantic-extractor-sampling-runner:2026-10-03.1
 npx wrangler secret put RUNNER_TOKEN \
   --config workers/wrangler.sampling-runner.toml
 cd workers
-npx wrangler deploy --config wrangler.sampling-runner.toml
+npm run deploy:sampling-runner
 ```
 
-Replace `ACCOUNT_ID` in both the command and runner Wrangler configuration. The
-cron trigger invokes one guarded `/run-once` execution each minute. The Container
-claims at most one job per invocation, rejects concurrent work as `busy`, downloads
-sources with the existing SSRF and size protections, maintains a heartbeat thread,
-uploads checksum-bound frames, and finalizes `frame-set-manifest.v1`. Remote rollout,
+Replace `ACCOUNT_ID` in the commands and runner Wrangler configuration. The image
+tag in the build command and configuration must match. Never deploy a `:latest`
+reference: Cloudflare rejects it when creating a Container application. For each
+image release, choose a new unique tag, push it, and update the configuration in the
+same change so a deployment cannot silently select a different image. The cron
+trigger invokes one guarded `/run-once` execution each minute. The Container claims
+at most one job per invocation, rejects concurrent work as `busy`, downloads sources
+with the existing SSRF and size protections, maintains a heartbeat thread, uploads
+checksum-bound frames, and finalizes `frame-set-manifest.v1`. Remote rollout,
 real-media execution, and Container resource sizing still require verification in
 an authenticated Cloudflare account.
 

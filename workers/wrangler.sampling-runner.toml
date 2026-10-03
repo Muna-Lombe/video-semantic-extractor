@@ -6,7 +6,9 @@ compatibility_date = "2026-09-01"
 
 [[containers]]
 class_name = "SamplingRunnerContainer"
-image = "registry.cloudflare.com/d1b9378e2318376153f529443af41b25/video-semantic-extractor-sampling-runner:latest"
+# Cloudflare rejects `latest` when creating a Container application. Build and push
+# this release tag before deploying; use a new unique tag for each image release.
+image = "registry.cloudflare.com/d1b9378e2318376153f529443af41b25/video-semantic-extractor-sampling-runner:2026-10-03.1"
 instance_type = "basic"
 
 [[durable_objects.bindings]]
