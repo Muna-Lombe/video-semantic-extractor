@@ -105,24 +105,26 @@ prompt wake-ups without replacing atomic claims.
 The runner implementation is in `backend/video_semantic_extractor/sampling_runner.py`,
 its image is defined by `deployments/SamplingRunner.Dockerfile`, and its Worker is
 configured by `workers/wrangler.sampling-runner.toml`. Deploy the
-control-plane Worker and its migrations first. Then build and push the runner image,
-set the runner Worker's copy of the same `RUNNER_TOKEN`, and deploy it:
+control-plane Worker and its migrations first. Then set the runner Worker's copy of
+the same `RUNNER_TOKEN` and deploy it:
 
 ```bash
-docker build -f deployments/SamplingRunner.Dockerfile \
-  -t registry.cloudflare.com/ACCOUNT_ID/video-semantic-extractor-sampling-runner:latest .
-docker push registry.cloudflare.com/ACCOUNT_ID/video-semantic-extractor-sampling-runner:latest
 npx wrangler secret put RUNNER_TOKEN \
   --config workers/wrangler.sampling-runner.toml
 cd workers
-npx wrangler deploy --config wrangler.sampling-runner.toml
+npm run deploy:sampling-runner
 ```
 
-Replace `ACCOUNT_ID` in both the command and runner Wrangler configuration. The
-cron trigger invokes one guarded `/run-once` execution each minute. The Container
-claims at most one job per invocation, rejects concurrent work as `busy`, downloads
-sources with the existing SSRF and size protections, maintains a heartbeat thread,
-uploads checksum-bound frames, and finalizes `frame-set-manifest.v1`. Remote rollout,
+The image does not need to be built, tagged, or pushed separately. From the
+`workers/` project root, Wrangler resolves the configured Dockerfile at
+`../deployments/SamplingRunner.Dockerfile`, uses `..` as the build context so the
+Dockerfile can copy `backend/`, and publishes the resulting immutable image as part
+of deployment. Do not replace the Dockerfile path with a mutable `:latest` registry
+reference, which Cloudflare rejects when creating a Container application. The cron
+trigger invokes one guarded `/run-once` execution each minute. The Container claims
+at most one job per invocation, rejects concurrent work as `busy`, downloads sources
+with the existing SSRF and size protections, maintains a heartbeat thread, uploads
+checksum-bound frames, and finalizes `frame-set-manifest.v1`. Remote rollout,
 real-media execution, and Container resource sizing still require verification in
 an authenticated Cloudflare account.
 
@@ -150,11 +152,12 @@ Wrangler configuration and shared Node package would not be visible. Do not put
 Wrangler configuration under `deployments/`, either, because that directory is
 outside the configured build root.
 
-`deployments/` remains the repository-root build context for Dockerfiles, Compose,
-and host prerequisite scripts. Container images must therefore be built and pushed
-from the repository root before the corresponding Wrangler deployment runs from
-`workers/`. This split keeps all Cloudflare-visible Worker inputs under one root
-without duplicating the Python backend into the Worker package.
+`deployments/` contains Dockerfiles, Compose, and host prerequisite scripts. The
+sampling-runner configuration reaches its Dockerfile from `workers/` with a `../`
+path and explicitly sets the repository root as the image build context. Wrangler
+therefore builds and publishes that image during deployment without duplicating the
+Python backend into the Worker package. The optional Product capsule image continues
+to use the separate manual build and push workflow documented above.
 
 ## Configuration and operations
 
