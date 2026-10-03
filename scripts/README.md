@@ -20,6 +20,29 @@ The local environment uses Python 3.12 to match `deployments/Dockerfile`.
 Set `INSTALL_MODELS=0` when preparing only the media and CV diagnostic environment;
 normal full extraction installs the CPU PyTorch and Whisper dependencies.
 
+## Deployed sampling-runner smoke test
+
+After deploying the control plane and sampling runner, exercise their real network,
+lease, media, upload, and finalization path with a public HTTPS video. Keep the
+administrator token in the environment so it is not stored in shell history:
+
+```bash
+export ADMIN_TOKEN='<control-plane administrator token>'
+python scripts/operations/smoke-test-sampling-runner.py \
+  https://video-semantic-extractor.example.workers.dev \
+  https://media.example/sample.mp4 \
+  --output /tmp/sampling-runner-smoke.json
+```
+
+The script creates a uniquely named dataset and idempotent hybrid sampling job,
+waits for a terminal state, retrieves the registered frame set and manifest, and
+downloads one private evidence frame. It fails unless the manifest identities and
+counts agree and the retrieved evidence bytes match the registered size and
+SHA-256. The optional report contains resource IDs and checksums but never the
+administrator token. A successful run verifies one normal execution; separately
+exercise cancellation, lease expiry/crash recovery, and retry before declaring the
+runner operationally hardened.
+
 ## Human annotation review UI
 
 After initializing the prediction-blind fixture, launch the local SPA once per
