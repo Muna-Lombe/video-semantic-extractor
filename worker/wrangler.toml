@@ -4,6 +4,12 @@ name = "video-semantic-extractor"
 main = "src/adjudication.ts"
 compatibility_date = "2026-09-01"
 
+# Resource bindings are declarative, but D1 migrations are an explicit release
+# operation rather than a Worker build step. Configure the production deploy
+# command as `npm run deploy:production`; see README.md for ordering and rollback
+# constraints. Do not put remote mutations in a `[build]` command because Wrangler
+# also runs custom builds for local development.
+
 [assets]
 directory = "./adjudication-web"
 binding = "ASSETS"

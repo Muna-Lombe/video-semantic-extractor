@@ -99,6 +99,18 @@ async function claim(request: Request, env: AdjudicationEnv): Promise<Response> 
   return json({ data: { job: publicJob(row), attempt_id: attemptId, lease_token: leaseToken, lease_expires_at: expiresAt, frame_set_id: expectedFrameSetId(String(row.id)) } });
 }
 
+async function datasetSources(env: AdjudicationEnv, datasetVersionId: string): Promise<Response> {
+  const version = await env.DATASET_DB.prepare("SELECT id, status FROM dataset_versions WHERE id = ?")
+    .bind(datasetVersionId).first<{ id: string; status: string }>();
+  if (!version) return error("not_found", "dataset version not found", 404);
+  if (version.status !== "frozen" && version.status !== "ready") return error("invalid_state", "dataset version is not available for sampling", 409);
+  const rows = await env.DATASET_DB.prepare("SELECT id, source_url AS url, display_name, ordinal FROM dataset_sources WHERE dataset_version_id = ? ORDER BY ordinal")
+    .bind(datasetVersionId).all<JsonRecord>();
+  const sources = rows.results ?? [];
+  if (!sources.length) return error("dataset_unavailable", "dataset version has no registered sources", 409);
+  return json({ data: { dataset_version_id: datasetVersionId, sources } });
+}
+
 async function heartbeat(request: Request, env: AdjudicationEnv, jobId: string): Promise<Response> {
   const token = request.headers.get("x-job-lease-token");
   if (!token) return error("lease_required", "X-Job-Lease-Token is required", 401);
@@ -153,6 +165,12 @@ export async function handleRunnerApi(request: Request, env: AdjudicationEnv): P
   if (!env.RUNNER_TOKEN) return error("runner_unavailable", "runner authentication is not configured", 503);
   if (!runnerAuthorized(request, env)) return error("unauthorized", "runner bearer token required", 401);
   if (path === "/api/internal/v1/runner/sampling-jobs/claim") return request.method === "POST" ? claim(request, env) : error("method_not_allowed", "method not allowed", 405);
+  const sourcesMatch = path.match(/^\/api\/internal\/v1\/runner\/dataset-versions\/([^/]+)\/sources$/);
+  if (sourcesMatch) {
+    const datasetVersionId = decodeId(sourcesMatch[1]);
+    if (datasetVersionId instanceof Response) return datasetVersionId;
+    return request.method === "GET" ? datasetSources(env, datasetVersionId) : error("method_not_allowed", "method not allowed", 405);
+  }
   const artifactMatch = path.match(/^\/api\/internal\/v1\/runner\/sampling-jobs\/([^/]+)\/(artifacts|finalize)(?:\/([^/]+))?$/);
   if (artifactMatch) {
     const jobId = decodeId(artifactMatch[1]);

@@ -20,6 +20,7 @@
           <a href="#overview" data-route="overview" class="active"><span aria-hidden="true">⌂</span> Overview</a>
           <a href="#datasets" data-route="datasets"><span aria-hidden="true">▤</span> Datasets</a>
           <a href="#sampling" data-route="sampling"><span aria-hidden="true">◫</span> Sampling jobs</a>
+          <a href="#frame-sets" data-route="frame-sets"><span aria-hidden="true">▦</span> Frame sets</a>
         </nav>
         <div class="sidebar-section">
           <p>Focused workspaces</p>
@@ -89,6 +90,11 @@
               <div class="callout"><strong>Execution requires a runner.</strong> Jobs remain queued until a compatible runner claims them. The legacy CLI remains available when no managed runner is connected.</div>
               <div class="panel table-panel"><div class="table-toolbar"><span id="sampling-summary" class="muted">Loading jobs…</span><button class="text-button" type="button" data-refresh>Refresh</button></div><div id="sampling-table"></div></div>
             </section>
+
+            <section class="page" data-page="frame-sets" hidden>
+              <div class="page-heading"><div><p class="eyebrow">Immutable sampling output</p><h2>Frame sets</h2><p>Inspect registered manifests, source provenance, checksums, and private frame evidence.</p></div><button class="secondary" type="button" data-refresh>Refresh data</button></div>
+              <div class="panel table-panel"><div class="table-toolbar"><label class="search"><span class="sr-only">Filter frame sets</span><input id="frame-set-filter" type="search" placeholder="Filter by ID, dataset, or job…"></label><span id="frame-set-summary" class="muted">Loading frame sets…</span></div><div id="frame-sets-table"></div></div>
+            </section>
           </div>
         </main>
       </div>
@@ -116,6 +122,13 @@
         <div class="form-grid"><div><label for="sampling-threshold">Scene threshold</label><input id="sampling-threshold" name="scene_threshold" type="number" min="0" max="1" step="0.01" value="0.3"></div><div><label for="sampling-interval">Interval (seconds)</label><input id="sampling-interval" name="interval_seconds" type="number" min="0.001" step="0.001" value="5"></div><div><label for="sampling-limit">Maximum frames</label><input id="sampling-limit" name="max_frames" type="number" min="1" step="1" value="250"></div><div><label for="sampling-final">Final frame</label><select id="sampling-final" name="include_final_frame"><option value="true">Include final frame</option><option value="false">Do not include</option></select></div></div>
         <p class="form-status" role="status"></p><div class="dialog-actions"><button class="secondary" type="button" data-dialog-close>Cancel</button><button type="submit">Queue job</button></div>
       </form>
+    </dialog>
+
+    <dialog id="frame-set-dialog" class="detail-dialog">
+      <div class="detail-shell">
+        <div class="dialog-heading"><div><p class="eyebrow">Frame-set evidence</p><h2 id="frame-set-dialog-title">Frame set</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Close">&times;</button></div>
+        <div id="frame-set-detail" aria-live="polite"></div>
+      </div>
     </dialog>
 
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>

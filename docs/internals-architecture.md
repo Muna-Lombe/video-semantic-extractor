@@ -44,6 +44,11 @@ routes require authenticated identities and explicit authorization.
    governed, versioned resources with provenance and audit history.
 7. Experimental artifacts cannot enter Product implicitly. Promotion through an
    approved pipeline release is explicit and reversible.
+8. Managed sampling runs in a dedicated **sampling-runner Worker and Container**,
+   not in the control-plane Worker and not in the Product capsule Container. The
+   runner reaches the control plane through a same-account Service binding; it
+   does not require the control-plane API to be exposed as a public runner URL.
+   This runner now ships in the repository; remote deployment remains to be verified.
 
 ## Product and Internals boundary
 
@@ -146,14 +151,57 @@ The first executable slice deliberately separates **control-plane orchestration*
 from **job execution**. It registers datasets, ready/frozen versions, and HTTPS
 sources in `DATASET_DB`, and persists sampling-job metadata in `CONTROL_DB` with
 an initial `queued` state. Runner-authenticated endpoints provide atomic claims
-with expiring leases, heartbeats, completion/failure reports, requeue behavior,
-and attempt audit records; administrator endpoints provide cancellation and retry.
-That makes the request and orchestration durable and queryable, but it does not
-mean that a sampler is running. No sampling engine or runner process ships with
-this slice. An external executor must claim the job, invoke the shared sampling
-engine, write its artifacts, and advance the lifecycle. Until that executor exists, operators
-continue to run the existing CLI for actual sampling and may use its outputs for
-the later import/registration path.
+with expiring leases, heartbeats, verified frame uploads, manifest finalization,
+failure/requeue behavior, and attempt audit records; administrator endpoints
+provide cancellation and retry. That makes the request, artifact-registration,
+    and orchestration surfaces durable and queryable. A separate sampling executor
+    now ships, while the CLI remains the offline/recovery path. Until the runner is
+    deployed and verified, hosted jobs will still remain queued.
+
+### Sampling-runner deployment topology
+
+The selected managed-execution topology is:
+
+```text
+scheduled trigger or queue
+          |
+          v
+sampling-runner Worker ---- Durable Object binding ----> sampling Container
+          |
+          +---- CONTROL_PLANE Service binding ----------> Internals Worker
+                                                               |-- CONTROL_DB
+                                                               |-- DATASET_DB
+                                                               `-- private R2
+```
+
+The runner is a separate deployment with a separate failure, scaling, secret, and
+cost boundary. It reuses the shared Python sampling engine but does not reuse the
+Product `/capsule` Container: capsule extraction and managed dataset sampling have
+different API contracts, authentication, lifecycle, and resource profiles.
+
+The runner Worker owns orchestration. A scheduled trigger or queue wakes it; it
+claims one eligible job through its `CONTROL_PLANE` Service binding, starts or
+contacts the sampling Container through its Durable Object binding, maintains the
+lease heartbeat, and forwards verified frames and the final manifest back through
+the Service binding. The Container performs bounded source download, checksum
+calculation, `ffprobe`/FFmpeg execution, and shared-engine sampling. It must not
+receive D1 or R2 bindings directly or mutate control-plane state independently.
+
+The Container can call a virtual internal hostname handled by the runner
+Container class's outbound handler. That handler forwards only the allowlisted
+runner API paths to `env.CONTROL_PLANE.fetch()`. It injects the runner service
+credential; the Container never receives that long-lived credential. The
+one-time job lease token may be scoped into an individual execution because it is
+required for heartbeat, upload, finalize, and failure calls. A Service binding
+provides private routing but does not replace application authorization.
+
+The control-plane Worker does not bind to or synchronously wait for the runner.
+Job creation commits `queued` state and returns. A queue producer may be added as
+an optimization for prompt wake-up, but claims remain the source of truth so a
+lost notification cannot lose work. A periodic scheduled sweep is required as a
+backstop. Runner deployment is not complete until crash recovery, cancellation,
+download safety, heartbeat concurrency, idempotent uploads, and end-to-end tests
+have been demonstrated.
 
 ### Template pipeline
 
@@ -251,13 +299,12 @@ asynchronous jobs. Every managed job requires:
 - structured logs and audit events;
 - retention and orphan-artifact cleanup rules.
 
-For the sampling slice, runner authentication uses a service bearer credential,
-while each successful claim returns a separate one-time lease token. The lease
-token, not the general runner credential, authorizes heartbeat and terminal report
-operations for that attempt. Attempt history is retained as audit evidence;
-requeueing or administrator retry creates a new attempt rather than erasing a
-prior one. Completion records output metadata, but artifact upload and validation
-remain a later pipeline responsibility.
+For the sampling slice, runner authentication uses a service bearer credential in
+addition to private Service-binding routing, while each successful claim returns a
+separate one-time lease token. The lease token, not the general runner credential,
+authorizes heartbeat, artifact upload, finalization, and failure operations for
+that attempt. Attempt history is retained as audit evidence; requeueing or
+administrator retry creates a new attempt rather than erasing a prior one.
 
 The CLI remains useful for local diagnosis, offline recovery, and automation. CLI
 commands should call shared domain libraries, emit the same manifest/report schema,
@@ -394,9 +441,9 @@ Progress values are planning estimates, not measured completion claims.
 
 | Phase | Scope | Status | Estimate |
 | --- | --- | --- | ---: |
-| 0. Architecture | Product/Internals boundary, resources, storage, security, migration | In progress | 85% |
-| 1. Control-plane foundation | D1 schema, migrations, identities/RBAC, jobs, artifacts, audit log | In progress; durable sampling claims, leases, attempts, cancellation, and retry exist, but RBAC and runners do not | 50% |
-| 2. Dataset-to-template slice | Dataset import, sampling job, frame-set inspection, template generation | In progress; orchestration exists, but no sampling runner, artifacts, frame-set registration, or template generation ships | 30% |
+| 0. Architecture | Product/Internals boundary, resources, storage, security, migration | In progress; runner topology selected | 90% |
+| 1. Control-plane foundation | D1 schema, migrations, identities/RBAC, jobs, artifacts, audit log | In progress; sampling execution ships, but RBAC and remote runner verification remain | 80% |
+| 2. Dataset-to-template slice | Dataset import, sampling job, frame-set inspection, template generation | In progress; the sampling runner and frame-set inspection ship, but template registry does not | 65% |
 | 3. Review integration | Template references, campaign UI, focused invitations, progress, ground truth | Partially implemented | 55% |
 | 4. Durable evaluations | Managed diagnostic runners, metrics, comparisons, reproducibility | Planned; CLI engines exist | 20% |
 | 5. Governance | Model registry, ground-truth approval, pipeline releases, rollback | Planned | 5% |
@@ -420,7 +467,7 @@ Progress values are planning estimates, not measured completion claims.
 
 | Current problem | Decision |
 | --- | --- |
-| Sampling runs manually outside the service | Durable orchestration now supports external runners, but no runner process ships; add the shared-engine executor and retain CLI execution/import. |
+| Sampling runner is not remotely verified | Deploy the shipped sampling-runner Worker and Container, verify real-media execution through its `CONTROL_PLANE` Service binding, and retain CLI execution/import. |
 | Templates are loose generated files | Register immutable template artifacts in D1 with content in R2. |
 | Review creation accepts raw templates and URL maps | Migrate to validated template references and managed evidence resolution; keep a compatibility route temporarily. |
 | Diagnostics are not durable jobs | Wrap shared diagnostic engines in queued, retryable, auditable jobs. |
