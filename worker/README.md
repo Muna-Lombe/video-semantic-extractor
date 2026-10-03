@@ -40,12 +40,24 @@ Do not recreate the databases or substitute one ID for the other:
 ```bash
 npx wrangler r2 bucket create video-annotation-reviews
 npx wrangler r2 bucket create video-annotation-reviews-preview
+npx wrangler r2 bucket create video-semantic-extractor-internal-artifacts
+npx wrangler r2 bucket create video-semantic-extractor-internal-artifacts-preview
 npx wrangler d1 migrations apply video-semantic-extractor --remote --config wrangler.toml
 npx wrangler d1 migrations apply video-semantic-extractor-dataset --remote --config wrangler.toml
 npx wrangler secret put ADMIN_TOKEN --config wrangler.toml
 npx wrangler secret put RUNNER_TOKEN --config wrangler.toml
 npm run deploy:adjudication
 ```
+
+`INTERNAL_ARTIFACTS_BUCKET` is a private storage boundary for immutable Internals
+artifacts. It is intentionally separate from `REVIEW_BUCKET`, which contains the
+hosted review workflow's mutable records. Do not attach a public development URL
+or custom domain to the Internals bucket. The canonical sampling output contract
+is implemented by `src/frame-set-manifest.ts`: `frame-set-manifest.v1` binds every
+frame to one registered dataset source, timestamp, sampling reason, media type,
+byte size, and SHA-256 digest. Structural validation alone does not prove that an
+object exists; finalization must also compare these declarations with R2 object
+metadata and bytes.
 
 `GET /internals` serves the interactive dataset and sampling workspace, while
 `GET /api/internal/v1/overview` returns its administrator-authenticated capability
@@ -68,10 +80,16 @@ POST /api/internal/v1/sampling-jobs
 GET  /api/internal/v1/sampling-jobs/<job-id>
 POST /api/internal/v1/sampling-jobs/<job-id>/cancel
 POST /api/internal/v1/sampling-jobs/<job-id>/retry
+GET  /api/internal/v1/frame-sets
+GET  /api/internal/v1/frame-sets/<frame-set-id>
+GET  /api/internal/v1/frame-sets/<frame-set-id>/manifest
+GET  /api/internal/v1/frame-sets/<frame-set-id>/frames/<frame-id>/evidence
 
 POST /api/internal/v1/runner/sampling-jobs/claim
 POST /api/internal/v1/runner/sampling-jobs/<job-id>/heartbeat
-POST /api/internal/v1/runner/sampling-jobs/<job-id>/complete
+POST /api/internal/v1/runner/sampling-jobs/<job-id>/artifacts
+PUT  /api/internal/v1/runner/sampling-jobs/<job-id>/artifacts/<artifact-id>
+POST /api/internal/v1/runner/sampling-jobs/<job-id>/finalize
 POST /api/internal/v1/runner/sampling-jobs/<job-id>/fail
 ```
 
@@ -100,11 +118,22 @@ Sampling creation optionally accepts an `idempotency_key`. Repeating the same
 request returns the original job, while reusing that key with a different dataset,
 configuration, or retry limit returns `409 idempotency_conflict`.
 
-Completion currently records runner-supplied output **metadata only**. It does not
-upload, inspect, checksum, or validate frame manifests or sampled images. These
-APIs define durable orchestration and make an external runner possible, but they
-are not a sampling implementation and do not make managed sampling operational on
-their own.
+Metadata-only completion is rejected. A runner must reserve server-named frame
+artifacts, upload their raw bytes while its lease is active, and finalize the
+server-assigned frame-set ID using `frame-set-manifest.v1`. Upload checks the
+declared byte count, media type, and SHA-256 before writing to private R2.
+Finalization verifies exact dataset-source coverage, every referenced upload, and
+stored R2 metadata before registering the manifest, source membership, frames,
+artifacts, successful attempt, and successful job in one D1 batch. Repeating a
+successful finalization with the same lease is idempotent.
+
+Administrator-authenticated Frame Sets routes list registered sets, expose their
+source and frame membership, and stream manifests and frame evidence privately
+from the Internals bucket. The upload endpoint buffers and hashes each frame and therefore limits individual
+frame images to 10 MiB. It is not intended for source-video ingestion. An R2
+manifest write necessarily occurs before the D1 transaction; failed transactions
+delete that manifest best-effort, while a future reconciliation task must detect
+any remaining orphan objects.
 
 The runner request shapes are intentionally small:
 
@@ -112,8 +141,12 @@ The runner request shapes are intentionally small:
 // POST /api/internal/v1/runner/sampling-jobs/claim
 {"runner_id":"sampling-runner-1","lease_seconds":300}
 
-// POST /api/internal/v1/runner/sampling-jobs/<job-id>/complete
-{"output":{"manifest_key":"sampling/example/manifest.json"}}
+// POST /api/internal/v1/runner/sampling-jobs/<job-id>/artifacts
+{"sha256":"<64 lowercase hex characters>","size_bytes":12345,"media_type":"image/jpeg"}
+
+// PUT the exact bytes to the upload_path returned above, then:
+// POST /api/internal/v1/runner/sampling-jobs/<job-id>/finalize
+{"manifest":{"schema_version":"frame-set-manifest.v1","frame_set_id":"<claim response frame_set_id>","sampling_job_id":"<job-id>","dataset_version_id":"<job input dataset_version_id>","created_at":"2026-10-03T12:00:00.000Z","engine":{"name":"sampler","version":"1.0.0","configuration_sha256":"<configuration sha256>"},"source_count":1,"frame_count":1,"sources":[{"dataset_source_id":"<registered source id>","source_sha256":"<source sha256>","size_bytes":1000000,"duration_seconds":10,"frames":[{"id":"frame_001","timestamp_seconds":5,"reasons":["interval"],"width":1280,"height":720,"artifact":{"artifact_id":"<reserved artifact id>","sha256":"<frame sha256>","size_bytes":12345,"media_type":"image/jpeg"}}]}]}}
 
 // POST /api/internal/v1/runner/sampling-jobs/<job-id>/fail
 {"error_message":"source download failed","requeue":true}

@@ -1,5 +1,6 @@
 /** @type implementation @purpose Coordinate durable sampling-job leases and lifecycle transitions. */
 import type { AdjudicationEnv } from "./types";
+import { expectedFrameSetId, handleArtifactPipeline } from "./artifact-pipeline";
 
 type JsonRecord = Record<string, unknown>;
 const MAX_BODY_BYTES = 64 * 1024;
@@ -95,7 +96,7 @@ async function claim(request: Request, env: AdjudicationEnv): Promise<Response> 
       .bind(now(), row.id, leaseHash).run();
     throw cause;
   }
-  return json({ data: { job: publicJob(row), attempt_id: attemptId, lease_token: leaseToken, lease_expires_at: expiresAt } });
+  return json({ data: { job: publicJob(row), attempt_id: attemptId, lease_token: leaseToken, lease_expires_at: expiresAt, frame_set_id: expectedFrameSetId(String(row.id)) } });
 }
 
 async function heartbeat(request: Request, env: AdjudicationEnv, jobId: string): Promise<Response> {
@@ -127,19 +128,7 @@ async function finish(request: Request, env: AdjudicationEnv, jobId: string, act
   if (value instanceof Response) return value;
   const hash = await digest(token), timestamp = now();
   if (action === "complete") {
-    if (!exactKeys(value, ["output"]) || !value.output || typeof value.output !== "object" || Array.isArray(value.output)) return error("invalid_request", "output must be an object", 400);
-    const output = JSON.stringify(value.output);
-    const results = await env.CONTROL_DB.batch<JsonRecord>([
-      env.CONTROL_DB.prepare(`UPDATE internal_jobs SET status = 'succeeded', output_json = ?, completed_at = ?, updated_at = ?
-        WHERE id = ? AND job_type = 'sampling' AND status = 'running' AND lease_token_hash = ? AND lease_expires_at > ? AND cancellation_requested_at IS NULL
-          AND EXISTS (SELECT 1 FROM internal_job_attempts WHERE job_id = internal_jobs.id AND lease_token_hash = ? AND status = 'running')
-        RETURNING id`).bind(output, timestamp, timestamp, jobId, hash, timestamp, hash),
-      env.CONTROL_DB.prepare("UPDATE internal_job_attempts SET status = 'succeeded', output_json = ?, finished_at = ? WHERE job_id = ? AND lease_token_hash = ? AND status = 'running' AND EXISTS (SELECT 1 FROM internal_jobs WHERE id = ? AND status = 'succeeded' AND lease_token_hash = ?)").bind(output, timestamp, jobId, hash, jobId, hash),
-      env.CONTROL_DB.prepare("UPDATE internal_jobs SET lease_owner = NULL, lease_token_hash = NULL, lease_expires_at = NULL WHERE id = ? AND status = 'succeeded' AND lease_token_hash = ?").bind(jobId, hash),
-    ]);
-    const row = returnedRow(results[0]);
-    if (!row) return error("invalid_lease", "job lease is invalid, expired, or cancellation was requested", 409);
-    return json({ data: { id: jobId, status: "succeeded", output: value.output } });
+    return error("frame_set_required", "sampling jobs succeed only through verified frame-set finalization", 409);
   }
   if (!exactKeys(value, ["error_message", "requeue"]) || typeof value.error_message !== "string" || value.error_message.trim().length < 1 || value.error_message.length > 2000 || (value.requeue !== undefined && typeof value.requeue !== "boolean")) return error("invalid_request", "error_message is required and requeue must be boolean", 400);
   const results = await env.CONTROL_DB.batch<JsonRecord>([
@@ -164,6 +153,14 @@ export async function handleRunnerApi(request: Request, env: AdjudicationEnv): P
   if (!env.RUNNER_TOKEN) return error("runner_unavailable", "runner authentication is not configured", 503);
   if (!runnerAuthorized(request, env)) return error("unauthorized", "runner bearer token required", 401);
   if (path === "/api/internal/v1/runner/sampling-jobs/claim") return request.method === "POST" ? claim(request, env) : error("method_not_allowed", "method not allowed", 405);
+  const artifactMatch = path.match(/^\/api\/internal\/v1\/runner\/sampling-jobs\/([^/]+)\/(artifacts|finalize)(?:\/([^/]+))?$/);
+  if (artifactMatch) {
+    const jobId = decodeId(artifactMatch[1]);
+    if (jobId instanceof Response) return jobId;
+    const artifactId = artifactMatch[3] === undefined ? undefined : decodeId(artifactMatch[3]);
+    if (artifactId instanceof Response) return artifactId;
+    return handleArtifactPipeline(request, env, jobId, artifactMatch[2], artifactId);
+  }
   const match = path.match(/^\/api\/internal\/v1\/runner\/sampling-jobs\/([^/]+)\/(heartbeat|complete|fail)$/);
   if (!match) return null;
   if (request.method !== "POST") return error("method_not_allowed", "method not allowed", 405);

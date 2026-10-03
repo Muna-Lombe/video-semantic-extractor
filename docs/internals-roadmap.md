@@ -111,8 +111,9 @@ The following are working foundations, not the complete Internals control plane:
 
 No sampling engine, queue consumer, or runner process ships yet. The protocol can
 coordinate an external runner, but nothing in the deployed Worker fetches source
-media or invokes FFmpeg/the sampler. Completion currently accepts output metadata;
-it does not upload or validate sampling artifacts.
+media or invokes FFmpeg/the sampler. A leased external runner can now reserve and
+upload checksum-verified frame images and finalize a schema-validated immutable
+frame set; source-media ingestion and the executor itself remain open.
 
 The existing hosted review API still accepts embedded template JSON and frame URLs,
 uses a shared administrator token, and stores mutable review records as objects.
@@ -124,8 +125,8 @@ Those are prototype constraints to migrate, not the target control-plane model.
 | --- | --- | --- |
 | Overview | Current capability status and implementation maturity | Foundation implemented; operational metrics planned |
 | Datasets | Versioned source-media collections and provenance | Dedicated D1 registry accepts HTTPS source URLs, marks the dataset ready, and freezes its initial version |
-| Sampling | Create, monitor, retry, and inspect durable sampling jobs | Claims, leases, attempts, heartbeat, fail/requeue, cancel, and retry implemented; runner process, progress, and artifacts planned |
-| Frame sets | Browse immutable manifests, evidence, coverage, and checksums | Planned |
+| Sampling | Create, monitor, retry, and inspect durable sampling jobs | Claims, leases, attempts, verified frame upload/finalization, fail/requeue, cancel, and retry implemented; runner process remains planned |
+| Frame sets | Browse immutable manifests, evidence, coverage, and checksums | Registration, relational membership, administrator inspection, and private evidence APIs implemented; UI planned |
 | Policies | Version annotation rules, schemas, taxonomy, and lifecycle | Policy document exists; registry planned |
 | Templates | Generate, validate, register, and version templates | CLI generation exists; registry planned |
 | Reviews | Create template-referenced campaigns and monitor progress | Hosted workflow exists; Internals integration planned |
@@ -149,9 +150,11 @@ estimates, not model accuracy or whole-product completion.
   Durable Objects as an option for serialized coordination.
 - [x] Define the durable job orchestration contract: runner authentication,
   atomic claim, leases, heartbeat, terminal reporting, cancellation, and retry.
+- [x] Define `frame-set-manifest.v1`, including multi-source provenance, engine
+  configuration, frame timestamps/reasons, media types, sizes, and checksums.
 - [ ] Define identity, RBAC, and audit-event contracts.
 
-### Phase 1 — Control-plane foundation (in progress, 50%)
+### Phase 1 — Control-plane foundation (in progress, 65%)
 
 - Add authenticated internal users and explicit roles.
 - [x] Add the initial D1-backed dataset registry and durable queued sampling-job
@@ -162,9 +165,11 @@ estimates, not model accuracy or whole-product completion.
   events as each vertical slice becomes executable.
 - [x] Add durable sampling-job claims, expiring leases, attempt records,
   heartbeat, failure/requeue, and administrator cancellation/retry.
-- Add a real runner process, idempotent engine invocation, detailed progress, and
-  artifact registration/validation.
-- Add immutable artifact references backed by object storage.
+- Add a real runner process, idempotent engine invocation, and detailed progress.
+- [x] Add lease-bound immutable frame uploads, byte/checksum/media verification,
+  and idempotent frame-set finalization backed by private object storage.
+- [x] Bind a dedicated private Internals R2 bucket separately from hosted review
+  storage; retention and orphan cleanup remain open.
 - [x] Expand the initial `/internals` status shell with dataset and sampling
   screens backed by administrator-guarded resource APIs.
 - Continue adding resource-specific screens and operations for later pipeline
@@ -174,7 +179,7 @@ This phase is a prerequisite for presenting later phases as reliable hosted
 workflows. A shared `ADMIN_TOKEN` may remain as a development bootstrap but is not
 the final authorization design.
 
-### Phase 2 — Dataset-to-template vertical slice (in progress, 30%)
+### Phase 2 — Dataset-to-template vertical slice (in progress, 45%)
 
 The reusable sampling and initializer engines exist. Dataset records and queued
 sampling metadata are managed resources, but there is no sampling executor yet.
@@ -188,7 +193,9 @@ sampling metadata are managed resources, but there is no sampling executor yet.
   attempts, terminal reports, cancellation, and retries.
 - [ ] Ship an executor that fetches inputs and invokes the shared sampling engine;
   the repository currently contains no runner process.
-- Register immutable frame sets, manifests, checksums, and evidence artifacts.
+- [x] Define the strict `frame-set-manifest.v1` validation contract.
+- [x] Register immutable frame sets, manifests, checksums, source membership, and
+  frame evidence artifacts with administrator inspection and private retrieval.
 - Register versioned policies and annotation schemas.
 - Generate and validate a template from a frame-set ID plus policy-version ID.
 - Retain equivalent CLI commands as supported fallback entry points.

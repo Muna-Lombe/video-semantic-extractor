@@ -38,6 +38,7 @@ function request(path: string, method = "GET", body?: unknown, token?: string) {
 function environment(bucket = new MemoryBucket()): AdjudicationEnv {
   return {
     REVIEW_BUCKET: bucket as unknown as R2Bucket,
+    INTERNAL_ARTIFACTS_BUCKET: {} as R2Bucket,
     CONTROL_DB: {} as D1Database,
     DATASET_DB: {} as D1Database,
     ADMIN_TOKEN: "admin-secret",
@@ -72,7 +73,8 @@ describe("hosted review worker", () => {
     expect(overview.invitation_experiences).toEqual(expect.objectContaining({ review: "/review/", adjudication: "/adjudicate/" }));
     expect(overview.areas).toContainEqual(expect.objectContaining({ id: "reviews", status: "available" }));
     expect(overview.areas).toContainEqual(expect.objectContaining({ id: "datasets", status: "available" }));
-    expect(overview.areas).toContainEqual(expect.objectContaining({ id: "sampling", status: "runner_protocol" }));
+    expect(overview.areas).toContainEqual(expect.objectContaining({ id: "sampling", status: "artifact_protocol" }));
+    expect(overview.areas).toContainEqual(expect.objectContaining({ id: "frame-sets", status: "available" }));
   });
 
   it("publishes safe API discovery without listing active work", async () => {

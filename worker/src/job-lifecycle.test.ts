@@ -120,7 +120,7 @@ function job(overrides: Row = {}): Row {
   return { id: "job_1", job_type: "sampling", status: "queued", input_json: "{}", progress_json: null, output_json: null, error_message: null, attempt_count: 0, max_attempts: 3, created_at: "2026-10-02T00:00:00.000Z", started_at: null, completed_at: null, updated_at: "2026-10-02T00:00:00.000Z", cancellation_requested_at: null, ...overrides };
 }
 function environment(database = new MemoryJobs()): AdjudicationEnv {
-  return { CONTROL_DB: database as unknown as D1Database, DATASET_DB: {} as D1Database, REVIEW_BUCKET: {} as R2Bucket, ADMIN_TOKEN: "admin", RUNNER_TOKEN: "runner", ASSETS: {} as Fetcher };
+  return { CONTROL_DB: database as unknown as D1Database, DATASET_DB: {} as D1Database, REVIEW_BUCKET: {} as R2Bucket, INTERNAL_ARTIFACTS_BUCKET: {} as R2Bucket, ADMIN_TOKEN: "admin", RUNNER_TOKEN: "runner", ASSETS: {} as Fetcher };
 }
 const request = (path: string, payload: unknown, token = "runner", lease?: string) => new Request(`https://internal.test${path}`, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json", ...(lease ? { "x-job-lease-token": lease } : {}) }, body: JSON.stringify(payload) });
 
@@ -130,15 +130,18 @@ async function claim(database: MemoryJobs) {
 }
 
 describe("sampling job lifecycle", () => {
-  it("claims, heartbeats, and completes without storing the raw lease", async () => {
+  it("claims and heartbeats without storing the raw lease or trusting metadata completion", async () => {
     const database = new MemoryJobs(), claimed = await claim(database);
     expect(claimed.response.status).toBe(200);
     expect(database.jobs[0].lease_token_hash).not.toBe(claimed.payload.data.lease_token);
     expect(database.attempts).toHaveLength(1);
     expect((await handleRunnerApi(request("/api/internal/v1/runner/sampling-jobs/job_1/heartbeat", { progress: { frames: 4 } }, "runner", claimed.payload.data.lease_token), environment(database)))?.status).toBe(200);
-    expect((await handleRunnerApi(request("/api/internal/v1/runner/sampling-jobs/job_1/complete", { output: { report_key: "reports/job_1.json" } }, "runner", claimed.payload.data.lease_token), environment(database)))?.status).toBe(200);
-    expect(database.jobs[0]).toEqual(expect.objectContaining({ status: "succeeded", lease_token_hash: null }));
-    expect(database.attempts[0].status).toBe("succeeded");
+    expect(claimed.payload.data.frame_set_id).toBe("frameset_1");
+    const completion = await handleRunnerApi(request("/api/internal/v1/runner/sampling-jobs/job_1/complete", { output: { report_key: "reports/job_1.json" } }, "runner", claimed.payload.data.lease_token), environment(database));
+    expect(completion?.status).toBe(409);
+    expect((await completion!.json() as any).error.code).toBe("frame_set_required");
+    expect(database.jobs[0]).toEqual(expect.objectContaining({ status: "running" }));
+    expect(database.attempts[0].status).toBe("running");
   });
 
   it("terminalizes abandoned cancelled and exhausted leases", async () => {

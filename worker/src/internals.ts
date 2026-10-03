@@ -229,6 +229,54 @@ async function getSamplingJob(jobId: string, env: AdjudicationEnv): Promise<Resp
   return row ? json({ data: jobRow(row) }) : error("not_found", "sampling job not found", 404);
 }
 
+function frameSetRow(row: Record<string, unknown>) {
+  return {
+    id: row.id,
+    dataset_version_id: row.dataset_version_id,
+    sampling_job_id: row.sampling_job_id,
+    manifest_artifact_id: row.manifest_artifact_id,
+    manifest_schema_version: row.manifest_schema_version,
+    source_count: Number(row.source_count),
+    frame_count: Number(row.frame_count),
+    sha256: row.sha256,
+    status: row.status,
+    created_at: row.created_at,
+    engine: { name: row.engine_name, version: row.engine_version, configuration_sha256: row.engine_configuration_sha256 },
+  };
+}
+
+async function listFrameSets(url: URL, env: AdjudicationEnv): Promise<Response> {
+  const pagination = page(url);
+  if (pagination instanceof Response) return pagination;
+  const rows = await env.CONTROL_DB.prepare("SELECT * FROM frame_sets ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?")
+    .bind(pagination.limit + 1, pagination.offset).all<Record<string, unknown>>();
+  const values = rows.results ?? [], hasMore = values.length > pagination.limit;
+  return json({ data: values.slice(0, pagination.limit).map(frameSetRow), pagination: { limit: pagination.limit, offset: pagination.offset, has_more: hasMore, next_offset: hasMore ? pagination.offset + pagination.limit : null } });
+}
+
+async function getFrameSet(frameSetId: string, env: AdjudicationEnv): Promise<Response> {
+  const row = await env.CONTROL_DB.prepare("SELECT * FROM frame_sets WHERE id = ?").bind(frameSetId).first<Record<string, unknown>>();
+  if (!row) return error("not_found", "frame set not found", 404);
+  const [sources, frames] = await Promise.all([
+    env.CONTROL_DB.prepare("SELECT dataset_source_id, ordinal, source_sha256, size_bytes, duration_seconds FROM frame_set_sources WHERE frame_set_id = ? ORDER BY ordinal").bind(frameSetId).all<Record<string, unknown>>(),
+    env.CONTROL_DB.prepare(`SELECT f.id, f.dataset_source_id, f.ordinal, f.timestamp_seconds, f.reasons_json, f.width, f.height,
+      a.id AS artifact_id, a.sha256, a.size_bytes, a.media_type
+      FROM frame_set_frames f JOIN artifacts a ON a.id = f.artifact_id
+      WHERE f.frame_set_id = ? ORDER BY f.dataset_source_id, f.ordinal`).bind(frameSetId).all<Record<string, unknown>>(),
+  ]);
+  return json({ data: { ...frameSetRow(row), sources: sources.results ?? [], frames: (frames.results ?? []).map((frame) => ({ id: frame.id, dataset_source_id: frame.dataset_source_id, ordinal: Number(frame.ordinal), timestamp_seconds: Number(frame.timestamp_seconds), reasons: JSON.parse(String(frame.reasons_json)), width: Number(frame.width), height: Number(frame.height), artifact: { id: frame.artifact_id, sha256: frame.sha256, size_bytes: Number(frame.size_bytes), media_type: frame.media_type } })) } });
+}
+
+async function frameSetObject(frameSetId: string, frameId: string | null, env: AdjudicationEnv): Promise<Response> {
+  const row = frameId === null
+    ? await env.CONTROL_DB.prepare("SELECT a.storage_key, a.media_type, a.sha256 FROM frame_sets fs JOIN artifacts a ON a.id = fs.manifest_artifact_id WHERE fs.id = ? AND fs.status = 'ready'").bind(frameSetId).first<Record<string, unknown>>()
+    : await env.CONTROL_DB.prepare("SELECT a.storage_key, a.media_type, a.sha256 FROM frame_set_frames f JOIN frame_sets fs ON fs.id = f.frame_set_id JOIN artifacts a ON a.id = f.artifact_id WHERE f.frame_set_id = ? AND f.id = ? AND fs.status = 'ready'").bind(frameSetId, frameId).first<Record<string, unknown>>();
+  if (!row) return error("not_found", frameId === null ? "frame-set manifest not found" : "frame evidence not found", 404);
+  const object = await env.INTERNAL_ARTIFACTS_BUCKET.get(String(row.storage_key));
+  if (!object) return error("artifact_missing", "registered artifact is missing from object storage", 503);
+  return new Response(object.body, { headers: { "content-type": String(row.media_type), "cache-control": "private, max-age=300", etag: `"${String(row.sha256)}"` } });
+}
+
 /** Return null when the path is not owned by this module. */
 export async function handleInternalsApi(request: Request, env: AdjudicationEnv): Promise<Response | null> {
   const url = new URL(request.url), path = url.pathname.replace(/\/$/, "");
@@ -248,5 +296,12 @@ export async function handleInternalsApi(request: Request, env: AdjudicationEnv)
   }
   const jobMatch = path.match(/^\/api\/internal\/v1\/sampling-jobs\/([^/]+)$/);
   if (jobMatch) return request.method === "GET" ? getSamplingJob(decodeURIComponent(jobMatch[1]), env) : error("method_not_allowed", "method not allowed", 405);
+  if (path === "/api/internal/v1/frame-sets") return request.method === "GET" ? listFrameSets(url, env) : error("method_not_allowed", "method not allowed", 405);
+  const manifestMatch = path.match(/^\/api\/internal\/v1\/frame-sets\/([^/]+)\/manifest$/);
+  if (manifestMatch) return request.method === "GET" ? frameSetObject(decodeURIComponent(manifestMatch[1]), null, env) : error("method_not_allowed", "method not allowed", 405);
+  const evidenceMatch = path.match(/^\/api\/internal\/v1\/frame-sets\/([^/]+)\/frames\/([^/]+)\/evidence$/);
+  if (evidenceMatch) return request.method === "GET" ? frameSetObject(decodeURIComponent(evidenceMatch[1]), decodeURIComponent(evidenceMatch[2]), env) : error("method_not_allowed", "method not allowed", 405);
+  const frameSetMatch = path.match(/^\/api\/internal\/v1\/frame-sets\/([^/]+)$/);
+  if (frameSetMatch) return request.method === "GET" ? getFrameSet(decodeURIComponent(frameSetMatch[1]), env) : error("method_not_allowed", "method not allowed", 405);
   return null;
 }

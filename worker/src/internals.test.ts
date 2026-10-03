@@ -34,6 +34,15 @@ class MemoryStatement {
       return { ...row, source_count: this.database.sources.filter((item) => versionIds.has(item.dataset_version_id)).length } as T;
     }
     if (this.sql.includes("FROM internal_jobs WHERE id")) return (this.database.jobs.find((row) => row.id === this.values[0]) ?? null) as T | null;
+    if (this.sql === "SELECT * FROM frame_sets WHERE id = ?") return (this.database.frameSets.find((row) => row.id === this.values[0]) ?? null) as T | null;
+    if (this.sql.includes("fs.manifest_artifact_id")) {
+      const frameSet = this.database.frameSets.find((row) => row.id === this.values[0]);
+      return (frameSet ? this.database.artifacts.find((row) => row.id === frameSet.manifest_artifact_id) ?? null : null) as T | null;
+    }
+    if (this.sql.includes("FROM frame_set_frames f JOIN frame_sets")) {
+      const frame = this.database.frames.find((row) => row.frame_set_id === this.values[0] && row.id === this.values[1]);
+      return (frame ? this.database.artifacts.find((row) => row.id === frame.artifact_id) ?? null : null) as T | null;
+    }
     throw new Error(`unsupported first: ${this.sql}`);
   }
   async all<T>() {
@@ -56,6 +65,9 @@ class MemoryStatement {
       const limit = Number(this.values[0]), offset = Number(this.values[1]);
       return { results: this.database.jobs.slice(offset, offset + limit) as T[] };
     }
+    if (this.sql.startsWith("SELECT * FROM frame_sets")) return { results: this.database.frameSets as T[] };
+    if (this.sql.includes("FROM frame_set_sources")) return { results: this.database.frameSetSources.filter((row) => row.frame_set_id === this.values[0]) as T[] };
+    if (this.sql.includes("FROM frame_set_frames f JOIN artifacts")) return { results: this.database.frames.filter((row) => row.frame_set_id === this.values[0]).map((frame) => { const artifact = this.database.artifacts.find((item) => item.id === frame.artifact_id)!; return { ...frame, artifact_id: artifact.id, sha256: artifact.sha256, size_bytes: artifact.size_bytes, media_type: artifact.media_type }; }) as T[] };
     throw new Error(`unsupported all: ${this.sql}`);
   }
 }
@@ -65,12 +77,16 @@ class MemoryD1 {
   versions: Row[] = [];
   sources: Row[] = [];
   jobs: Row[] = [];
+  frameSets: Row[] = [];
+  frameSetSources: Row[] = [];
+  frames: Row[] = [];
+  artifacts: Row[] = [];
   prepare(sql: string) { return new MemoryStatement(this, sql); }
   async batch(statements: MemoryStatement[]) { return Promise.all(statements.map((statement) => statement.run())); }
 }
 
-function environment(controlDatabase = new MemoryD1(), datasetDatabase = new MemoryD1()): AdjudicationEnv {
-  return { CONTROL_DB: controlDatabase as unknown as D1Database, DATASET_DB: datasetDatabase as unknown as D1Database, REVIEW_BUCKET: {} as R2Bucket, ADMIN_TOKEN: "admin-secret", ASSETS: {} as Fetcher };
+function environment(controlDatabase = new MemoryD1(), datasetDatabase = new MemoryD1(), artifactBucket: R2Bucket = {} as R2Bucket): AdjudicationEnv {
+  return { CONTROL_DB: controlDatabase as unknown as D1Database, DATASET_DB: datasetDatabase as unknown as D1Database, REVIEW_BUCKET: {} as R2Bucket, INTERNAL_ARTIFACTS_BUCKET: artifactBucket, ADMIN_TOKEN: "admin-secret", ASSETS: {} as Fetcher };
 }
 
 function request(path: string, method = "GET", payload?: unknown, token = "admin-secret") {
@@ -128,6 +144,22 @@ describe("Internals control-plane API", () => {
     const conflict = await response(request("/api/internal/v1/sampling-jobs", "POST", { ...initial, interval_seconds: 10 }), env);
     expect(conflict.status).toBe(409);
     expect((await conflict.json() as any).error.code).toBe("idempotency_conflict");
+  });
+
+  it("lists and inspects registered frame sets and serves private evidence", async () => {
+    const control = new MemoryD1();
+    control.frameSets.push({ id: "frameset_1", dataset_version_id: "dsv_1", sampling_job_id: "job_1", manifest_artifact_id: "artifact_manifest", manifest_schema_version: "frame-set-manifest.v1", source_count: 1, frame_count: 1, sha256: "a".repeat(64), status: "ready", created_at: "2026-10-03T00:00:00.000Z", engine_name: "sampler", engine_version: "1", engine_configuration_sha256: "b".repeat(64) });
+    control.frameSetSources.push({ frame_set_id: "frameset_1", dataset_source_id: "src_1", ordinal: 0, source_sha256: "c".repeat(64), size_bytes: 100, duration_seconds: 10 });
+    control.frames.push({ id: "frame_1", frame_set_id: "frameset_1", dataset_source_id: "src_1", ordinal: 0, timestamp_seconds: 5, reasons_json: '["interval"]', artifact_id: "artifact_frame", width: 640, height: 360 });
+    control.artifacts.push({ id: "artifact_manifest", storage_key: "manifest.json", media_type: "application/json", sha256: "a".repeat(64), size_bytes: 10 }, { id: "artifact_frame", storage_key: "frame.jpg", media_type: "image/jpeg", sha256: "d".repeat(64), size_bytes: 5 });
+    const bucket = { get: async (key: string) => key === "frame.jpg" ? { body: new Uint8Array([1, 2, 3, 4, 5]) } : key === "manifest.json" ? { body: "{}" } : null } as unknown as R2Bucket;
+    const env = environment(control, new MemoryD1(), bucket);
+
+    expect((await response(request("/api/internal/v1/frame-sets"), env)).status).toBe(200);
+    const detail = await response(request("/api/internal/v1/frame-sets/frameset_1"), env);
+    expect((await detail.json() as any).data).toEqual(expect.objectContaining({ id: "frameset_1", sources: [expect.objectContaining({ dataset_source_id: "src_1" })], frames: [expect.objectContaining({ id: "frame_1", reasons: ["interval"] })] }));
+    expect((await response(request("/api/internal/v1/frame-sets/frameset_1/manifest"), env)).headers.get("content-type")).toBe("application/json");
+    expect((await response(request("/api/internal/v1/frame-sets/frameset_1/frames/frame_1/evidence"), env)).headers.get("cache-control")).toContain("private");
   });
 
   it("rejects invalid input and non-administrator credentials", async () => {
