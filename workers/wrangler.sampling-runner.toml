@@ -4,6 +4,10 @@ name = "video-semantic-extractor-sampling-runner"
 main = "sampling-runner/src/sampling-runner.ts"
 compatibility_date = "2026-09-01"
 
+[observability]
+enabled = true
+head_sampling_rate = 1
+
 [[containers]]
 class_name = "SamplingRunnerContainer"
 # Paths are relative to this config in workers/. The repository root is required

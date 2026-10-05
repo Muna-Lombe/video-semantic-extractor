@@ -20,6 +20,20 @@ The local environment uses Python 3.12 to match `deployments/Dockerfile`.
 Set `INSTALL_MODELS=0` when preparing only the media and CV diagnostic environment;
 normal full extraction installs the CPU PyTorch and Whisper dependencies.
 
+## Reclaiming disk space safely
+
+The cache cleanup utility previews its targets without deleting anything by default:
+
+```bash
+python scripts/operations/cleanup-regenerable-caches.py
+python scripts/operations/cleanup-regenerable-caches.py --apply
+```
+
+With `--apply`, it asks pip and npm to clear only their regenerable package-download
+caches. It does not remove Python environments, source files, Git history, sample
+media, model or Copilot data, npm's `_npx` tools, or Docker images, containers, or
+volumes. Packages may need to be downloaded again on the next install.
+
 ## Deployed sampling-runner smoke test
 
 After deploying the control plane and sampling runner, exercise their real network,

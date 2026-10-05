@@ -22,7 +22,25 @@ export class SamplingRunnerContainer extends Container<SamplingRunnerEnv> {
 
 async function dispatch(env: SamplingRunnerEnv): Promise<Response> {
   const container = env.SAMPLING_CONTAINER.getByName("sampling-runner");
-  return container.fetch(new Request("http://container/run-once", { method: "POST" }));
+  const startedAt = Date.now();
+  console.log({ event: "sampling_runner_dispatch_started" });
+  try {
+    const response = await container.fetch(new Request("http://container/run-once", { method: "POST" }));
+    console.log({
+      event: "sampling_runner_dispatch_completed",
+      status: response.status,
+      duration_ms: Date.now() - startedAt,
+    });
+    if (!response.ok) throw new Error(`sampling runner dispatch failed (${response.status})`);
+    return response;
+  } catch (error) {
+    console.error({
+      event: "sampling_runner_dispatch_failed",
+      duration_ms: Date.now() - startedAt,
+      error_name: error instanceof Error ? error.name : "UnknownError",
+    });
+    throw error;
+  }
 }
 
 export default {
@@ -33,8 +51,6 @@ export default {
   },
 
   async scheduled(_controller: ScheduledController, env: SamplingRunnerEnv, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(dispatch(env).then((response) => {
-      if (!response.ok) throw new Error(`sampling runner dispatch failed (${response.status})`);
-    }));
+    ctx.waitUntil(dispatch(env));
   },
 } satisfies ExportedHandler<SamplingRunnerEnv>;

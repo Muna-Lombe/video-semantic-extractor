@@ -36,7 +36,7 @@ class ControlPlaneClient:
 
     def request(self, method: str, path: str, payload: object | None = None) -> tuple[Any, dict[str, str]]:
         data = None if payload is None else json.dumps(payload, separators=(",", ":")).encode()
-        headers = {"accept": "application/json", "authorization": f"Bearer {self.token}"}
+        headers = {"accept": "application/json", "authorization": f"Bearer {self.token}", "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"}
         if data is not None:
             headers["content-type"] = "application/json"
         request = urllib.request.Request(f"{self.base_url}{path}", data=data, headers=headers, method=method)

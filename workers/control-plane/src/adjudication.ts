@@ -362,7 +362,7 @@ async function evidence(env: AdjudicationEnv, token: TokenRecord, source: string
   return new Response(upstream.body, { status: 200, headers: { "content-type": upstream.headers.get("content-type") ?? "application/octet-stream", "cache-control": "private, max-age=300" } });
 }
 
-export default { async fetch(request: Request, env: AdjudicationEnv): Promise<Response> {
+async function handleControlPlaneRequest(request: Request, env: AdjudicationEnv): Promise<Response> {
   const url = new URL(request.url), path = url.pathname, method = request.method;
   if (method === "GET" && path === "/") return Response.redirect(`${url.origin}/internals/`, 302);
   if (method === "GET" && (path === "/internals" || path === "/internals/" || path === "/internals/app.js" || path === "/internals/style.css")) {
@@ -384,7 +384,12 @@ export default { async fetch(request: Request, env: AdjudicationEnv): Promise<Re
   try {
     const runnerResponse = await handleRunnerApi(request, env);
     if (runnerResponse) return runnerResponse;
-  } catch {
+  } catch (error) {
+    console.error({
+      event: "control_plane_runner_handler_failed",
+      method: request.method,
+      error_name: error instanceof Error ? error.name : "UnknownError",
+    });
     return json({ error: "runner request failed" }, 500);
   }
   const actor = await principal(request, env);
@@ -458,6 +463,43 @@ export default { async fetch(request: Request, env: AdjudicationEnv): Promise<Re
     }
     return json({ error: "not found" }, 404);
   } catch (error) {
+    console.error({
+      event: "control_plane_request_handler_failed",
+      method: request.method,
+      api: path.startsWith("/api/internal/") ? "internals" : "public",
+      error_name: error instanceof Error ? error.name : "UnknownError",
+    });
     return json({ error: error instanceof Error ? error.message : "invalid request" }, 400);
   }
-} } satisfies ExportedHandler<AdjudicationEnv>;
+}
+
+export default {
+  async fetch(request: Request, env: AdjudicationEnv): Promise<Response> {
+    const url = new URL(request.url);
+    const startedAt = Date.now();
+    try {
+      const response = await handleControlPlaneRequest(request, env);
+      if (url.pathname.startsWith("/api/") || response.status >= 500) {
+        console.log({
+          event: "control_plane_request",
+          method: request.method,
+          api: url.pathname.startsWith("/api/internal/") ? "internals" : "public",
+          status: response.status,
+          duration_ms: Date.now() - startedAt,
+          ray_id: request.headers.get("cf-ray") ?? undefined,
+        });
+      }
+      return response;
+    } catch (error) {
+      console.error({
+        event: "control_plane_request_failed",
+        method: request.method,
+        api: url.pathname.startsWith("/api/internal/") ? "internals" : "public",
+        duration_ms: Date.now() - startedAt,
+        ray_id: request.headers.get("cf-ray") ?? undefined,
+        error_name: error instanceof Error ? error.name : "UnknownError",
+      });
+      throw error;
+    }
+  },
+} satisfies ExportedHandler<AdjudicationEnv>;

@@ -60,6 +60,33 @@ def test_smoke_test_verifies_completed_artifacts(monkeypatch) -> None:
     assert create_job[2]["idempotency_key"] == "sampling-runner-smoke-1234"
 
 
+def test_control_plane_client_uses_browser_user_agent(monkeypatch) -> None:
+    captured: dict[str, str] = {}
+
+    class FakeResponse:
+        headers = {"Content-Type": "application/json"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def read(self):
+            return b'{"data": {}}'
+
+    def fake_urlopen(request, timeout):
+        captured["user_agent"] = request.headers.get("User-agent")
+        return FakeResponse()
+
+    monkeypatch.setattr(smoke.urllib.request, "urlopen", fake_urlopen)
+
+    client = smoke.ControlPlaneClient("https://example.com", "secret")
+    client.request("GET", "/health")
+
+    assert captured["user_agent"].startswith("Mozilla/5.0")
+
+
 def test_smoke_test_reports_terminal_failure(monkeypatch) -> None:
     monkeypatch.setattr(smoke.time, "time", lambda: 1234)
 

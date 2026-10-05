@@ -4,6 +4,13 @@ name = "video-semantic-extractor"
 main = "control-plane/src/adjudication.ts"
 compatibility_date = "2026-09-01"
 
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+invocation_logs = false
+
 # Resource bindings are declarative, but D1 migrations are an explicit release
 # operation rather than a Worker build step. Configure the production deploy
 # command as `npm run deploy:production`; see README.md for ordering and rollback
