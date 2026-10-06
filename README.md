@@ -11,6 +11,7 @@ visual observations, a dense timestamped transcript, and structured metadata. Th
 result is deterministic JSON that can be stored, searched, or supplied to a small
 language model without sending the source video.
 
+
 ## Architecture
 
 ```text
