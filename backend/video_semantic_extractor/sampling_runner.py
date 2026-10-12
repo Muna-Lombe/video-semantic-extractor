@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import logging
 import os
 import tempfile
 import threading
@@ -34,12 +33,8 @@ class RunnerError(RuntimeError):
     """Raised when control-plane or sampling execution fails."""
 
 
-logger = logging.getLogger("video_semantic_extractor.sampling_runner")
-logger.setLevel(logging.INFO)
-
-
 def _log_event(event: str, **fields: Any) -> None:
-    logger.info(json.dumps({"event": event, **fields}, sort_keys=True, separators=(",", ":")))
+    print(json.dumps({"event": event, **fields}, sort_keys=True, separators=(",", ":")), flush=True)
 
 
 class Executor(Protocol):

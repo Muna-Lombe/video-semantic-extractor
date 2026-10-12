@@ -1,12 +1,13 @@
 """@type test @purpose Verify sampling-runner dispatch and artifact registration."""
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
 
 from video_semantic_extractor.pipeline import FrameCandidate
-from video_semantic_extractor.sampling_runner import SamplingRunner, create_runner_app
+from video_semantic_extractor.sampling_runner import SamplingRunner, _log_event, create_runner_app
 
 
 class StubRunner:
@@ -16,6 +17,15 @@ class StubRunner:
     def run_once(self) -> dict[str, str]:
         self.calls += 1
         return {"status": "idle"}
+
+
+def test_runner_events_are_written_as_json_to_stdout(capsys) -> None:
+    _log_event("sampling_runner_test", job_id="job_1")
+
+    assert json.loads(capsys.readouterr().out) == {
+        "event": "sampling_runner_test",
+        "job_id": "job_1",
+    }
 
 
 def test_runner_health_and_single_dispatch() -> None:
@@ -55,7 +65,7 @@ def test_runner_uploads_frames_and_finalizes_manifest(monkeypatch) -> None:
         output.mkdir(parents=True)
         frame = output / "frame.jpg"
         frame.write_bytes(b"jpeg")
-        return [FrameCandidate(frame, 1.25, ("interval",))]
+        return [FrameCandidate(frame, 1.25, ("near_final",))]
 
     monkeypatch.setattr("video_semantic_extractor.sampling_runner.download_video", fake_download)
     monkeypatch.setattr("video_semantic_extractor.sampling_runner.probe_video", lambda _path: SimpleNamespace(duration_sec=10.0))
@@ -71,3 +81,4 @@ def test_runner_uploads_frames_and_finalizes_manifest(monkeypatch) -> None:
     assert control.manifest["source_count"] == 1
     assert control.manifest["frame_count"] == 1
     assert control.manifest["sources"][0]["frames"][0]["artifact"]["artifact_id"] == "artifact_1"
+    assert control.manifest["sources"][0]["frames"][0]["reasons"] == ["near_final"]
