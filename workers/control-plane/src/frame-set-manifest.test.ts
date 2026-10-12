@@ -18,8 +18,8 @@ const manifest = () => ({
     size_bytes: 1024,
     duration_seconds: 20,
     frames: [
-      { id: "frame_001", timestamp_seconds: 0, reasons: ["interval"], width: 1280, height: 720, artifact: { artifact_id: "artifact_001", sha256: sha, size_bytes: 512, media_type: "image/jpeg" } },
-      { id: "frame_002", timestamp_seconds: 20, reasons: ["final_frame"], width: 1280, height: 720, artifact: { artifact_id: "artifact_002", sha256: sha, size_bytes: 510, media_type: "image/jpeg" } },
+      { id: "frame_001", timestamp_seconds: 0, reasons: ["first"], width: 1280, height: 720, artifact: { artifact_id: "artifact_001", sha256: sha, size_bytes: 512, media_type: "image/jpeg" } },
+      { id: "frame_002", timestamp_seconds: 20, reasons: ["near_final"], width: 1280, height: 720, artifact: { artifact_id: "artifact_002", sha256: sha, size_bytes: 510, media_type: "image/jpeg" } },
     ],
   }],
 });
@@ -52,5 +52,13 @@ describe("frame-set-manifest.v1", () => {
     const result = validateFrameSetManifest(candidate);
     expect(result.errors).toContain("manifest.sources[0].frames[1].artifact.artifact_id must be unique");
     expect(result.errors).toContain("manifest.sources[0].frames[1].timestamp_seconds must be ordered within its source");
+  });
+
+  it("rejects sampling reasons that the runner does not emit", () => {
+    const candidate = manifest();
+    candidate.sources[0].frames[0].reasons = ["final_frame"];
+    expect(validateFrameSetManifest(candidate).errors).toContain(
+      "manifest.sources[0].frames[0].reasons must contain unique supported sampling reasons",
+    );
   });
 });

@@ -3,7 +3,7 @@
 export const FRAME_SET_MANIFEST_VERSION = "frame-set-manifest.v1" as const;
 
 export const FRAME_MEDIA_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
-export const SAMPLING_REASONS = ["scene_change", "interval", "final_frame"] as const;
+export const SAMPLING_REASONS = ["first", "scene_change", "interval", "near_final"] as const;
 
 type FrameMediaType = typeof FRAME_MEDIA_TYPES[number];
 type SamplingReason = typeof SAMPLING_REASONS[number];

@@ -15,9 +15,12 @@ export class SamplingRunnerContainer extends Container<SamplingRunnerEnv> {
   sleepAfter = "10m";
   enableInternet = true;
 
-  static outboundByHost = {
-    "control.internal": forwardControlPlane,
-  };
+  static {
+    // Use the base-class setter so the ContainerProxy receives this handler.
+    this.outboundByHost = {
+      "control.internal": forwardControlPlane,
+    };
+  }
 }
 
 async function dispatch(env: SamplingRunnerEnv): Promise<Response> {

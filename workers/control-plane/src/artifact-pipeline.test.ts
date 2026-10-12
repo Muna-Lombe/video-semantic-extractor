@@ -50,12 +50,16 @@ class MemoryControl {
   job: Row;
   uploads: Row[] = [];
   frameSets: Row[] = [];
+  batchSql: string[] = [];
+  batchValueCounts: number[] = [];
   constructor(leaseHash: string) {
     this.job = { id: "job_123", job_type: "sampling", status: "running", input_json: JSON.stringify({ dataset_version_id: "dsv_123" }), attempt_count: 1, lease_token_hash: leaseHash, lease_expires_at: "2999-01-01T00:00:00.000Z", cancellation_requested_at: null };
   }
   active(jobId: unknown, leaseHash: unknown) { return this.job.id === jobId && this.job.status === "running" && this.job.lease_token_hash === leaseHash; }
   prepare(sql: string) { return new Statement(this, sql); }
   async batch(statements: Statement[]) {
+    this.batchSql = statements.map((statement) => statement.sql);
+    this.batchValueCounts = statements.map((statement) => statement.values.length);
     const frameSetStatement = statements.find((statement) => statement.sql.startsWith("INSERT INTO frame_sets"))!;
     const [frameSetId, datasetVersionId, manifestArtifactId, sourceCount, frameCount, sha256, createdAt, schemaVersion, engineName, engineVersion, configurationSha, leaseHash, jobId] = frameSetStatement.values;
     this.frameSets.push({ id: frameSetId, dataset_version_id: datasetVersionId, sampling_job_id: jobId, manifest_artifact_id: manifestArtifactId, source_count: sourceCount, frame_count: frameCount, sha256, created_at: createdAt, manifest_schema_version: schemaVersion, engine_name: engineName, engine_version: engineVersion, engine_configuration_sha256: configurationSha, finalized_by_lease_hash: leaseHash, status: "ready" });
@@ -90,18 +94,24 @@ describe("sampling artifact pipeline", () => {
     const bytes = new TextEncoder().encode("image bytes");
     const checksum = await sha256Hex(bytes.buffer);
     const base = "/api/internal/v1/runner/sampling-jobs/job_123";
-    const reserved = await handleArtifactPipeline(jsonRequest(`${base}/artifacts`, "POST", { sha256: checksum, size_bytes: bytes.byteLength, media_type: "image/jpeg" }), env, "job_123", "artifacts");
-    expect(reserved?.status).toBe(201);
-    const reservation = (await reserved!.json() as any).data;
-    const upload = new Request(`https://internal.test${reservation.upload_path}`, { method: "PUT", headers: { "content-type": "image/jpeg", "content-length": String(bytes.byteLength), "x-job-lease-token": "lease" }, body: bytes });
-    expect((await handleArtifactPipeline(upload, env, "job_123", "artifacts", reservation.id))?.status).toBe(200);
-
+    const frames = [];
+    for (let index = 0; index < 20; index += 1) {
+      const reserved = await handleArtifactPipeline(jsonRequest(`${base}/artifacts`, "POST", { sha256: checksum, size_bytes: bytes.byteLength, media_type: "image/jpeg" }), env, "job_123", "artifacts");
+      expect(reserved?.status).toBe(201);
+      const reservation = (await reserved!.json() as any).data;
+      const upload = new Request(`https://internal.test${reservation.upload_path}`, { method: "PUT", headers: { "content-type": "image/jpeg", "content-length": String(bytes.byteLength), "x-job-lease-token": "lease" }, body: bytes });
+      expect((await handleArtifactPipeline(upload, env, "job_123", "artifacts", reservation.id))?.status).toBe(200);
+      frames.push({ id: `frame_${index}`, timestamp_seconds: index + 1, reasons: [index === 0 ? "first" : "interval"], width: 640, height: 360, artifact: { artifact_id: reservation.id, sha256: checksum, size_bytes: bytes.byteLength, media_type: "image/jpeg" } });
+    }
     const sha = "a".repeat(64);
-    const manifest = { schema_version: "frame-set-manifest.v1", frame_set_id: "frameset_123", sampling_job_id: "job_123", dataset_version_id: "dsv_123", created_at: "2026-10-03T12:00:00.000Z", engine: { name: "sampler", version: "1", configuration_sha256: sha }, source_count: 1, frame_count: 1, sources: [{ dataset_source_id: "src_123", source_sha256: sha, size_bytes: 100, duration_seconds: 10, frames: [{ id: "frame_123", timestamp_seconds: 5, reasons: ["interval"], width: 640, height: 360, artifact: { artifact_id: reservation.id, sha256: checksum, size_bytes: bytes.byteLength, media_type: "image/jpeg" } }] }] };
+    const manifest = { schema_version: "frame-set-manifest.v1", frame_set_id: "frameset_123", sampling_job_id: "job_123", dataset_version_id: "dsv_123", created_at: "2026-10-03T12:00:00.000Z", engine: { name: "sampler", version: "1", configuration_sha256: sha }, source_count: 1, frame_count: frames.length, sources: [{ dataset_source_id: "src_123", source_sha256: sha, size_bytes: 100, duration_seconds: 60, frames }] };
     const finalized = await handleArtifactPipeline(jsonRequest(`${base}/finalize`, "POST", { manifest }), env, "job_123", "finalize");
     expect(finalized?.status).toBe(201);
     expect(control.job.status).toBe("succeeded");
-    expect(control.uploads[0].status).toBe("finalized");
+    expect(control.uploads).toHaveLength(20);
+    expect(control.uploads.every((upload) => upload.status === "finalized")).toBe(true);
+    expect(Math.max(...control.batchValueCounts)).toBeLessThanOrEqual(100);
+    expect(control.batchSql.filter((sql) => sql.startsWith("INSERT INTO frame_set_frames"))).toHaveLength(2);
     expect([...bucket.objects.keys()]).toEqual(expect.arrayContaining([expect.stringContaining("/frames/"), expect.stringMatching(/^sampling\/job_123\/manifests\/[a-f0-9]{64}\.json$/)]));
 
     const retried = await handleArtifactPipeline(jsonRequest(`${base}/finalize`, "POST", { manifest }), env, "job_123", "finalize");

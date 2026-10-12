@@ -5,6 +5,7 @@ import type { AdjudicationEnv } from "./types";
 type JsonRecord = Record<string, unknown>;
 const MAX_JSON_BYTES = 1024 * 1024;
 const MAX_ARTIFACT_BYTES = 10 * 1024 * 1024;
+const MAX_D1_PARAMETERS_PER_QUERY = 100;
 const SHA256 = /^[a-f0-9]{64}$/;
 const MEDIA_TYPES = new Set<string>(FRAME_MEDIA_TYPES);
 
@@ -109,6 +110,16 @@ function placeholders(rows: number, columns: number): string {
   return Array.from({ length: rows }, () => `(${Array(columns).fill("?").join(",")})`).join(",");
 }
 
+function chunkedInsert(db: D1Database, prefix: string, values: unknown[], columns: number): D1PreparedStatement[] {
+  const valuesPerStatement = Math.floor(MAX_D1_PARAMETERS_PER_QUERY / columns) * columns;
+  const statements: D1PreparedStatement[] = [];
+  for (let offset = 0; offset < values.length; offset += valuesPerStatement) {
+    const chunk = values.slice(offset, offset + valuesPerStatement);
+    statements.push(db.prepare(`${prefix} VALUES ${placeholders(chunk.length / columns, columns)}`).bind(...chunk));
+  }
+  return statements;
+}
+
 async function finalize(request: Request, env: AdjudicationEnv, jobId: string, leaseHash: string): Promise<Response> {
   const existing = await env.CONTROL_DB.prepare("SELECT id, manifest_artifact_id, frame_count, source_count, sha256, status FROM frame_sets WHERE sampling_job_id = ? AND finalized_by_lease_hash = ?")
     .bind(jobId, leaseHash).first<JsonRecord>();
@@ -157,13 +168,13 @@ async function finalize(request: Request, env: AdjudicationEnv, jobId: string, l
   const output = JSON.stringify({ frame_set_id: manifest.frame_set_id, manifest_artifact_id: manifestArtifactId, manifest_sha256: manifestSha });
   const statements = [
     env.CONTROL_DB.prepare("INSERT INTO artifacts (id, kind, storage_key, sha256, size_bytes, media_type, created_at) VALUES (?, 'frame_manifest', ?, ?, ?, 'application/json', ?)").bind(manifestArtifactId, manifestKey, manifestSha, manifestBytes.byteLength, timestamp),
-    env.CONTROL_DB.prepare(`INSERT INTO artifacts (id, kind, storage_key, sha256, size_bytes, media_type, created_at) VALUES ${placeholders(frames.length, 7)}`).bind(...artifactValues),
+    ...chunkedInsert(env.CONTROL_DB, "INSERT INTO artifacts (id, kind, storage_key, sha256, size_bytes, media_type, created_at)", artifactValues, 7),
     env.CONTROL_DB.prepare(`INSERT INTO frame_sets (id, dataset_version_id, sampling_job_id, manifest_artifact_id, source_count, frame_count, sha256, status, created_at, manifest_schema_version, engine_name, engine_version, engine_configuration_sha256, finalized_by_lease_hash)
       SELECT ?, ?, id, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, ? FROM internal_jobs
       WHERE id = ? AND status = 'running' AND lease_token_hash = ? AND lease_expires_at > ? AND cancellation_requested_at IS NULL`)
       .bind(manifest.frame_set_id, manifest.dataset_version_id, manifestArtifactId, manifest.source_count, manifest.frame_count, manifestSha, timestamp, manifest.schema_version, manifest.engine.name, manifest.engine.version, manifest.engine.configuration_sha256, leaseHash, jobId, leaseHash, timestamp),
-    env.CONTROL_DB.prepare(`INSERT INTO frame_set_sources (frame_set_id, dataset_source_id, ordinal, source_sha256, size_bytes, duration_seconds) VALUES ${placeholders(manifest.sources.length, 6)}`).bind(...sourceValues),
-    env.CONTROL_DB.prepare(`INSERT INTO frame_set_frames (id, frame_set_id, dataset_source_id, ordinal, timestamp_seconds, reasons_json, artifact_id, width, height) VALUES ${placeholders(frames.length, 9)}`).bind(...frameValues),
+    ...chunkedInsert(env.CONTROL_DB, "INSERT INTO frame_set_sources (frame_set_id, dataset_source_id, ordinal, source_sha256, size_bytes, duration_seconds)", sourceValues, 6),
+    ...chunkedInsert(env.CONTROL_DB, "INSERT INTO frame_set_frames (id, frame_set_id, dataset_source_id, ordinal, timestamp_seconds, reasons_json, artifact_id, width, height)", frameValues, 9),
     env.CONTROL_DB.prepare(`UPDATE artifact_uploads SET status = 'finalized', finalized_at = ? WHERE sampling_job_id = ? AND lease_token_hash = ? AND status = 'uploaded'`).bind(timestamp, jobId, leaseHash),
     env.CONTROL_DB.prepare("UPDATE internal_job_attempts SET status = 'succeeded', output_json = ?, finished_at = ? WHERE job_id = ? AND lease_token_hash = ? AND status = 'running'").bind(output, timestamp, jobId, leaseHash),
     env.CONTROL_DB.prepare("UPDATE internal_jobs SET status = 'succeeded', output_json = ?, completed_at = ?, updated_at = ?, lease_owner = NULL, lease_token_hash = NULL, lease_expires_at = NULL WHERE id = ? AND status = 'running' AND lease_token_hash = ? AND lease_expires_at > ? AND cancellation_requested_at IS NULL").bind(output, timestamp, timestamp, jobId, leaseHash, timestamp),
