@@ -1,6 +1,7 @@
 /** @type implementation @purpose Stage lease-bound frame artifacts and atomically finalize verified frame sets. */
 import { FRAME_MEDIA_TYPES, validateFrameSetManifest, type FrameSetManifestV1 } from "./frame-set-manifest";
 import type { AdjudicationEnv } from "./types";
+import { runnerAvailabilityAfterJobStatement } from "./runner-presence";
 
 type JsonRecord = Record<string, unknown>;
 const MAX_JSON_BYTES = 1024 * 1024;
@@ -178,6 +179,7 @@ async function finalize(request: Request, env: AdjudicationEnv, jobId: string, l
     env.CONTROL_DB.prepare(`UPDATE artifact_uploads SET status = 'finalized', finalized_at = ? WHERE sampling_job_id = ? AND lease_token_hash = ? AND status = 'uploaded'`).bind(timestamp, jobId, leaseHash),
     env.CONTROL_DB.prepare("UPDATE internal_job_attempts SET status = 'succeeded', output_json = ?, finished_at = ? WHERE job_id = ? AND lease_token_hash = ? AND status = 'running'").bind(output, timestamp, jobId, leaseHash),
     env.CONTROL_DB.prepare("UPDATE internal_jobs SET status = 'succeeded', output_json = ?, completed_at = ?, updated_at = ?, lease_owner = NULL, lease_token_hash = NULL, lease_expires_at = NULL WHERE id = ? AND status = 'running' AND lease_token_hash = ? AND lease_expires_at > ? AND cancellation_requested_at IS NULL").bind(output, timestamp, timestamp, jobId, leaseHash, timestamp),
+    runnerAvailabilityAfterJobStatement(env, jobId, timestamp),
   ];
   try {
     const results = await env.CONTROL_DB.batch(statements);

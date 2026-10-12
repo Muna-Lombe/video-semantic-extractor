@@ -111,9 +111,10 @@ interactive dataset, sampling, and Frame Sets workspace, while
 report. The current executable slice registers datasets in D1, stores sampling-job
 requests as durable `queued` metadata, and provides a runner protocol for claiming
 and reporting work. The separately deployed sampling-runner Worker and Container
-consume that protocol; the control-plane Worker itself never executes FFmpeg.
-Until that deployment is remotely verified, the diagnostic CLI remains the
-operational fallback. Template registration, managed evaluation, and governance remain incremental work. See
+consume that protocol; production claims and completion have been remotely
+verified. The control-plane Worker itself never executes FFmpeg, and the
+diagnostic CLI remains available as an operational fallback. Template
+registration, managed evaluation, and governance remain incremental work. See
 `../docs/internals-architecture.md` and `../docs/internals-roadmap.md`.
 
 The current administrator-protected control-plane slice exposes:
@@ -125,6 +126,7 @@ GET  /api/internal/v1/datasets/<dataset-id>
 GET  /api/internal/v1/sampling-jobs
 POST /api/internal/v1/sampling-jobs
 GET  /api/internal/v1/sampling-jobs/<job-id>
+GET  /api/internal/v1/runners
 POST /api/internal/v1/sampling-jobs/<job-id>/cancel
 POST /api/internal/v1/sampling-jobs/<job-id>/retry
 GET  /api/internal/v1/frame-sets
@@ -145,6 +147,17 @@ Creating a dataset also creates its initial immutable version. Creating a sampli
 job references that dataset version plus a sampling strategy/configuration and
 only persists a `queued` record. Listing a queued job confirms durable scheduling
 metadata; it is not evidence that sampling has started or produced artifacts.
+The job detail endpoint includes safe attempt history (worker ID, lifecycle
+timestamps, error, and output) and never returns lease-token hashes. The Internals
+workspace exposes these details from each job row.
+
+Runner presence is based on authenticated runner heartbeats. The claim endpoint
+registers idle runners as available, active claims and lease heartbeats mark them
+busy, and completion or failure returns them to available. Presence expires after
+six minutes without a heartbeat; `GET /api/internal/v1/runners` reports only
+unexpired runners and their available/busy counts. Apply the checked-in
+`CONTROL_DB` migrations before deploying code that reads or writes runner
+presence.
 
 The runner endpoints use `Authorization: Bearer $RUNNER_TOKEN`, independently of
 the administrator token. A runner claims work with a stable `runner_id` and an

@@ -74,7 +74,7 @@
                 </article>
                 <article class="panel notice">
                   <p class="eyebrow">Execution status</p><h3>Scheduling only</h3>
-                  <p>Sampling jobs are durable records, but execution requires a connected runner. Continue using the legacy CLI when no runner is available.</p>
+                  <p>Sampling jobs are durable records. Available runner capacity is based on recent authenticated runner heartbeats.</p>
                   <a href="#sampling" data-route-link="sampling">View sampling jobs →</a>
                 </article>
               </div>
@@ -87,7 +87,12 @@
 
             <section class="page" data-page="sampling" hidden>
               <div class="page-heading"><div><p class="eyebrow">Frame preparation</p><h2>Sampling jobs</h2><p>Create durable job records and inspect their scheduling state.</p></div><button type="button" data-dialog-open="sampling-dialog">Schedule job</button></div>
-              <div class="callout"><strong>Execution requires a runner.</strong> Jobs remain queued until a compatible runner claims them. The legacy CLI remains available when no managed runner is connected.</div>
+              <div class="runner-capacity panel">
+                <div><p class="eyebrow">Execution capacity</p><h3>Available runners</h3><p id="runner-heartbeat-note" class="muted">Checking runner heartbeats…</p></div>
+                <div class="runner-counts"><strong><span id="available-runner-count">—</span> available</strong><span id="busy-runner-count" class="muted">— busy</span></div>
+                <div id="runner-list" class="runner-list" aria-live="polite"></div>
+              </div>
+              <div class="callout"><strong>Jobs wait in the queue until a runner claims them.</strong> Availability reflects authenticated runner heartbeats received within the last six minutes.</div>
               <div class="panel table-panel"><div class="table-toolbar"><span id="sampling-summary" class="muted">Loading jobs…</span><button class="text-button" type="button" data-refresh>Refresh</button></div><div id="sampling-table"></div></div>
             </section>
 
@@ -128,6 +133,13 @@
       <div class="detail-shell">
         <div class="dialog-heading"><div><p class="eyebrow">Frame-set evidence</p><h2 id="frame-set-dialog-title">Frame set</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Close">&times;</button></div>
         <div id="frame-set-detail" aria-live="polite"></div>
+      </div>
+    </dialog>
+
+    <dialog id="job-dialog" class="detail-dialog">
+      <div class="detail-shell">
+        <div class="dialog-heading"><div><p class="eyebrow">Sampling execution</p><h2 id="job-dialog-title">Job details</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Close">&times;</button></div>
+        <div id="job-detail" aria-live="polite"></div>
       </div>
     </dialog>
 

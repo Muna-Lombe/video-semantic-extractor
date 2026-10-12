@@ -63,7 +63,26 @@ class Statement {
     return this.db.jobs.find((item) => item.id === jobId && item.status === "running" && item.lease_token_hash === hash && item.lease_expires_at > String(checkedAt));
   }
   async run() {
-    if (this.sql.startsWith("UPDATE internal_job_attempts SET status = 'lease_expired'")) {
+    if (this.sql.startsWith("INSERT INTO runner_presence")) {
+      const isIdleHeartbeat = this.sql.includes("FROM internal_jobs");
+      const [runnerId, claimedStatus, claimedJobId] = this.values;
+      const lastSeen = this.values[isIdleHeartbeat ? 5 : 3];
+      const expires = this.values[isIdleHeartbeat ? 6 : 4];
+      const activeJob = isIdleHeartbeat
+        ? this.db.jobs.find((job) => job.lease_owner === runnerId && job.status === "running" && job.lease_expires_at > String(lastSeen))
+        : null;
+      const presenceStatus = activeJob ? "busy" : isIdleHeartbeat ? "available" : claimedStatus;
+      const currentJobId = activeJob?.id ?? (isIdleHeartbeat ? null : claimedJobId);
+      const existing = this.db.runners.find((runner) => runner.runner_id === runnerId);
+      if (existing) Object.assign(existing, { status: presenceStatus, current_job_id: currentJobId, last_seen_at: lastSeen, expires_at: expires });
+      else this.db.runners.push({ runner_id: runnerId, status: presenceStatus, current_job_id: currentJobId, last_seen_at: lastSeen, expires_at: expires });
+    } else if (this.sql.startsWith("UPDATE runner_presence SET last_seen_at")) {
+      const [lastSeen, expires, jobId] = this.values;
+      this.db.runners.filter((runner) => runner.current_job_id === jobId && runner.status === "busy").forEach((runner) => Object.assign(runner, { last_seen_at: lastSeen, expires_at: expires }));
+    } else if (this.sql.startsWith("UPDATE runner_presence SET status = 'available'")) {
+      const [lastSeen, expires, jobId] = this.values;
+      this.db.runners.filter((runner) => runner.current_job_id === jobId && runner.status === "busy").forEach((runner) => Object.assign(runner, { status: "available", current_job_id: null, last_seen_at: lastSeen, expires_at: expires }));
+    } else if (this.sql.startsWith("UPDATE internal_job_attempts SET status = 'lease_expired'")) {
       const timestamp = String(this.values[1]);
       this.db.attempts.filter((item) => item.status === "running" && item.lease_expires_at <= timestamp).forEach((item) => Object.assign(item, { status: "lease_expired", finished_at: this.values[0] }));
     } else if (this.sql.includes("runner lease expired after cancellation")) {
@@ -102,6 +121,7 @@ class Statement {
 class MemoryJobs {
   jobs: Row[] = [job()];
   attempts: Row[] = [];
+  runners: Row[] = [];
   failAttemptInsert = false;
   prepare(sql: string) { return new Statement(this, sql); }
   async batch(statements: Statement[]) {
@@ -149,13 +169,32 @@ describe("sampling job lifecycle", () => {
     expect(claimed.response.status).toBe(200);
     expect(database.jobs[0].lease_token_hash).not.toBe(claimed.payload.data.lease_token);
     expect(database.attempts).toHaveLength(1);
+    expect(database.runners).toEqual([expect.objectContaining({ runner_id: "runner-1", status: "busy", current_job_id: "job_1" })]);
     expect((await handleRunnerApi(request("/api/internal/v1/runner/sampling-jobs/job_1/heartbeat", { progress: { frames: 4 } }, "runner", claimed.payload.data.lease_token), environment(database)))?.status).toBe(200);
+    expect(database.runners[0].expires_at > database.runners[0].last_seen_at).toBe(true);
     expect(claimed.payload.data.frame_set_id).toBe("frameset_1");
     const completion = await handleRunnerApi(request("/api/internal/v1/runner/sampling-jobs/job_1/complete", { output: { report_key: "reports/job_1.json" } }, "runner", claimed.payload.data.lease_token), environment(database));
     expect(completion?.status).toBe(409);
     expect((await completion!.json() as any).error.code).toBe("frame_set_required");
     expect(database.jobs[0]).toEqual(expect.objectContaining({ status: "running" }));
     expect(database.attempts[0].status).toBe("running");
+  });
+
+  it("records an idle runner heartbeat when no job is available", async () => {
+    const database = new MemoryJobs();
+    database.jobs[0].status = "succeeded";
+    const claimed = await claim(database);
+    expect(claimed.payload.data).toBeNull();
+    expect(database.runners).toEqual([expect.objectContaining({ runner_id: "runner-1", status: "available", current_job_id: null })]);
+  });
+
+  it("keeps a runner busy when an overlapping poll finds no additional work", async () => {
+    const database = new MemoryJobs();
+    const firstClaim = await claim(database);
+    expect(firstClaim.payload.data.job.id).toBe("job_1");
+    const overlappingPoll = await claim(database);
+    expect(overlappingPoll.payload.data).toBeNull();
+    expect(database.runners).toEqual([expect.objectContaining({ runner_id: "runner-1", status: "busy", current_job_id: "job_1" })]);
   });
 
   it("terminalizes abandoned cancelled and exhausted leases", async () => {

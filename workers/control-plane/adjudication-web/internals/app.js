@@ -5,6 +5,7 @@ let token = sessionStorage.getItem("internals-admin-token") || "";
 let datasets = [];
 let samplingJobs = [];
 let frameSets = [];
+let runnerPresence = { available_count: 0, busy_count: 0, total_count: 0, heartbeat_ttl_seconds: 360, runners: [] };
 let evidenceUrls = [];
 
 function normaliseList(payload, ...keys) {
@@ -77,10 +78,22 @@ function renderOverview(payload = {}) {
   const values = [
     ["Datasets", metrics.datasets ?? datasets.length, "Registered source collections"],
     ["Sampling jobs", metrics.sampling_jobs ?? samplingJobs.length, "Durable scheduling records"],
+    ["Available runners", runnerPresence.available_count, `Seen within ${Math.round(runnerPresence.heartbeat_ttl_seconds / 60)} minutes`],
     ["Frame sets", metrics.frame_sets ?? frameSets.length, "Immutable sampling outputs"],
     ["Active reviews", metrics.active_reviews ?? metrics.reviews ?? "—", "Focused assignments"],
   ];
   $("overview-cards").innerHTML = values.map(([label, value, detail]) => `<article class="metric"><small>${label}</small><strong>${escapeHtml(value)}</strong><small>${detail}</small></article>`).join("");
+}
+
+function renderRunnerPresence() {
+  $("available-runner-count").textContent = runnerPresence.available_count;
+  $("busy-runner-count").textContent = `${runnerPresence.busy_count} busy`;
+  $("runner-heartbeat-note").textContent = `Heartbeats expire after ${Math.round(runnerPresence.heartbeat_ttl_seconds / 60)} minutes without contact.`;
+  if (!runnerPresence.runners.length) {
+    $("runner-list").innerHTML = '<p class="muted">No runners have checked in recently.</p>';
+    return;
+  }
+  $("runner-list").innerHTML = runnerPresence.runners.map((runner) => `<div><strong>${escapeHtml(runner.runner_id)}</strong>${statusBadge(runner.status)}<small>${runner.current_job_id ? `Job ${escapeHtml(runner.current_job_id)}` : `Last seen ${escapeHtml(formatDate(runner.last_seen_at))}`}</small></div>`).join("");
 }
 
 function shortChecksum(value) {
@@ -175,8 +188,28 @@ function renderSampling() {
         ? `<button class="job-action secondary" type="button" data-job-action="retry" data-job-id="${escapeHtml(item.id)}">Retry</button>`
         : "";
     const attemptLabel = attempt === null ? "No attempts recorded" : `Attempt ${escapeHtml(attempt)}${maxAttempts === null ? "" : ` of ${escapeHtml(maxAttempts)}`}`;
-    return `<tr><td><strong>${escapeHtml(item.name || item.id)}</strong><small>${escapeHtml(item.id || "")}</small></td><td><strong>${escapeHtml(item.input?.dataset_version_id || "—")}</strong><small>${escapeHtml(item.input?.method || "—")}</small></td><td>${statusBadge(status)}<small>${attemptLabel}</small></td><td><strong>${escapeHtml(runner || "Unassigned")}</strong><small>${leaseUntil ? `Lease until ${escapeHtml(formatDate(leaseUntil))}` : "No active lease"}</small></td><td>${escapeHtml(formatDate(item.created_at))}</td><td class="actions">${action}</td></tr>`;
+    return `<tr><td><strong>${escapeHtml(item.name || item.id)}</strong><small>${escapeHtml(item.id || "")}</small></td><td><strong>${escapeHtml(item.input?.dataset_version_id || "—")}</strong><small>${escapeHtml(item.input?.method || "—")}</small></td><td>${statusBadge(status)}<small>${attemptLabel}</small></td><td><strong>${escapeHtml(runner || "Unassigned")}</strong><small>${leaseUntil ? `Lease until ${escapeHtml(formatDate(leaseUntil))}` : "No active lease"}</small></td><td>${escapeHtml(formatDate(item.created_at))}</td><td class="actions"><button class="job-action secondary" type="button" data-job-inspect="${escapeHtml(item.id)}">Details</button>${action}</td></tr>`;
   }).join("")}</tbody></table>`;
+}
+
+function prettyJson(value) {
+  return value === null || value === undefined ? "—" : JSON.stringify(value, null, 2);
+}
+
+async function inspectJob(jobId) {
+  $("job-dialog-title").textContent = jobId;
+  $("job-detail").innerHTML = '<div class="empty-state"><strong>Loading job details…</strong></div>';
+  $("job-dialog").showModal();
+  try {
+    const payload = await api(`/sampling-jobs/${encodeURIComponent(jobId)}`);
+    const job = payload.data || payload;
+    const attempts = normaliseList(job.attempts);
+    const inputRows = Object.entries(job.input || {}).map(([key, value]) => `<div><dt>${escapeHtml(key.replaceAll("_", " "))}</dt><dd>${escapeHtml(typeof value === "object" ? JSON.stringify(value) : value)}</dd></div>`).join("");
+    const attemptRows = attempts.map((attempt) => `<tr><td>${escapeHtml(attempt.attempt_number)}</td><td>${statusBadge(attempt.status)}</td><td>${escapeHtml(attempt.worker_id || "—")}</td><td>${escapeHtml(formatDate(attempt.started_at || attempt.leased_at))}</td><td>${escapeHtml(formatDate(attempt.finished_at))}</td><td>${escapeHtml(attempt.error_message || "—")}</td></tr>`).join("");
+    $("job-detail").innerHTML = `<div class="detail-metrics"><div><small>Status</small>${statusBadge(job.status)}</div><div><small>Attempts</small><strong>${escapeHtml(job.attempt_count)} of ${escapeHtml(job.max_attempts)}</strong></div><div><small>Runner</small><strong>${escapeHtml(job.lease_owner || "—")}</strong></div><div><small>Created</small><strong>${escapeHtml(formatDate(job.created_at))}</strong></div></div><section class="detail-section"><h3>Configuration</h3><dl class="integrity-list">${inputRows}</dl></section><section class="detail-section"><h3>Lifecycle</h3><dl class="integrity-list"><div><dt>Started</dt><dd>${escapeHtml(formatDate(job.started_at))}</dd></div><div><dt>Completed</dt><dd>${escapeHtml(formatDate(job.completed_at))}</dd></div><div><dt>Last heartbeat</dt><dd>${escapeHtml(formatDate(job.heartbeat_at))}</dd></div><div><dt>Lease expires</dt><dd>${escapeHtml(formatDate(job.lease_expires_at))}</dd></div><div><dt>Cancellation requested</dt><dd>${escapeHtml(formatDate(job.cancellation_requested_at))}</dd></div><div><dt>Updated</dt><dd>${escapeHtml(formatDate(job.updated_at))}</dd></div></dl>${job.error_message ? `<p class="job-error"><strong>Latest error</strong><br>${escapeHtml(job.error_message)}</p>` : ""}</section><section class="detail-section"><h3>Attempt history</h3>${attempts.length ? `<div class="attempt-table"><table><thead><tr><th>#</th><th>Status</th><th>Runner</th><th>Started</th><th>Finished</th><th>Error</th></tr></thead><tbody>${attemptRows}</tbody></table></div>` : '<p class="muted">No attempts have been recorded.</p>'}</section>${job.progress ? `<section class="detail-section"><h3>Progress</h3><pre>${escapeHtml(prettyJson(job.progress))}</pre></section>` : ""}${job.output ? `<section class="detail-section"><h3>Output</h3><pre>${escapeHtml(prettyJson(job.output))}</pre></section>` : ""}`;
+  } catch (error) {
+    $("job-detail").innerHTML = `<div class="empty-state"><strong>Unable to load job details</strong><p>${escapeHtml(error.message)}</p></div>`;
+  }
 }
 
 async function runJobAction(button) {
@@ -212,13 +245,14 @@ function parseSourceUrls(value) {
 }
 
 async function loadAll() {
-  const results = await Promise.allSettled([api("/overview"), api("/datasets"), api("/sampling-jobs"), api("/frame-sets")]);
+  const results = await Promise.allSettled([api("/overview"), api("/datasets"), api("/sampling-jobs"), api("/frame-sets"), api("/runners")]);
   if (results[0].status === "rejected" && results[0].reason.message.match(/401|403|unauth|forbid/i)) throw results[0].reason;
   datasets = results[1].status === "fulfilled" ? normaliseList(results[1].value, "data", "datasets", "items") : [];
   samplingJobs = results[2].status === "fulfilled" ? normaliseList(results[2].value, "data", "sampling_jobs", "jobs", "items") : [];
   frameSets = results[3].status === "fulfilled" ? normaliseList(results[3].value, "data", "frame_sets", "items") : [];
+  if (results[4].status === "fulfilled") runnerPresence = results[4].value.data || runnerPresence;
   renderOverview(results[0].status === "fulfilled" ? results[0].value : {});
-  renderDatasets(); renderSampling(); renderFrameSets(); populateDatasetSelect();
+  renderRunnerPresence(); renderDatasets(); renderSampling(); renderFrameSets(); populateDatasetSelect();
   const unavailable = results.filter((item) => item.status === "rejected").length;
   if (unavailable) toast(`${unavailable} control-plane resource${unavailable === 1 ? " is" : "s are"} not available yet.`);
 }
@@ -255,6 +289,8 @@ document.querySelectorAll("[data-dialog-close]").forEach((button) => button.oncl
 $("dataset-filter").addEventListener("input", renderDatasets);
 $("frame-set-filter").addEventListener("input", renderFrameSets);
 $("sampling-table").addEventListener("click", (event) => {
+  const inspect = event.target.closest("[data-job-inspect]");
+  if (inspect) { inspectJob(inspect.dataset.jobInspect); return; }
   const button = event.target.closest("[data-job-action]");
   if (button) runJobAction(button);
 });

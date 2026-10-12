@@ -112,6 +112,7 @@ describe("sampling artifact pipeline", () => {
     expect(control.uploads.every((upload) => upload.status === "finalized")).toBe(true);
     expect(Math.max(...control.batchValueCounts)).toBeLessThanOrEqual(100);
     expect(control.batchSql.filter((sql) => sql.startsWith("INSERT INTO frame_set_frames"))).toHaveLength(2);
+    expect(control.batchSql.some((sql) => sql.startsWith("UPDATE runner_presence SET status = 'available'"))).toBe(true);
     expect([...bucket.objects.keys()]).toEqual(expect.arrayContaining([expect.stringContaining("/frames/"), expect.stringMatching(/^sampling\/job_123\/manifests\/[a-f0-9]{64}\.json$/)]));
 
     const retried = await handleArtifactPipeline(jsonRequest(`${base}/finalize`, "POST", { manifest }), env, "job_123", "finalize");

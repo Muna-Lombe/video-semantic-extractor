@@ -6,6 +6,7 @@
  * existing diagnostic CLI remains available as a legacy/manual option.
  */
 import type { AdjudicationEnv } from "./types";
+import { listRunnerPresence } from "./runner-presence";
 
 type JsonRecord = Record<string, unknown>;
 type DatasetStatus = "draft" | "ready" | "active" | "archived";
@@ -226,7 +227,10 @@ async function listSamplingJobs(url: URL, env: AdjudicationEnv): Promise<Respons
 
 async function getSamplingJob(jobId: string, env: AdjudicationEnv): Promise<Response> {
   const row = await env.CONTROL_DB.prepare("SELECT * FROM internal_jobs WHERE id = ? AND job_type = 'sampling'").bind(jobId).first<Record<string, unknown>>();
-  return row ? json({ data: jobRow(row) }) : error("not_found", "sampling job not found", 404);
+  if (!row) return error("not_found", "sampling job not found", 404);
+  const attempts = await env.CONTROL_DB.prepare(`SELECT attempt_number, status, worker_id, leased_at, lease_expires_at, heartbeat_at, started_at, finished_at, error_message, output_json
+    FROM internal_job_attempts WHERE job_id = ? ORDER BY attempt_number DESC`).bind(jobId).all<Record<string, unknown>>();
+  return json({ data: { ...jobRow(row), attempts: attempts.results ?? [] } });
 }
 
 function frameSetRow(row: Record<string, unknown>) {
@@ -294,6 +298,7 @@ export async function handleInternalsApi(request: Request, env: AdjudicationEnv)
     if (request.method === "GET") return listSamplingJobs(url, env);
     return error("method_not_allowed", "method not allowed", 405);
   }
+  if (path === "/api/internal/v1/runners") return request.method === "GET" ? json({ data: await listRunnerPresence(env) }) : error("method_not_allowed", "method not allowed", 405);
   const jobMatch = path.match(/^\/api\/internal\/v1\/sampling-jobs\/([^/]+)$/);
   if (jobMatch) return request.method === "GET" ? getSamplingJob(decodeURIComponent(jobMatch[1]), env) : error("method_not_allowed", "method not allowed", 405);
   if (path === "/api/internal/v1/frame-sets") return request.method === "GET" ? listFrameSets(url, env) : error("method_not_allowed", "method not allowed", 405);

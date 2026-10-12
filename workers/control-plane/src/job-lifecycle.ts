@@ -1,6 +1,7 @@
 /** @type implementation @purpose Coordinate durable sampling-job leases and lifecycle transitions. */
 import type { AdjudicationEnv } from "./types";
 import { expectedFrameSetId, handleArtifactPipeline } from "./artifact-pipeline";
+import { recordIdleRunnerPresence, recordRunnerPresence, runnerAvailabilityAfterJobStatement, RUNNER_PRESENCE_TTL_SECONDS } from "./runner-presence";
 
 type JsonRecord = Record<string, unknown>;
 const MAX_BODY_BYTES = 64 * 1024;
@@ -82,11 +83,15 @@ async function claim(request: Request, env: AdjudicationEnv): Promise<Response> 
   if (!Number.isInteger(leaseSeconds) || Number(leaseSeconds) < 30 || Number(leaseSeconds) > 900) return error("invalid_request", "lease_seconds must be an integer from 30 through 900", 400);
   const claimedAt = now(), expiresAt = new Date(Date.now() + Number(leaseSeconds) * 1000).toISOString();
   await sweepExpired(env, claimedAt);
+  const runnerId = value.runner_id;
   const leaseToken = `${crypto.randomUUID()}${crypto.randomUUID()}`, leaseHash = await digest(leaseToken);
   const row = await env.CONTROL_DB.prepare(`UPDATE internal_jobs SET status = 'running', lease_owner = ?, lease_token_hash = ?, lease_expires_at = ?, heartbeat_at = ?, attempt_count = attempt_count + 1, started_at = COALESCE(started_at, ?), updated_at = ?, error_message = NULL
     WHERE id = (SELECT id FROM internal_jobs WHERE job_type = 'sampling' AND cancellation_requested_at IS NULL AND attempt_count < max_attempts AND ((status = 'queued' AND (available_at IS NULL OR available_at <= ?)) OR (status = 'running' AND lease_expires_at <= ?)) ORDER BY created_at, id LIMIT 1)
     RETURNING *`).bind(value.runner_id, leaseHash, expiresAt, claimedAt, claimedAt, claimedAt, claimedAt, claimedAt).first<JsonRecord>();
-  if (!row) return json({ data: null });
+  if (!row) {
+    await recordIdleRunnerPresence(env, runnerId, claimedAt);
+    return json({ data: null });
+  }
   const attemptId = id("attempt");
   try {
     await env.CONTROL_DB.prepare("INSERT INTO internal_job_attempts (id, job_id, attempt_number, status, worker_id, lease_token_hash, leased_at, lease_expires_at, heartbeat_at, started_at) VALUES (?, ?, ?, 'running', ?, ?, ?, ?, ?, ?)")
@@ -96,6 +101,7 @@ async function claim(request: Request, env: AdjudicationEnv): Promise<Response> 
       .bind(now(), row.id, leaseHash).run();
     throw cause;
   }
+  await recordRunnerPresence(env, runnerId, "busy", String(row.id), claimedAt);
   return json({ data: { job: publicJob(row), attempt_id: attemptId, lease_token: leaseToken, lease_expires_at: expiresAt, frame_set_id: expectedFrameSetId(String(row.id)) } });
 }
 
@@ -127,6 +133,9 @@ async function heartbeat(request: Request, env: AdjudicationEnv, jobId: string):
         AND EXISTS (SELECT 1 FROM internal_job_attempts WHERE job_id = internal_jobs.id AND lease_token_hash = ? AND status = 'running')
       RETURNING cancellation_requested_at`).bind(timestamp, expiresAt, value.progress === undefined ? null : JSON.stringify(value.progress), timestamp, jobId, hash, timestamp, hash),
     env.CONTROL_DB.prepare("UPDATE internal_job_attempts SET heartbeat_at = ?, lease_expires_at = ? WHERE job_id = ? AND lease_token_hash = ? AND status = 'running' AND EXISTS (SELECT 1 FROM internal_jobs WHERE id = ? AND status = 'running' AND lease_token_hash = ? AND heartbeat_at = ? AND lease_expires_at = ?)").bind(timestamp, expiresAt, jobId, hash, jobId, hash, timestamp, expiresAt),
+    env.CONTROL_DB.prepare(`UPDATE runner_presence SET last_seen_at = ?, expires_at = ?
+      WHERE current_job_id = ? AND status = 'busy' AND runner_id = (SELECT lease_owner FROM internal_jobs WHERE id = ? AND status = 'running' AND lease_token_hash = ? AND lease_expires_at = ?)`)
+      .bind(timestamp, new Date(Date.parse(timestamp) + RUNNER_PRESENCE_TTL_SECONDS * 1000).toISOString(), jobId, jobId, hash, expiresAt),
   ]);
   const row = returnedRow(results[0]);
   if (!row) return error("invalid_lease", "job lease is invalid or expired", 409);
@@ -153,6 +162,7 @@ async function finish(request: Request, env: AdjudicationEnv, jobId: string, act
       RETURNING status`).bind(value.requeue === true ? 1 : 0, value.error_message.trim(), value.requeue === true ? 1 : 0, timestamp, timestamp, timestamp, jobId, hash, timestamp, hash),
     env.CONTROL_DB.prepare("UPDATE internal_job_attempts SET status = CASE WHEN EXISTS (SELECT 1 FROM internal_jobs WHERE id = ? AND status = 'cancelled' AND lease_token_hash = ?) THEN 'cancelled' ELSE 'failed' END, error_message = ?, finished_at = ? WHERE job_id = ? AND lease_token_hash = ? AND status = 'running' AND EXISTS (SELECT 1 FROM internal_jobs WHERE id = ? AND status IN ('queued', 'failed', 'cancelled') AND lease_token_hash = ?)").bind(jobId, hash, value.error_message.trim(), timestamp, jobId, hash, jobId, hash),
     env.CONTROL_DB.prepare("UPDATE internal_jobs SET lease_owner = NULL, lease_token_hash = NULL, lease_expires_at = NULL WHERE id = ? AND lease_token_hash = ? AND status IN ('queued', 'failed', 'cancelled')").bind(jobId, hash),
+    runnerAvailabilityAfterJobStatement(env, jobId, timestamp),
   ]);
   const row = returnedRow(results[0]);
   if (!row) return error("invalid_lease", "job lease is invalid or expired", 409);

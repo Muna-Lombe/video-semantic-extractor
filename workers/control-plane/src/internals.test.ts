@@ -46,6 +46,17 @@ class MemoryStatement {
     throw new Error(`unsupported first: ${this.sql}`);
   }
   async all<T>() {
+    if (this.sql.includes("FROM internal_job_attempts")) {
+      const fields = ["attempt_number", "status", "worker_id", "leased_at", "lease_expires_at", "heartbeat_at", "started_at", "finished_at", "error_message", "output_json"];
+      const results = this.database.attempts.filter((row) => row.job_id === this.values[0])
+        .sort((a, b) => Number(b.attempt_number) - Number(a.attempt_number))
+        .map((row) => Object.fromEntries(fields.map((field) => [field, row[field] ?? null])));
+      return { results: results as T[] };
+    }
+    if (this.sql.includes("FROM runner_presence")) {
+      const now = String(this.values[0]);
+      return { results: this.database.runners.filter((runner) => String(runner.expires_at) > now).sort((a, b) => String(a.status).localeCompare(String(b.status)) || String(a.runner_id).localeCompare(String(b.runner_id))) as T[] };
+    }
     if (this.sql.includes("FROM datasets d")) {
       const limit = Number(this.values.at(-2)), offset = Number(this.values.at(-1));
       const requestedStatus = this.values.length === 3 ? this.values[0] : null;
@@ -77,6 +88,8 @@ class MemoryD1 {
   versions: Row[] = [];
   sources: Row[] = [];
   jobs: Row[] = [];
+  attempts: Row[] = [];
+  runners: Row[] = [];
   frameSets: Row[] = [];
   frameSetSources: Row[] = [];
   frames: Row[] = [];
@@ -144,6 +157,37 @@ describe("Internals control-plane API", () => {
     const conflict = await response(request("/api/internal/v1/sampling-jobs", "POST", { ...initial, interval_seconds: 10 }), env);
     expect(conflict.status).toBe(409);
     expect((await conflict.json() as any).error.code).toBe("idempotency_conflict");
+  });
+
+  it("returns sampling configuration and safe attempt history in job details", async () => {
+    const control = new MemoryD1();
+    const dataset = new MemoryD1();
+    const env = environment(control, dataset);
+    const datasetResponse = await response(request("/api/internal/v1/datasets", "POST", { name: "Job details corpus", sources: [{ url: "https://media.example/sample.mp4" }] }), env);
+    const versionId = (await datasetResponse.json() as any).data.initial_version.id;
+    const created = await response(request("/api/internal/v1/sampling-jobs", "POST", { dataset_version_id: versionId, method: "interval", interval_seconds: 5 }), env);
+    const jobId = (await created.json() as any).data.id;
+    control.attempts.push({ job_id: jobId, attempt_number: 1, status: "failed", worker_id: "runner-a", leased_at: "2026-10-01T00:00:00.000Z", lease_expires_at: "2026-10-01T00:05:00.000Z", heartbeat_at: null, started_at: "2026-10-01T00:00:01.000Z", finished_at: "2026-10-01T00:01:00.000Z", error_message: "decode failed", output_json: null, lease_token_hash: "must-not-be-returned" });
+    const detail = await response(request(`/api/internal/v1/sampling-jobs/${jobId}`), env);
+    const job = (await detail.json() as any).data;
+    expect(job.input).toEqual(expect.objectContaining({ dataset_version_id: versionId, method: "interval" }));
+    expect(job.attempts).toEqual([expect.objectContaining({ attempt_number: 1, worker_id: "runner-a", error_message: "decode failed" })]);
+    expect(JSON.stringify(job)).not.toContain("must-not-be-returned");
+  });
+
+  it("reports only recently heartbeating runners and requires administrator auth", async () => {
+    const control = new MemoryD1();
+    const env = environment(control);
+    control.runners.push(
+      { runner_id: "idle-runner", status: "available", current_job_id: null, last_seen_at: "2026-10-12T13:30:00.000Z", expires_at: "2999-01-01T00:00:00.000Z" },
+      { runner_id: "busy-runner", status: "busy", current_job_id: "job_1", last_seen_at: "2026-10-12T13:30:00.000Z", expires_at: "2999-01-01T00:00:00.000Z" },
+      { runner_id: "stale-runner", status: "available", current_job_id: null, last_seen_at: "2026-10-01T00:00:00.000Z", expires_at: "2000-01-01T00:00:00.000Z" },
+    );
+    expect((await handleInternalsApi(request("/api/internal/v1/runners", "GET", undefined, "wrong"), env))?.status).toBe(401);
+    const presenceResponse = await response(request("/api/internal/v1/runners"), env);
+    const presence = (await presenceResponse.json() as any).data;
+    expect(presence).toEqual(expect.objectContaining({ available_count: 1, busy_count: 1, total_count: 2, heartbeat_ttl_seconds: 360 }));
+    expect(presence.runners.map((runner: Row) => runner.runner_id)).toEqual(["idle-runner", "busy-runner"]);
   });
 
   it("lists and inspects registered frame sets and serves private evidence", async () => {
