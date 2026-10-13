@@ -33,6 +33,15 @@ dataset -> sampling job -> frame set -> template -> review campaign -> ground tr
 -> evaluation -> governed model/pipeline-release chain. An initial `/internals`
 status shell, authenticated overview API, and D1 schema now establish that boundary;
 the managed pipeline resources remain incremental work rather than complete features.
+Policy registration and verified frame-set-to-template generation now have working
+Internals screens and local tests; that new slice is not yet deployed. See
+[`template registry`](docs/template-registry.md) for its contract and limits.
+[`Managed campaigns`](docs/managed-review-campaigns.md) also now connect registered
+templates to independent review and immutable adjudicated candidates. This slice
+is locally tested; deployment remains pending.
+[`Ground-truth governance`](docs/ground-truth-governance.md) now also provides local
+diagnostic validation, explicit approval/rejection, supersession, and an evidence
+eligibility gate. Managed evaluations and named-user RBAC remain open.
 See [`docs/internals-roadmap.md`](docs/internals-roadmap.md) for the implemented/planned
 boundary, priorities, and migration policy.
 

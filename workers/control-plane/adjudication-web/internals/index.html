@@ -21,6 +21,10 @@
           <a href="#datasets" data-route="datasets"><span aria-hidden="true">▤</span> Datasets</a>
           <a href="#sampling" data-route="sampling"><span aria-hidden="true">◫</span> Sampling jobs</a>
           <a href="#frame-sets" data-route="frame-sets"><span aria-hidden="true">▦</span> Frame sets</a>
+          <a href="#policies" data-route="policies"><span aria-hidden="true">≡</span> Policies</a>
+          <a href="#templates" data-route="templates"><span aria-hidden="true">▧</span> Templates</a>
+          <a href="#reviews" data-route="reviews"><span aria-hidden="true">✓</span> Review campaigns</a>
+          <a href="#ground-truth" data-route="ground-truth"><span aria-hidden="true">▣</span> Ground truth</a>
         </nav>
         <div class="sidebar-section">
           <p>Focused workspaces</p>
@@ -73,8 +77,8 @@
                   </ol>
                 </article>
                 <article class="panel notice">
-                  <p class="eyebrow">Execution status</p><h3>Scheduling only</h3>
-                  <p>Sampling jobs are durable records. Available runner capacity is based on recent authenticated runner heartbeats.</p>
+                  <p class="eyebrow">Execution status</p><h3>Managed sampling</h3>
+                  <p>The sampling runner produces verified frame sets. Available capacity is based on recent authenticated runner heartbeats.</p>
                   <a href="#sampling" data-route-link="sampling">View sampling jobs →</a>
                 </article>
               </div>
@@ -100,11 +104,86 @@
               <div class="page-heading"><div><p class="eyebrow">Immutable sampling output</p><h2>Frame sets</h2><p>Inspect registered manifests, source provenance, checksums, and private frame evidence.</p></div><button class="secondary" type="button" data-refresh>Refresh data</button></div>
               <div class="panel table-panel"><div class="table-toolbar"><label class="search"><span class="sr-only">Filter frame sets</span><input id="frame-set-filter" type="search" placeholder="Filter by ID, dataset, or job…"></label><span id="frame-set-summary" class="muted">Loading frame sets…</span></div><div id="frame-sets-table"></div></div>
             </section>
+            <section class="page" data-page="policies" hidden>
+              <div class="page-heading"><div><p class="eyebrow">Annotation rules</p><h2>Policies</h2><p>Register immutable versions of the instructions reviewers will follow.</p></div><button type="button" data-dialog-open="policy-dialog">Register policy version</button></div>
+              <div class="panel table-panel"><div id="policies-table"></div></div>
+            </section>
+            <section class="page" data-page="templates" hidden>
+              <div class="page-heading"><div><p class="eyebrow">Review preparation</p><h2>Templates</h2><p>Generate an empty annotation template from a verified frame set and an active policy.</p></div><button type="button" data-dialog-open="template-dialog">Generate template</button></div>
+              <div class="panel table-panel"><div id="templates-table"></div></div>
+            </section>
+            <section class="page" data-page="reviews" hidden>
+              <div class="page-heading"><div><p class="eyebrow">Independent annotation</p><h2>Review campaigns</h2><p>Create assignments from registered templates and follow review and adjudication progress.</p></div><button type="button" data-dialog-open="campaign-create-dialog">Create campaign</button></div>
+              <div class="panel table-panel"><div id="campaigns-table"></div></div>
+            </section>
+            <section class="page" data-page="ground-truth" hidden>
+              <div class="page-heading"><div><p class="eyebrow">Diagnostic evaluation evidence</p><h2>Ground truth</h2><p>Validate adjudicated candidates and record approval, rejection, or an approved replacement.</p></div><button class="secondary" type="button" data-refresh>Refresh data</button></div>
+              <div class="panel table-panel"><div id="ground-truth-table"></div></div>
+            </section>
           </div>
         </main>
       </div>
     </div>
 
+    <dialog id="ground-truth-dialog" class="detail-dialog">
+      <div class="detail-shell"><div class="dialog-heading"><h2 id="ground-truth-title">Ground-truth candidate</h2><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div><div id="ground-truth-detail" aria-live="polite"></div></div>
+    </dialog>
+    <dialog id="ground-truth-decision-dialog">
+      <form id="ground-truth-decision-form">
+        <div class="dialog-heading"><h2 id="ground-truth-decision-title">Record decision</h2><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div>
+        <p id="ground-truth-decision-target" class="field-help"></p>
+        <label for="ground-truth-actor">Accountable approver reference</label><input id="ground-truth-actor" name="actor_reference" required maxlength="200" placeholder="Your internal reviewer ID or accountable name">
+        <label for="ground-truth-reason">Reason</label><textarea id="ground-truth-reason" name="reason" required maxlength="2000" rows="4"></textarea>
+        <div id="ground-truth-approval-fields"><p>Approval applies to diagnostic evaluation. It does not authorize commercial training or production use.</p><label><input id="ground-truth-attest" type="checkbox"> I checked the pinned policy, three independent human participants, unseen candidate predictions, and licensing for this diagnostic scope.</label></div>
+        <div id="ground-truth-replacement-fields" hidden><label for="ground-truth-replacement">Approved replacement</label><select id="ground-truth-replacement"></select></div>
+        <p class="field-help">Your reference and reason are recorded with this administrator decision.</p>
+        <p class="form-status" role="status"></p><div class="dialog-actions"><button class="secondary" type="button" data-dialog-close>Cancel</button><button type="submit">Record decision</button></div>
+      </form>
+    </dialog>
+    <dialog id="campaign-create-dialog">
+      <form id="campaign-form">
+        <div class="dialog-heading"><div><p class="eyebrow">Independent annotation</p><h2>Create review campaign</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div>
+        <label for="campaign-name">Name</label><input id="campaign-name" name="name" required maxlength="120">
+        <label for="campaign-template">Registered template</label><select id="campaign-template" name="template_id" required></select>
+        <label for="campaign-expiry">Invitation lifetime (hours)</label><input id="campaign-expiry" name="expires_in_hours" type="number" min="1" max="720" value="168" required>
+        <p class="field-help">Two independent reviewers and a third adjudicator receive separate invitations. Reviewers see only their own work. The adjudicator can open both submissions after both passes are complete.</p>
+        <p class="form-status" role="status"></p><div class="dialog-actions"><button class="secondary" type="button" data-dialog-close>Cancel</button><button type="submit">Create campaign</button></div>
+      </form>
+    </dialog>
+    <dialog id="campaign-dialog" class="detail-dialog">
+      <div class="detail-shell"><div class="dialog-heading"><h2 id="campaign-title">Campaign</h2><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div><div id="campaign-detail" aria-live="polite"></div></div>
+    </dialog>
+    <dialog id="invitations-dialog">
+      <div class="detail-shell"><div class="dialog-heading"><h2>Assignment invitations</h2><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div><p>Copy these private links now. Closing this window clears them. You can reissue a lost invitation from the campaign details.</p><div id="invitation-links"></div></div>
+    </dialog>
+    <dialog id="policy-dialog">
+      <form id="policy-form">
+        <div class="dialog-heading"><div><p class="eyebrow">Annotation rules</p><h2>Register policy version</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div>
+        <label for="policy-name">Policy name</label><input id="policy-name" name="name" required maxlength="120">
+        <label for="policy-version">Version</label><input id="policy-version" name="version" required maxlength="80" pattern="[a-zA-Z0-9._-]+" placeholder="2026-09-18">
+        <label for="policy-document">Reviewer instructions</label><textarea id="policy-document" name="document" required rows="12" maxlength="48000"></textarea>
+        <label for="policy-validation">Validation profile</label><select id="policy-validation"><option value="">Review only (no evaluation approval)</option><option value="coco-object-diagnostic.v1">COCO object diagnostic corpus</option></select>
+        <div id="policy-profile-fields" hidden>
+          <p class="field-help">This frozen profile requires five distinct sources, 50 non-person objects, five non-person classes, subset and scale coverage, and at most 60% of objects from one source. Rules cannot be relaxed within this profile.</p>
+          <label for="policy-corpus-frame-set">Use corpus checksums from a frame set</label><select id="policy-corpus-frame-set"><option value="">Enter checksums manually</option></select>
+          <label for="policy-profile-sources">Frozen source SHA-256 digests</label><textarea id="policy-profile-sources" rows="6" disabled placeholder="One source-video digest per line; exactly five distinct digests"></textarea>
+        </div>
+        <p class="field-help">These instructions use the object annotation format: COCO classes, live/composited/screen subsets, and pixel boxes. Registration activates this immutable version. Change the version when changing the rules.</p>
+        <p class="form-status" role="status"></p><div class="dialog-actions"><button class="secondary" type="button" data-dialog-close>Cancel</button><button type="submit">Register and activate</button></div>
+      </form>
+    </dialog>
+    <dialog id="template-dialog">
+      <form id="template-form">
+        <div class="dialog-heading"><div><p class="eyebrow">Review preparation</p><h2>Generate template</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div>
+        <label for="template-frame-set">Frame set</label><select id="template-frame-set" name="frame_set_id" required></select>
+        <label for="template-policy">Policy version</label><select id="template-policy" name="policy_version_id" required></select>
+        <p class="field-help">Templates support up to 500 frames. The manifest and private frame evidence are checked before registration. Annotations start empty and every frame still needs human review.</p>
+        <p class="form-status" role="status"></p><div class="dialog-actions"><button class="secondary" type="button" data-dialog-close>Cancel</button><button type="submit">Generate template</button></div>
+      </form>
+    </dialog>
+    <dialog id="registry-dialog" class="detail-dialog">
+      <div class="detail-shell"><div class="dialog-heading"><h2 id="registry-title">Resource details</h2><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div><div id="registry-detail" aria-live="polite"></div></div>
+    </dialog>
     <dialog id="dataset-dialog">
       <form id="dataset-form">
         <div class="dialog-heading"><div><p class="eyebrow">New resource</p><h2>Create dataset</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div>
