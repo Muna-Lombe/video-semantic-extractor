@@ -217,10 +217,23 @@ duplicate paths, timestamps, and evidence availability. The resulting template
 and validation report are immutable artifacts. Template lifecycle states are
 `generating`, `ready`, `invalid`, `superseded`, and `archived`.
 
+The repository now implements bounded synchronous generation and an initial policy
+registry, with the validation report embedded in the immutable template artifact.
+This slice is locally tested; migration/deployment remain pending. It supports the
+fixed `object-annotations.v1` contract, up to 500 frames, and active immutable policy
+definitions in D1. See [`template registry`](template-registry.md) for exact checks
+and the hosted/CLI compatibility boundary. Broader lifecycle governance remains
+planned.
+
 The review API ultimately accepts a `template_id`, not an embedded arbitrary JSON
 document and manually assembled frame URL map. During migration, the current raw
 template endpoint remains as a compatibility path and must continue applying its
 existing schema and exact-frame-set validation.
+
+Managed campaigns now implement the reference-based path with isolated D1
+assignments, revision-guarded writes, pinned instructions, private evidence, and
+immutable adjudicated candidates. Locally tested; migration/deployment pending.
+See [`managed review campaigns`](managed-review-campaigns.md).
 
 ### Review and ground-truth pipeline
 
@@ -244,6 +257,12 @@ approval are separate state transitions; completion alone does not make an
 artifact approved evaluation truth. Ground-truth records retain the template,
 policy version, reviewer submissions, comparison, adjudication log, validation
 report, checksums, and approval history.
+
+The locally tested repository now implements bounded diagnostic validation and
+explicit administrator approval/rejection with declared accountable references,
+immutable reports/decisions, compatible approved replacements, and evidence-checked
+eligibility. Named-user authentication and release-approver RBAC remain planned;
+this is diagnostic scope only. See [`ground-truth governance`](ground-truth-governance.md).
 
 ### Evaluation pipeline
 
@@ -443,9 +462,9 @@ Progress values are planning estimates, not measured completion claims.
 | Phase | Scope | Status | Estimate |
 | --- | --- | --- | ---: |
 | 0. Architecture | Product/Internals boundary, resources, storage, security, migration | In progress; runner topology selected | 90% |
-| 1. Control-plane foundation | D1 schema, migrations, identities/RBAC, jobs, artifacts, audit log | In progress; sampling execution ships, but RBAC and remote runner verification remain | 80% |
-| 2. Dataset-to-template slice | Dataset import, sampling job, frame-set inspection, template generation | In progress; the sampling runner and frame-set inspection ship, but template registry does not | 65% |
-| 3. Review integration | Template references, campaign UI, focused invitations, progress, ground truth | Partially implemented | 55% |
+| 1. Control-plane foundation | D1 schema, migrations, identities/RBAC, jobs, artifacts, audit log | In progress; sampling production happy path verified; RBAC and operational qualification remain | 80% |
+| 2. Dataset-to-template slice | Dataset import, sampling job, frame-set inspection, template generation | In progress; template registry now implemented locally; deployment and managed CLI parity remain | 65% |
+| 3. Review integration | Template references, campaign UI, focused invitations, progress, ground truth | Implemented locally through diagnostic approval/supersession; deployment pending | 90% |
 | 4. Durable evaluations | Managed diagnostic runners, metrics, comparisons, reproducibility | Planned; CLI engines exist | 20% |
 | 5. Governance | Model registry, ground-truth approval, pipeline releases, rollback | Planned | 5% |
 | 6. Product integration | Product jobs consume only active approved releases | Planned | 5% |
@@ -474,7 +493,7 @@ Progress values are planning estimates, not measured completion claims.
 | Diagnostics are not durable jobs | Wrap shared diagnostic engines in queued, retryable, auditable jobs. |
 | Metadata spans two provisioned D1 databases | Keep dataset ownership and orchestration separate; validate references explicitly and use reconciliation because no cross-D1 foreign keys or transactions exist. |
 | No internal-user authentication or RBAC | Add identity and operation-level RBAC as a foundation, not route-prefix security. |
-| Ground truth, models, and releases are not governed | Add versioned resources, approval states, provenance, and audit history. |
+| Ground truth has local diagnostic governance; models and releases remain open | Deploy the ground-truth slice and continue model/release lifecycle resources. |
 | No complete `/internals` UI | Expand the status shell with vertical-slice screens after resource/state contracts are defined. |
 
 ## Non-goals for the first slice

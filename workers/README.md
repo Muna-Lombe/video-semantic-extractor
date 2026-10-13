@@ -106,15 +106,22 @@ object exists; finalization must also compare these declarations with R2 object
 metadata and bytes.
 
 `GET /` redirects operators to `/internals/`. `GET /internals` serves the
-interactive dataset, sampling, and Frame Sets workspace, while
+interactive dataset, sampling, Frame Sets, Policies, Templates, Review campaigns, and Ground truth workspace, while
 `GET /api/internal/v1/overview` returns its administrator-authenticated capability
 report. The current executable slice registers datasets in D1, stores sampling-job
 requests as durable `queued` metadata, and provides a runner protocol for claiming
 and reporting work. The separately deployed sampling-runner Worker and Container
 consume that protocol; production claims and completion have been remotely
 verified. The control-plane Worker itself never executes FFmpeg, and the
-diagnostic CLI remains available as an operational fallback. Template
-registration, managed evaluation, and governance remain incremental work. See
+diagnostic CLI remains available as an operational fallback. Policy registration
+and verified template generation are implemented locally; apply migration
+`0005_template_registry.sql` before deploying them. Template-referenced campaigns
+also ship locally with D1-isolated assignments and candidate artifacts; apply
+`0006_managed_campaigns.sql` before deploying that slice. Recorded diagnostic
+validation, approval/rejection, supersession, and eligibility are also implemented
+locally; apply `0007_ground_truth_governance.sql` before deployment. Managed
+evaluations and named-user RBAC remain open. See `../docs/ground-truth-governance.md`,
+`../docs/managed-review-campaigns.md`, and
 `../docs/internals-architecture.md` and `../docs/internals-roadmap.md`.
 
 The current administrator-protected control-plane slice exposes:
@@ -133,6 +140,28 @@ GET  /api/internal/v1/frame-sets
 GET  /api/internal/v1/frame-sets/<frame-set-id>
 GET  /api/internal/v1/frame-sets/<frame-set-id>/manifest
 GET  /api/internal/v1/frame-sets/<frame-set-id>/frames/<frame-id>/evidence
+GET  /api/internal/v1/policies
+POST /api/internal/v1/policies
+GET  /api/internal/v1/policies/<policy-version-id>
+GET  /api/internal/v1/templates
+POST /api/internal/v1/templates
+GET  /api/internal/v1/templates/<template-id>
+GET  /api/internal/v1/templates/<template-id>/artifact
+GET  /api/internal/v1/ground-truth
+GET  /api/internal/v1/ground-truth/<version-id>
+POST /api/internal/v1/ground-truth/<version-id>/validate
+POST /api/internal/v1/ground-truth/<version-id>/approve
+POST /api/internal/v1/ground-truth/<version-id>/reject
+POST /api/internal/v1/ground-truth/<version-id>/supersede
+GET  /api/internal/v1/ground-truth/<version-id>/eligibility
+GET  /api/internal/v1/ground-truth/<version-id>/artifact
+GET  /api/internal/v1/ground-truth/<version-id>/validations/<validation-id>/report
+GET  /api/internal/v1/review-campaigns
+POST /api/internal/v1/review-campaigns
+GET  /api/internal/v1/review-campaigns/<campaign-id>
+POST /api/internal/v1/review-campaigns/<campaign-id>/cancel
+POST /api/internal/v1/review-campaigns/<campaign-id>/assignments/<role>/revoke
+POST /api/internal/v1/review-campaigns/<campaign-id>/assignments/<role>/reissue
 
 POST /api/internal/v1/runner/sampling-jobs/claim
 GET  /api/internal/v1/runner/dataset-versions/<dataset-version-id>/sources
@@ -142,6 +171,10 @@ PUT  /api/internal/v1/runner/sampling-jobs/<job-id>/artifacts/<artifact-id>
 POST /api/internal/v1/runner/sampling-jobs/<job-id>/finalize
 POST /api/internal/v1/runner/sampling-jobs/<job-id>/fail
 ```
+
+See `../docs/template-registry.md` for request examples, schema, generation limits,
+and deployment status. Registry tests use Node's built-in SQLite support and require
+Node 22.13+ (Node 24 is recommended).
 
 Creating a dataset also creates its initial immutable version. Creating a sampling
 job references that dataset version plus a sampling strategy/configuration and

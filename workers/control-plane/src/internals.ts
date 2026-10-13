@@ -7,6 +7,8 @@
  */
 import type { AdjudicationEnv } from "./types";
 import { listRunnerPresence } from "./runner-presence";
+import { handleTemplateRegistry } from "./template-registry";
+import { handleGroundTruthApi } from "./ground-truth";
 
 type JsonRecord = Record<string, unknown>;
 type DatasetStatus = "draft" | "ready" | "active" | "archived";
@@ -286,6 +288,10 @@ export async function handleInternalsApi(request: Request, env: AdjudicationEnv)
   const url = new URL(request.url), path = url.pathname.replace(/\/$/, "");
   if (!path.startsWith("/api/internal/v1/")) return null;
   if (!authorized(request, env)) return error("unauthorized", "administrator bearer token required", 401);
+  const groundTruth = await handleGroundTruthApi(request, env);
+  if (groundTruth) return groundTruth;
+  const registry = await handleTemplateRegistry(request, env);
+  if (registry) return registry;
   if (path === "/api/internal/v1/datasets") {
     if (request.method === "POST") return createDataset(request, env);
     if (request.method === "GET") return listDatasets(url, env);

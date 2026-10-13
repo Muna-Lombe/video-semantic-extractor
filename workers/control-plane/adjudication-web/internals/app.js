@@ -5,6 +5,12 @@ let token = sessionStorage.getItem("internals-admin-token") || "";
 let datasets = [];
 let samplingJobs = [];
 let frameSets = [];
+let policies = [];
+let templates = [];
+let campaigns = [];
+let groundTruths = [];
+let groundTruthDetail;
+let groundTruthRequest = 0;
 let runnerPresence = { available_count: 0, busy_count: 0, total_count: 0, heartbeat_ttl_seconds: 360, runners: [] };
 let evidenceUrls = [];
 
@@ -64,11 +70,11 @@ function setConnected(connected) {
 }
 
 function showPage(name) {
-  const valid = ["overview", "datasets", "sampling", "frame-sets"];
+  const valid = ["overview", "datasets", "sampling", "frame-sets", "policies", "templates", "reviews", "ground-truth"];
   if (!valid.includes(name)) name = "overview";
   document.querySelectorAll(".page").forEach((page) => { page.hidden = page.dataset.page !== name; });
   document.querySelectorAll("nav [data-route]").forEach((link) => link.classList.toggle("active", link.dataset.route === name));
-  $("page-title").textContent = { overview: "Overview", datasets: "Datasets", sampling: "Sampling jobs", "frame-sets": "Frame sets" }[name];
+  $("page-title").textContent = { overview: "Overview", datasets: "Datasets", sampling: "Sampling jobs", "frame-sets": "Frame sets", policies: "Policies", templates: "Templates", reviews: "Review campaigns", "ground-truth": "Ground truth" }[name];
   document.body.classList.remove("menu-open");
   $("menu-toggle").setAttribute("aria-expanded", "false");
 }
@@ -80,7 +86,9 @@ function renderOverview(payload = {}) {
     ["Sampling jobs", metrics.sampling_jobs ?? samplingJobs.length, "Durable scheduling records"],
     ["Available runners", runnerPresence.available_count, `Seen within ${Math.round(runnerPresence.heartbeat_ttl_seconds / 60)} minutes`],
     ["Frame sets", metrics.frame_sets ?? frameSets.length, "Immutable sampling outputs"],
-    ["Active reviews", metrics.active_reviews ?? metrics.reviews ?? "—", "Focused assignments"],
+    ["Templates", templates.length, "Registered review inputs"],
+    ["Active campaigns", campaigns.filter((item) => !["completed", "cancelled"].includes(item.status)).length, "Independent review assignments"],
+    ["Approved ground truth", groundTruths.filter((item) => item.approval_status === "approved").length, "Approved diagnostic versions"],
   ];
   $("overview-cards").innerHTML = values.map(([label, value, detail]) => `<article class="metric"><small>${label}</small><strong>${escapeHtml(value)}</strong><small>${detail}</small></article>`).join("");
 }
@@ -114,6 +122,162 @@ function renderFrameSets() {
 function clearEvidenceUrls() {
   evidenceUrls.forEach((url) => URL.revokeObjectURL(url));
   evidenceUrls = [];
+}
+
+function renderRegistry() {
+  $("policies-table").innerHTML = policies.length ? `<table><thead><tr><th>Policy</th><th>Version</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>${policies.map((item) => `<tr><td><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.annotation_schema_version)}</small></td><td>${escapeHtml(item.version)}</td><td>${statusBadge(item.status)}</td><td>${escapeHtml(formatDate(item.created_at))}</td><td><button class="secondary" type="button" data-policy-inspect="${escapeHtml(item.id)}">Instructions</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty-state"><strong>No registered policies</strong><p>Register the instructions and version that reviewers will follow.</p></div>';
+  $("templates-table").innerHTML = templates.length ? `<table><thead><tr><th>Template</th><th>Inputs</th><th>Frames</th><th>Status</th><th>Actions</th></tr></thead><tbody>${templates.map((item) => `<tr><td><strong>${escapeHtml(item.id)}</strong><small>${escapeHtml(item.schema_version)}</small></td><td><strong>${escapeHtml(item.frame_set_id)}</strong><small>${escapeHtml(policies.find((policy) => policy.id === item.policy_version_id)?.name || item.policy_version_id)}</small></td><td>${escapeHtml(item.frame_count)}</td><td>${statusBadge(item.status)}</td><td><button class="secondary" type="button" data-template-inspect="${escapeHtml(item.id)}">Inspect</button> <button class="secondary" type="button" data-template-download="${escapeHtml(item.id)}">Download</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty-state"><strong>No registered templates</strong><p>Select a ready frame set and an active policy to prepare review inputs.</p></div>';
+  const ready = frameSets.filter((item) => item.status === "ready");
+  const selectedCorpus = $("policy-corpus-frame-set").value;
+  $("policy-corpus-frame-set").innerHTML = '<option value="">Enter checksums manually</option>' + ready.filter((item) => item.source_count === 5).map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.id)} · 5 sources</option>`).join("");
+  $("policy-corpus-frame-set").value = selectedCorpus;
+  const active = policies.filter((item) => item.status === "active" && item.annotation_schema_version === "object-annotations.v1");
+  $("template-frame-set").innerHTML = ready.length ? ready.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.id)} · ${escapeHtml(item.frame_count)} frames</option>`).join("") : '<option value="">No ready frame sets</option>';
+  $("template-policy").innerHTML = active.length ? active.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} · ${escapeHtml(item.version)}</option>`).join("") : '<option value="">No active policies</option>';
+  $("template-form").querySelector('[type="submit"]').disabled = !ready.length || !active.length;
+}
+
+async function inspectRegistry(collection, id) {
+  $("registry-title").textContent = id;
+  $("registry-detail").textContent = "Loading…";
+  $("registry-dialog").showModal();
+  try {
+    const payload = await api(`/${collection}/${encodeURIComponent(id)}${collection === "templates" ? "/artifact" : ""}`);
+    const item = payload.data || payload;
+    $("registry-detail").innerHTML = `<pre>${escapeHtml(collection === "policies" ? `${item.name} · ${item.version}\n\n${item.document}` : prettyJson(item))}</pre>`;
+  } catch (error) { $("registry-detail").textContent = error.message; }
+}
+
+async function downloadTemplate(id) {
+  try {
+    const response = await apiResponse(`/templates/${encodeURIComponent(id)}/artifact`);
+    if (!response.ok) throw new Error(`Template unavailable (${response.status})`);
+    const url = URL.createObjectURL(await response.blob());
+    const link = document.createElement("a"); link.href = url; link.download = `${id}.json`; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (error) { toast(error.message); }
+}
+
+async function listAll(path) {
+  const items = [];
+  let offset = 0;
+  do {
+    const payload = await api(`${path}?limit=100&offset=${offset}`);
+    items.push(...normaliseList(payload, "data"));
+    if (!payload.pagination?.has_more) return { data: items };
+    offset = payload.pagination.next_offset;
+  } while (Number.isSafeInteger(offset));
+  throw new Error("Invalid resource pagination");
+}
+
+function renderCampaigns() {
+  $("campaigns-table").innerHTML = campaigns.length ? `<table><thead><tr><th>Campaign</th><th>Template</th><th>Progress</th><th>Status</th><th>Actions</th></tr></thead><tbody>${campaigns.map((item) => `<tr><td><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.id)}</small></td><td><code>${escapeHtml(item.template_id)}</code><small>${escapeHtml(item.frame_count)} frames</small></td><td>${item.assignments.map((assignment) => `<small>${escapeHtml(assignment.role)}: ${escapeHtml(assignment.status)}${assignment.role === "adjudicator" ? "" : ` · ${escapeHtml(assignment.reviewed_frames)}/${escapeHtml(item.frame_count)}`}${assignment.revoked_at ? " · revoked" : ""}</small>`).join("")}</td><td>${statusBadge(item.status)}</td><td><button class="secondary" type="button" data-campaign-inspect="${escapeHtml(item.id)}">Inspect</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty-state"><strong>No managed campaigns</strong><p>Create one from a registered template to start independent review.</p></div>';
+  const available = templates.filter((item) => item.status === "ready");
+  $("campaign-template").innerHTML = available.length ? available.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.id)} · ${escapeHtml(item.frame_count)} frames</option>`).join("") : '<option value="">No ready templates</option>';
+  $("campaign-form").querySelector('[type="submit"]').disabled = !available.length;
+}
+
+function showInvitations(invitations) {
+  $("invitation-links").replaceChildren();
+  for (const [role, invitation] of Object.entries(invitations)) {
+    const label = document.createElement("label"); label.textContent = role;
+    const input = document.createElement("input"); input.readOnly = true; input.value = invitation.url; input.setAttribute("aria-label", `${role} invitation`);
+    const button = document.createElement("button"); button.type = "button"; button.className = "secondary"; button.textContent = "Copy link";
+    button.onclick = () => navigator.clipboard.writeText(input.value).then(() => toast("Invitation copied.")).catch(() => { input.focus(); input.select(); toast("Select and copy the invitation link."); });
+    $("invitation-links").append(label, input, button);
+  }
+  $("invitations-dialog").showModal();
+}
+
+async function inspectCampaign(id) {
+  $("campaign-title").textContent = id; $("campaign-detail").textContent = "Loading…";
+  if (!$("campaign-dialog").open) $("campaign-dialog").showModal();
+  try {
+    const item = (await api(`/review-campaigns/${encodeURIComponent(id)}`)).data;
+    $("campaign-title").textContent = item.name;
+    const terminal = ["completed", "cancelled"].includes(item.status);
+    $("campaign-detail").innerHTML = `<section class="detail-section"><h3>Inputs and progress</h3><p>${statusBadge(item.status)} · ${escapeHtml(item.frame_count)} frames</p><p>Template <code>${escapeHtml(item.template_id)}</code></p><p>SHA-256 <code>${escapeHtml(item.template_sha256)}</code></p></section><section class="detail-section"><h3>Assignments</h3>${item.assignments.map((assignment) => `<article><h4>${escapeHtml(assignment.role)}</h4><p>${statusBadge(assignment.status)} · ${escapeHtml(assignment.reviewed_frames)} frames reviewed${assignment.revoked_at ? " · revoked" : ""}</p><p class="muted">Expires ${escapeHtml(formatDate(assignment.expires_at))}</p>${terminal ? "" : `${assignment.revoked_at ? "" : `<button class="secondary" type="button" data-invitation-action="revoke" data-campaign="${escapeHtml(item.id)}" data-role="${escapeHtml(assignment.role)}">Revoke invitation</button>`} ${assignment.status === "complete" ? "" : `<button class="secondary" type="button" data-invitation-action="reissue" data-campaign="${escapeHtml(item.id)}" data-role="${escapeHtml(assignment.role)}">Reissue invitation</button>`}`}</article>`).join("")}</section><section class="detail-section"><h3>Audit history</h3>${item.audit_events.map((event) => `<p><strong>${escapeHtml(event.action)}</strong> · ${escapeHtml(formatDate(event.created_at))}${event.details.role ? ` · ${escapeHtml(event.details.role)}` : ""}</p>`).join("")}</section>${item.result_url ? `<p>The adjudicated artifact is a ground-truth candidate. Validation and approval remain pending.</p><button type="button" data-campaign-result="${escapeHtml(item.id)}">Download candidate</button>` : ""}${terminal ? "" : `<button class="secondary danger" type="button" data-campaign-cancel="${escapeHtml(item.id)}">Cancel campaign</button>`}`;
+  } catch (error) { $("campaign-detail").textContent = error.message; }
+}
+
+async function campaignAction(button) {
+  button.disabled = true;
+  try {
+    if (button.dataset.campaignResult) {
+      const id = button.dataset.campaignResult;
+      const response = await fetch(`/api/v1/campaigns/${encodeURIComponent(id)}/result`, { headers: { authorization: `Bearer ${token}` } });
+      if (!response.ok) throw new Error(`Candidate unavailable (${response.status})`);
+      const url = URL.createObjectURL(await response.blob()), link = document.createElement("a");
+      link.href = url; link.download = `${id}.candidate.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); return;
+    }
+    const id = button.dataset.campaignCancel || button.dataset.campaign;
+    const path = button.dataset.campaignCancel ? `/review-campaigns/${id}/cancel` : `/review-campaigns/${id}/assignments/${button.dataset.role}/${button.dataset.invitationAction}`;
+    const payload = await api(path, { method: "POST" });
+    if (payload.invitation) showInvitations({ [button.dataset.role]: payload.invitation });
+    await inspectCampaign(id); await loadAll();
+  } catch (error) { toast(error.message); }
+  finally { button.disabled = false; }
+}
+
+function groundTruthBadge(item) { return statusBadge(item.approval_status === "pending" ? item.status : item.approval_status); }
+function renderGroundTruth() {
+  $("ground-truth-table").innerHTML = groundTruths.length ? `<table><thead><tr><th>Candidate</th><th>Campaign</th><th>Status</th><th>Scope</th><th>Actions</th></tr></thead><tbody>${groundTruths.map((item) => `<tr><td><strong>${escapeHtml(item.id)}</strong><small>${escapeHtml(shortChecksum(item.sha256))}</small></td><td>${escapeHtml(item.campaign_name)}<small>${escapeHtml(item.campaign_id)}</small></td><td>${groundTruthBadge(item)}</td><td>${escapeHtml(item.approval_scope || "Not approved")}</td><td><button class="secondary" type="button" data-ground-truth-inspect="${escapeHtml(item.id)}">Inspect</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty-state"><strong>No ground-truth candidates</strong><p>Complete managed adjudication to register an immutable candidate.</p></div>';
+}
+
+async function inspectGroundTruth(id) {
+  const request = ++groundTruthRequest;
+  groundTruthDetail = undefined; $("ground-truth-title").textContent = id; $("ground-truth-detail").textContent = "Loading…";
+  if (!$("ground-truth-dialog").open) $("ground-truth-dialog").showModal();
+  try {
+    const item = (await api(`/ground-truth/${encodeURIComponent(id)}`)).data;
+    let report = null, reportError = "";
+    if (item.latest_validation_id) {
+      try { report = await api(`/ground-truth/${id}/validations/${item.latest_validation_id}/report`); }
+      catch (error) { reportError = error.message; }
+    }
+    if (request !== groundTruthRequest || !$("ground-truth-dialog").open) return;
+    groundTruthDetail = item;
+    const gates = report?.annotation_validation?.corpus_adequacy_gates || {}, counts = report?.annotation_validation?.counts;
+    const errors = [...(reportError ? [reportError] : []), ...(report?.integrity?.errors || []), ...(report?.annotation_validation?.errors || [])];
+    $("ground-truth-detail").innerHTML = `<section class="detail-section"><h3>Frozen inputs</h3><p>${groundTruthBadge(item)} · revision ${escapeHtml(item.revision)}</p><p>Campaign ${escapeHtml(item.campaign_name)}</p><p>Template <code>${escapeHtml(item.template_id)}</code></p><p>Candidate SHA-256 <code>${escapeHtml(item.sha256)}</code></p>${item.superseded_by_id ? `<p>Replaced by <code>${escapeHtml(item.superseded_by_id)}</code></p>` : ""}<div class="detail-actions"><button class="secondary" type="button" data-ground-truth-download>Download candidate</button><button class="secondary" type="button" data-ground-truth-policy>Read pinned policy</button></div></section><section class="detail-section"><h3>Latest validation</h3>${reportError ? `<p class="job-error">${escapeHtml(reportError)}</p>` : ""}${report ? `<p>${report.passed ? "Passed the diagnostic validation gates." : "Validation did not pass."}</p>${counts ? `<p>${escapeHtml(counts.sources)} sources · ${escapeHtml(counts.frames)} frames · ${escapeHtml(counts.non_person_objects)} non-person objects · ${escapeHtml(counts.non_person_classes)} non-person classes</p>` : ""}${Object.entries(gates).map(([gate, passed]) => `<p>${passed ? "✓" : "✕"} ${escapeHtml(gate.replaceAll("_", " "))}</p>`).join("")}${errors.map((error) => `<p class="job-error">${escapeHtml(error)}</p>`).join("")}` : '<p>No validation has been recorded.</p>'}</section><section class="detail-section"><h3>Validation history</h3>${item.validations.map((run) => `<p>${escapeHtml(formatDate(run.created_at))} · ${run.passed ? "Passed" : "Failed"} <button class="secondary" type="button" data-ground-truth-report="${escapeHtml(run.id)}">Inspect report</button></p>`).join("") || '<p class="muted">No reports.</p>'}</section><section class="detail-section"><h3>Decision history</h3>${item.decisions.map((decision) => `<p><strong>${escapeHtml(decision.decision)}</strong> · ${escapeHtml(decision.actor_reference)} · ${escapeHtml(formatDate(decision.created_at))}<br>${escapeHtml(decision.reason)}</p>`).join("") || '<p class="muted">No approval or rejection has been recorded.</p>'}</section><div class="detail-actions">${item.approval_status === "pending" ? `<button type="button" data-ground-truth-action="validate">Run validation</button>${item.status === "valid" && report?.passed ? '<button type="button" data-ground-truth-action="approve">Approve for diagnostic evaluation</button>' : ""}<button class="secondary danger" type="button" data-ground-truth-action="reject">Reject candidate</button>` : item.approval_status === "approved" ? '<button class="secondary" type="button" data-ground-truth-action="supersede">Supersede with approved version</button>' : ""}</div>`;
+  } catch (error) { if (request === groundTruthRequest) $("ground-truth-detail").textContent = error.message; }
+}
+
+async function groundTruthAction(button) {
+  if (!groundTruthDetail) return;
+  const item = groundTruthDetail, action = button.dataset.groundTruthAction;
+  if (button.hasAttribute("data-ground-truth-policy")) { await inspectRegistry("policies", item.policy_version_id); return; }
+  if (button.hasAttribute("data-ground-truth-download")) {
+    try {
+      const response = await apiResponse(`/ground-truth/${item.id}/artifact`);
+      if (!response.ok) throw new Error(`Candidate unavailable (${response.status})`);
+      const url = URL.createObjectURL(await response.blob()), link = document.createElement("a");
+      link.href = url; link.download = `${item.id}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) { toast(error.message); }
+    return;
+  }
+  if (button.dataset.groundTruthReport) {
+    $("registry-title").textContent = "Validation report"; $("registry-detail").textContent = "Loading…"; $("registry-dialog").showModal();
+    try { $("registry-detail").innerHTML = `<pre>${escapeHtml(prettyJson(await api(`/ground-truth/${item.id}/validations/${button.dataset.groundTruthReport}/report`)))}</pre>`; }
+    catch (error) { $("registry-detail").textContent = error.message; }
+    return;
+  }
+  if (action === "validate") {
+    button.disabled = true;
+    try { await api(`/ground-truth/${item.id}/validate`, { method: "POST", headers: { "content-type": "application/json", "if-match": String(item.revision) }, body: "{}" }); await inspectGroundTruth(item.id); await loadAll(); }
+    catch (error) { toast(error.message); button.disabled = false; }
+    return;
+  }
+  const form = $("ground-truth-decision-form"); form.reset(); form.querySelector(".form-status").textContent = "";
+  form.dataset.id = item.id; form.dataset.revision = item.revision; form.dataset.action = action;
+  $("ground-truth-decision-title").textContent = { approve: "Approve for diagnostic evaluation", reject: "Reject candidate", supersede: "Supersede approved version" }[action];
+  $("ground-truth-decision-target").textContent = `${item.id} · revision ${item.revision} · SHA-256 ${item.sha256}`;
+  $("ground-truth-approval-fields").hidden = action !== "approve"; $("ground-truth-attest").required = action === "approve";
+  $("ground-truth-replacement-fields").hidden = action !== "supersede";
+  const replacements = groundTruths.filter((replacement) => replacement.id !== item.id && replacement.template_id === item.template_id && replacement.status === "approved" && replacement.approval_status === "approved");
+  $("ground-truth-replacement").innerHTML = replacements.length ? replacements.map((replacement) => `<option value="${escapeHtml(replacement.id)}">${escapeHtml(replacement.campaign_name)} · ${escapeHtml(replacement.id)}</option>`).join("") : '<option value="">No approved version over this template</option>';
+  form.querySelector('[type="submit"]').disabled = action === "supersede" && !replacements.length;
+  $("ground-truth-decision-dialog").showModal();
 }
 
 async function loadEvidence(frameSetId, frame) {
@@ -245,14 +409,18 @@ function parseSourceUrls(value) {
 }
 
 async function loadAll() {
-  const results = await Promise.allSettled([api("/overview"), api("/datasets"), api("/sampling-jobs"), api("/frame-sets"), api("/runners")]);
+  const results = await Promise.allSettled([api("/overview"), api("/datasets"), api("/sampling-jobs"), listAll("/frame-sets"), api("/runners"), listAll("/policies"), listAll("/templates"), listAll("/review-campaigns"), listAll("/ground-truth")]);
   if (results[0].status === "rejected" && results[0].reason.message.match(/401|403|unauth|forbid/i)) throw results[0].reason;
   datasets = results[1].status === "fulfilled" ? normaliseList(results[1].value, "data", "datasets", "items") : [];
   samplingJobs = results[2].status === "fulfilled" ? normaliseList(results[2].value, "data", "sampling_jobs", "jobs", "items") : [];
   frameSets = results[3].status === "fulfilled" ? normaliseList(results[3].value, "data", "frame_sets", "items") : [];
   if (results[4].status === "fulfilled") runnerPresence = results[4].value.data || runnerPresence;
+  policies = results[5].status === "fulfilled" ? normaliseList(results[5].value, "data") : [];
+  templates = results[6].status === "fulfilled" ? normaliseList(results[6].value, "data") : [];
+  campaigns = results[7].status === "fulfilled" ? normaliseList(results[7].value, "data") : [];
+  groundTruths = results[8].status === "fulfilled" ? normaliseList(results[8].value, "data") : [];
   renderOverview(results[0].status === "fulfilled" ? results[0].value : {});
-  renderRunnerPresence(); renderDatasets(); renderSampling(); renderFrameSets(); populateDatasetSelect();
+  renderGroundTruth(); renderCampaigns(); renderRegistry(); renderRunnerPresence(); renderDatasets(); renderSampling(); renderFrameSets(); populateDatasetSelect();
   const unavailable = results.filter((item) => item.status === "rejected").length;
   if (unavailable) toast(`${unavailable} control-plane resource${unavailable === 1 ? " is" : "s are"} not available yet.`);
 }
@@ -275,11 +443,11 @@ async function submitForm(form, path, body) {
     await api(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     form.closest("dialog").close(); form.reset(); toast("Saved successfully."); await loadAll();
   } catch (error) { status.textContent = error.message; }
-  finally { submit.disabled = form.id === "sampling-form" && $("sampling-dataset").disabled; }
+  finally { submit.disabled = form.id === "sampling-form" ? $("sampling-dataset").disabled : form.id === "template-form" && (!$("template-frame-set").value || !$("template-policy").value); }
 }
 
 $("login-form").addEventListener("submit", (event) => { event.preventDefault(); connect().catch((error) => { $("login-status").textContent = error.message; setConnected(false); }); });
-$("sign-out").onclick = () => { sessionStorage.removeItem("internals-admin-token"); token = ""; $("admin-token").value = ""; setConnected(false); };
+$("sign-out").onclick = () => { document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close()); $("invitation-links").replaceChildren(); sessionStorage.removeItem("internals-admin-token"); token = ""; $("admin-token").value = ""; setConnected(false); };
 $("menu-toggle").onclick = () => { const open = document.body.classList.toggle("menu-open"); $("menu-toggle").setAttribute("aria-expanded", String(open)); };
 window.addEventListener("hashchange", () => showPage(location.hash.slice(1)));
 document.querySelectorAll("[data-route-link]").forEach((link) => link.onclick = () => showPage(link.dataset.routeLink));
@@ -303,6 +471,76 @@ $("frame-set-detail").addEventListener("click", (event) => {
   if (button) downloadManifest(button.dataset.manifestDownload);
 });
 $("frame-set-dialog").addEventListener("close", clearEvidenceUrls);
+$("ground-truth-dialog").addEventListener("close", () => { groundTruthRequest++; groundTruthDetail = undefined; });
+$("ground-truth-table").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-ground-truth-inspect]"); if (button) inspectGroundTruth(button.dataset.groundTruthInspect);
+});
+$("ground-truth-detail").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-ground-truth-action], [data-ground-truth-report], [data-ground-truth-download], [data-ground-truth-policy]"); if (button) groundTruthAction(button);
+});
+$("ground-truth-decision-form").addEventListener("submit", async (event) => {
+  event.preventDefault(); const form = event.currentTarget, submit = form.querySelector('[type="submit"]'); submit.disabled = true;
+  const data = Object.fromEntries(new FormData(form)), { id, revision, action } = form.dataset;
+  if (action === "approve") { data.scope = "diagnostic"; data.attestations = { policy_reviewed: $("ground-truth-attest").checked, independent_humans_confirmed: $("ground-truth-attest").checked, predictions_unseen_confirmed: $("ground-truth-attest").checked, licensing_scope_confirmed: $("ground-truth-attest").checked }; }
+  if (action === "supersede") data.replacement_id = $("ground-truth-replacement").value;
+  try {
+    await api(`/ground-truth/${id}/${action}`, { method: "POST", headers: { "content-type": "application/json", "if-match": revision }, body: JSON.stringify(data) });
+    form.closest("dialog").close(); await inspectGroundTruth(id); await loadAll(); toast("Decision recorded.");
+  } catch (error) { form.querySelector(".form-status").textContent = error.message; }
+  finally { submit.disabled = false; }
+});
+$("invitations-dialog").addEventListener("close", () => $("invitation-links").replaceChildren());
+$("campaigns-table").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-campaign-inspect]"); if (button) inspectCampaign(button.dataset.campaignInspect);
+});
+$("campaign-detail").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-invitation-action], [data-campaign-cancel], [data-campaign-result]"); if (button) campaignAction(button);
+});
+$("campaign-form").addEventListener("submit", async (event) => {
+  event.preventDefault(); const form = event.currentTarget, submit = form.querySelector('[type="submit"]'), status = form.querySelector(".form-status");
+  submit.disabled = true; status.textContent = "Creating campaign…";
+  try {
+    const data = Object.fromEntries(new FormData(form)); data.expires_in_hours = Number(data.expires_in_hours);
+    const fingerprint = JSON.stringify(data);
+    if (!form.dataset.requestKey || form.dataset.requestFingerprint !== fingerprint) { form.dataset.requestKey = crypto.randomUUID(); form.dataset.requestFingerprint = fingerprint; }
+    data.idempotency_key = form.dataset.requestKey;
+    const payload = await api("/review-campaigns", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(data) });
+    delete form.dataset.requestKey; delete form.dataset.requestFingerprint; form.closest("dialog").close(); form.reset();
+    // Show one-time secrets before refreshing unrelated resources.
+    if (payload.invitations) showInvitations(payload.invitations);
+    else { toast(payload.warning || "Campaign already exists."); await inspectCampaign(payload.data.id); }
+    await loadAll();
+  } catch (error) { status.textContent = error.message; }
+  finally { submit.disabled = !$("campaign-template").value; }
+});
+$("policies-table").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-policy-inspect]");
+  if (button) inspectRegistry("policies", button.dataset.policyInspect);
+});
+$("templates-table").addEventListener("click", (event) => {
+  const inspect = event.target.closest("[data-template-inspect]");
+  if (inspect) inspectRegistry("templates", inspect.dataset.templateInspect);
+  const download = event.target.closest("[data-template-download]");
+  if (download) downloadTemplate(download.dataset.templateDownload);
+});
+$("policy-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = { ...Object.fromEntries(new FormData(event.currentTarget)), annotation_schema_version: "object-annotations.v1" };
+  if ($("policy-validation").value) data.validation_profile = { id: $("policy-validation").value, source_sha256: $("policy-profile-sources").value.split(/\r?\n/).map((value) => value.trim()).filter(Boolean) };
+  submitForm(event.currentTarget, "/policies", data);
+});
+function syncPolicyProfile() { const selected = Boolean($("policy-validation").value); $("policy-profile-fields").hidden = !selected; $("policy-profile-sources").disabled = !selected; $("policy-profile-sources").required = selected; }
+$("policy-validation").addEventListener("change", syncPolicyProfile);
+$("policy-form").addEventListener("reset", () => queueMicrotask(syncPolicyProfile));
+$("policy-corpus-frame-set").addEventListener("change", async () => {
+  const id = $("policy-corpus-frame-set").value; if (!id) return;
+  try { const manifest = await api(`/frame-sets/${encodeURIComponent(id)}/manifest`); if (manifest.sources?.length !== 5) throw new Error("This profile requires five distinct source videos."); $("policy-profile-sources").value = manifest.sources.map((source) => source.source_sha256).join("\n"); }
+  catch (error) { $("policy-form").querySelector(".form-status").textContent = error.message; }
+});
+$("template-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  submitForm(event.currentTarget, "/templates", { ...Object.fromEntries(new FormData(event.currentTarget)), annotation_schema_version: "object-annotations.v1" });
+});
 $("dataset-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const form = event.currentTarget;

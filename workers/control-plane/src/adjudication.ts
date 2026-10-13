@@ -3,6 +3,7 @@ import { compareReviews, type JsonRecord } from "./review-comparison";
 import { handleInternalsApi } from "./internals";
 import { handleAdminJobAction, handleRunnerApi } from "./job-lifecycle";
 import type { AdjudicationEnv } from "./types";
+import { handleManagedCampaigns } from "./managed-campaigns";
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
@@ -100,9 +101,10 @@ const INTERNAL_AREAS = [
   { id: "datasets", label: "Datasets", status: "available", summary: "D1-backed dataset registration and immutable initial versions are available." },
   { id: "sampling", label: "Sampling jobs", status: "runner_available", summary: "The deployed runner uses durable leases, heartbeats, verified uploads, and frame-set finalization; a production run succeeded, with crash-recovery and resource qualification remaining." },
   { id: "frame-sets", label: "Frame sets", status: "available", summary: "Sampling finalization registers immutable manifests and administrator APIs expose membership and private evidence." },
-  { id: "templates", label: "Templates", status: "legacy_cli", summary: "Templates are currently generated as files; registered artifacts and reference-based review creation are planned." },
-  { id: "reviews", label: "Review campaigns", status: "available", summary: "Assignment-scoped review and adjudication APIs are available through the existing review service." },
-  { id: "ground-truth", label: "Ground truth", status: "planned", summary: "Governed, versioned ground-truth resources are not implemented yet." },
+  { id: "policies", label: "Policies", status: "available", summary: "Administrator-registered immutable policy versions pin object annotation instructions and schema compatibility." },
+  { id: "templates", label: "Templates", status: "available", summary: "Verified frame sets and active policies generate registered prediction-blind templates consumed by managed campaigns through template IDs." },
+  { id: "reviews", label: "Review campaigns", status: "available", summary: "Template-referenced campaigns use D1-isolated assignments, pinned policy instructions, and private evidence; the legacy review service remains available." },
+  { id: "ground-truth", label: "Ground truth", status: "available", summary: "Candidates have checksum-bound validation reports, diagnostic approval/rejection, approved replacements, and evidence-checked eligibility. Named user authentication remains planned." },
   { id: "evaluations", label: "Evaluations", status: "legacy_cli", summary: "Diagnostic CLIs remain available; durable evaluation runs are not implemented yet." },
   { id: "models", label: "Models", status: "planned", summary: "Model registration and lifecycle governance are not implemented yet." },
   { id: "releases", label: "Pipeline releases", status: "planned", summary: "Pipeline promotion, activation, and rollback are not implemented yet." },
@@ -140,6 +142,8 @@ function apiDescription(origin: string) {
       { method: "PUT", path: "/api/v1/assignments/{id}", auth: "matching reviewer", input: "ReviewerSubmission", output: "SaveResult" },
       { method: "POST", path: "/api/v1/assignments/{id}/complete", auth: "matching reviewer", input: "empty JSON object", output: "CompletionResult" },
       { method: "GET", path: "/api/v1/assignments/{id}/frames/{source}/{filename}", auth: "matching assignment", output: "Proxied evidence bytes" },
+      { method: "GET", path: "/api/v1/assignments/{id}/policy", auth: "matching managed assignment", output: "Pinned reviewer instructions" },
+      { method: "GET", path: "/api/v1/campaigns/{id}/result", auth: "administrator or matching managed adjudicator", output: "Private adjudicated ground-truth candidate" },
       { method: "GET", path: "/api/v1/adjudications/{id}", auth: "matching adjudicator", output: "Adjudication state" },
       { method: "PUT", path: "/api/v1/adjudications/{id}/frames/{source}/{filename}", auth: "matching adjudicator", input: "AdjudicationResolution", output: "SaveResult" },
       { method: "POST", path: "/api/v1/adjudications/{id}/complete", auth: "matching adjudicator", input: "empty JSON object", output: "CompletionResult" },
@@ -148,6 +152,19 @@ function apiDescription(origin: string) {
       { method: "POST", path: "/api/v1/admin/reviews/{id}/assignments/{role}/revoke", auth: "administrator", input: "empty JSON object", output: "RevocationResult" },
       { method: "GET", path: "/api/v1/reviews/{id}/result", auth: "administrator or matching adjudicator", output: "Completed merged annotation" },
       { method: "GET", path: "/api/internal/v1/overview", auth: "administrator", output: "Internals capability and implementation status" },
+      { method: "POST", path: "/api/internal/v1/review-campaigns", auth: "administrator", input: "CreateCampaign", output: "Campaign and one-time invitations" },
+      { method: "GET", path: "/api/internal/v1/review-campaigns", auth: "administrator", output: "Paginated safe progress summaries" },
+      { method: "GET", path: "/api/internal/v1/review-campaigns/{id}", auth: "administrator", output: "Campaign progress and audit history" },
+      { method: "GET", path: "/api/internal/v1/ground-truth", auth: "administrator", output: "Paginated ground-truth versions" },
+      { method: "GET", path: "/api/internal/v1/ground-truth/{id}", auth: "administrator", output: "Validation and decision history" },
+      { method: "POST", path: "/api/internal/v1/ground-truth/{id}/validate", auth: "administrator", input: "If-Match revision", output: "Recorded immutable validation report" },
+      { method: "POST", path: "/api/internal/v1/ground-truth/{id}/approve", auth: "administrator", input: "GroundTruthApproval and If-Match", output: "Diagnostic approval" },
+      { method: "POST", path: "/api/internal/v1/ground-truth/{id}/reject", auth: "administrator", input: "GroundTruthDecision and If-Match", output: "Rejected version" },
+      { method: "POST", path: "/api/internal/v1/ground-truth/{id}/supersede", auth: "administrator", input: "GroundTruthReplacement and If-Match", output: "Superseded version" },
+      { method: "GET", path: "/api/internal/v1/ground-truth/{id}/eligibility", auth: "administrator", output: "Current diagnostic evaluation eligibility" },
+      { method: "POST", path: "/api/internal/v1/review-campaigns/{id}/cancel", auth: "administrator", output: "Cancelled campaign" },
+      { method: "POST", path: "/api/internal/v1/review-campaigns/{id}/assignments/{role}/revoke", auth: "administrator", output: "Revoked invitation" },
+      { method: "POST", path: "/api/internal/v1/review-campaigns/{id}/assignments/{role}/reissue", auth: "administrator", output: "Replacement one-time invitation" },
       { method: "GET", path: "/api/internal/v1/datasets", auth: "administrator", output: "Paginated datasets" },
       { method: "POST", path: "/api/internal/v1/datasets", auth: "administrator", input: "CreateDataset", output: "Dataset and initial version" },
       { method: "GET", path: "/api/internal/v1/datasets/{id}", auth: "administrator", output: "Dataset and versions" },
@@ -210,6 +227,36 @@ function openApi(origin: string): JsonRecord {
       "/api/internal/v1/frame-sets": { get: { summary: "List immutable frame sets", security: [{ bearerAuth: [] }], responses: { "200": { description: "Paginated frame sets" } } } },
       "/api/internal/v1/frame-sets/{id}": { get: { summary: "Inspect frame-set provenance and membership", security: [{ bearerAuth: [] }], responses: { "200": { description: "Frame set" } } } },
       "/api/internal/v1/frame-sets/{id}/manifest": { get: { summary: "Retrieve a private frame-set manifest", security: [{ bearerAuth: [] }], responses: { "200": { description: "Manifest bytes" } } } },
+      "/api/internal/v1/policies": {
+        get: { summary: "List registered policy versions", security: [{ bearerAuth: [] }], responses: { "200": { description: "Paginated policy versions" } } },
+        post: { summary: "Register and activate an immutable object-annotation policy version", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/RegisterPolicy" } } } }, responses: { "201": { description: "Policy version registered" }, "200": { description: "Identical existing version" }, "409": { description: "Immutable version conflict" } } },
+      },
+      "/api/internal/v1/policies/{id}": { get: { summary: "Inspect a policy version and its instructions", security: [{ bearerAuth: [] }], responses: { "200": { description: "Policy version" } } } },
+      "/api/internal/v1/templates": {
+        get: { summary: "List registered templates", security: [{ bearerAuth: [] }], responses: { "200": { description: "Paginated templates" } } },
+        post: { summary: "Generate a verified prediction-blind template", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/GenerateTemplate" } } } }, responses: { "201": { description: "Template registered" }, "200": { description: "Existing template" }, "422": { description: "Schema, provenance, or evidence validation failed" } } },
+      },
+      "/api/internal/v1/templates/{id}": { get: { summary: "Inspect registered template metadata", security: [{ bearerAuth: [] }], responses: { "200": { description: "Template" } } } },
+      "/api/internal/v1/templates/{id}/artifact": { get: { summary: "Retrieve a private checksum-verified template artifact", security: [{ bearerAuth: [] }], responses: { "200": { description: "Template JSON" } } } },
+      "/api/internal/v1/review-campaigns": {
+        get: { summary: "List managed campaign progress without invitations or submissions", security: [{ bearerAuth: [] }], responses: { "200": { description: "Paginated campaigns" } } },
+        post: { summary: "Create three assignments from a registered template", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateCampaign" } } } }, responses: { "201": { description: "Campaign and one-time invitations" }, "200": { description: "Idempotent existing campaign; secrets are not replayed" } } },
+      },
+      "/api/internal/v1/review-campaigns/{id}": { get: { summary: "Inspect campaign progress and audit history", security: [{ bearerAuth: [] }], responses: { "200": { description: "Campaign" } } } },
+      "/api/internal/v1/review-campaigns/{id}/cancel": { post: { summary: "Cancel a campaign and revoke its assignments", security: [{ bearerAuth: [] }], responses: { "200": { description: "Cancelled" }, "409": { description: "Campaign is terminal" } } } },
+      "/api/internal/v1/review-campaigns/{id}/assignments/{role}/revoke": { post: { summary: "Revoke a managed invitation", security: [{ bearerAuth: [] }], responses: { "200": { description: "Revoked" } } } },
+      "/api/internal/v1/review-campaigns/{id}/assignments/{role}/reissue": { post: { summary: "Reissue an unfinished managed assignment invitation", security: [{ bearerAuth: [] }], responses: { "200": { description: "New one-time secret; previous token invalidated" }, "409": { description: "Assignment or campaign is terminal" } } } },
+      "/api/v1/assignments/{id}/policy": { get: { summary: "Read managed assignment policy instructions", security: [{ bearerAuth: [] }], responses: { "200": { description: "Pinned policy" } } } },
+      "/api/v1/campaigns/{id}/result": { get: { summary: "Retrieve an adjudicated candidate for a managed campaign", security: [{ bearerAuth: [] }], responses: { "200": { description: "Checksum-verified candidate, not approved ground truth" } } } },
+      "/api/internal/v1/ground-truth": { get: { summary: "List governed ground-truth versions", security: [{ bearerAuth: [] }], responses: { "200": { description: "Paginated versions" } } } },
+      "/api/internal/v1/ground-truth/{id}": { get: { summary: "Read candidate metadata, validation runs, and human decision history", security: [{ bearerAuth: [] }], responses: { "200": { description: "Version and evidence history" } } } },
+      "/api/internal/v1/ground-truth/{id}/validate": { post: { summary: "Record a bounded synchronous validation against frozen diagnostic rules", security: [{ bearerAuth: [] }], parameters: [{ in: "header", name: "If-Match", required: true, schema: { type: "string" } }], responses: { "200": { description: "Immutable validation report, including failed gates" }, "412": { description: "Version or evidence changed" }, "428": { description: "Revision required" } } } },
+      "/api/internal/v1/ground-truth/{id}/approve": { post: { summary: "Explicitly approve a fully validated candidate for diagnostic evaluation", security: [{ bearerAuth: [] }], parameters: [{ in: "header", name: "If-Match", required: true, schema: { type: "string" } }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/GroundTruthApproval" } } } }, responses: { "200": { description: "Approval decision recorded" }, "409": { description: "Passing validation or pending state required" }, "422": { description: "Evidence no longer matches validation" } } } },
+      "/api/internal/v1/ground-truth/{id}/reject": { post: { summary: "Reject an undecided candidate with an accountable reference and reason", security: [{ bearerAuth: [] }], parameters: [{ in: "header", name: "If-Match", required: true, schema: { type: "string" } }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/GroundTruthDecision" } } } }, responses: { "200": { description: "Rejection recorded" } } } },
+      "/api/internal/v1/ground-truth/{id}/supersede": { post: { summary: "Replace approval with an eligible version over the same frozen template", security: [{ bearerAuth: [] }], parameters: [{ in: "header", name: "If-Match", required: true, schema: { type: "string" } }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/GroundTruthReplacement" } } } }, responses: { "200": { description: "Supersession recorded" } } } },
+      "/api/internal/v1/ground-truth/{id}/eligibility": { get: { summary: "Recheck approval, decision, reports, and input evidence for diagnostic evaluation", security: [{ bearerAuth: [] }], parameters: [{ in: "query", name: "scope", schema: { const: "diagnostic", default: "diagnostic" } }], responses: { "200": { description: "Eligibility and evidence references or failure reasons" } } } },
+      "/api/internal/v1/ground-truth/{id}/artifact": { get: { summary: "Retrieve checksum-verified candidate bytes", security: [{ bearerAuth: [] }], responses: { "200": { description: "Candidate JSON" } } } },
+      "/api/internal/v1/ground-truth/{id}/validations/{validation_id}/report": { get: { summary: "Retrieve private immutable validation evidence scoped to a version", security: [{ bearerAuth: [] }], responses: { "200": { description: "Checksum-verified report" } } } },
       "/api/internal/v1/frame-sets/{id}/frames/{frame_id}/evidence": { get: { summary: "Retrieve private frame evidence", security: [{ bearerAuth: [] }], responses: { "200": { description: "Frame bytes" } } } },
       "/api/internal/v1/runner/sampling-jobs/claim": { post: { summary: "Atomically claim eligible sampling work", security: [{ bearerAuth: [] }], responses: { "200": { description: "Job lease or no available work" } } } },
       "/api/internal/v1/runner/dataset-versions/{id}/sources": { get: { summary: "Resolve ordered sources for managed sampling", security: [{ bearerAuth: [] }], responses: { "200": { description: "Dataset-version sources" } } } },
@@ -223,6 +270,12 @@ function openApi(origin: string): JsonRecord {
     components: {
       securitySchemes: { bearerAuth: { type: "http", scheme: "bearer" } },
       schemas: {
+        GroundTruthDecision: { type: "object", additionalProperties: false, required: ["actor_reference", "reason"], properties: { actor_reference: { type: "string", minLength: 1, maxLength: 200 }, reason: { type: "string", minLength: 1, maxLength: 2000 } } },
+        GroundTruthApproval: { type: "object", additionalProperties: false, required: ["actor_reference", "reason", "scope", "attestations"], properties: { actor_reference: { type: "string", minLength: 1, maxLength: 200 }, reason: { type: "string", minLength: 1, maxLength: 2000 }, scope: { const: "diagnostic" }, attestations: { type: "object", additionalProperties: false, required: ["policy_reviewed", "independent_humans_confirmed", "predictions_unseen_confirmed", "licensing_scope_confirmed"], properties: { policy_reviewed: { const: true }, independent_humans_confirmed: { const: true }, predictions_unseen_confirmed: { const: true }, licensing_scope_confirmed: { const: true } } } } },
+        GroundTruthReplacement: { type: "object", additionalProperties: false, required: ["actor_reference", "reason", "replacement_id"], properties: { actor_reference: { type: "string", minLength: 1, maxLength: 200 }, reason: { type: "string", minLength: 1, maxLength: 2000 }, replacement_id: { type: "string", pattern: "^gt_[a-f0-9]{32}$" } } },
+        CreateCampaign: { type: "object", additionalProperties: false, required: ["name", "template_id"], properties: { name: { type: "string", minLength: 1, maxLength: 120 }, template_id: { type: "string", pattern: "^tpl_[a-f0-9]{32}$" }, expires_in_hours: { type: "integer", minimum: 1, maximum: 720, default: 168 }, idempotency_key: { type: "string", minLength: 1, maxLength: 200 } } },
+        RegisterPolicy: { type: "object", additionalProperties: false, required: ["name", "version", "annotation_schema_version", "document"], properties: { name: { type: "string", minLength: 1, maxLength: 120 }, version: { type: "string", pattern: "^[a-zA-Z0-9._-]{1,80}$" }, annotation_schema_version: { const: "object-annotations.v1" }, document: { type: "string", minLength: 1, maxLength: 48000 }, validation_profile: { type: "object", additionalProperties: false, required: ["id", "source_sha256"], properties: { id: { const: "coco-object-diagnostic.v1" }, source_sha256: { type: "array", minItems: 5, maxItems: 5, uniqueItems: true, items: { type: "string", pattern: "^[a-f0-9]{64}$" } } } } } },
+        GenerateTemplate: { type: "object", additionalProperties: false, required: ["frame_set_id", "policy_version_id", "annotation_schema_version"], properties: { frame_set_id: { type: "string" }, policy_version_id: { type: "string" }, annotation_schema_version: { const: "object-annotations.v1" } } },
         CreateReview: { type: "object", required: ["id", "template", "frame_urls"], properties: { id: { type: "string", pattern: ID_PATTERN.source }, template: { type: "object" }, frame_urls: { type: "object", additionalProperties: { type: "string", format: "uri" } }, expires_in_hours: { type: "integer", minimum: 1, maximum: 720, default: 168 } } },
         ReviewerSubmission: { type: "object", required: ["policy_version", "review", "sources"], properties: { policy_version: {}, review: { type: "object" }, sources: { type: "array" } } },
         AdjudicationResolution: { type: "object", required: ["frame", "resolution"], properties: { frame: { type: "object" }, resolution: { enum: ["reviewer_a", "reviewer_b", "edited", "ambiguous"] } } },
@@ -393,6 +446,13 @@ async function handleControlPlaneRequest(request: Request, env: AdjudicationEnv)
       error_name: error instanceof Error ? error.name : "UnknownError",
     });
     return json({ error: "runner request failed" }, 500);
+  }
+  try {
+    const managed = await handleManagedCampaigns(request, env);
+    if (managed) return managed;
+  } catch (error) {
+    console.error({ event: "managed_campaign_handler_failed", method: request.method, error_name: error instanceof Error ? error.name : "UnknownError" });
+    return json({ error: "campaign request failed" }, 500);
   }
   const actor = await principal(request, env);
   if (!actor) return json({ error: "unauthorized" }, 401);

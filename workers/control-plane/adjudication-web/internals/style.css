@@ -41,6 +41,7 @@ main { max-width: 1440px; padding: clamp(1rem, 4vw, 2.5rem); }
 label { display: block; margin: 0 0 .35rem; color: #34433e; font-size: .85rem; font-weight: 750; }
 label span { color: var(--muted); font-weight: 400; }
 input, textarea, select { width: 100%; padding: .72rem .8rem; border: 1px solid #bdc9c2; border-radius: .5rem; color: var(--ink); background: #fff; }
+input[type="checkbox"] { width: auto; margin-right: .5rem; }
 .input-action { display: flex; gap: .5rem; }
 .input-action input { min-width: 0; }
 .form-status { min-height: 1.5em; margin: .5rem 0 0; color: #a23d2d; font-size: .82rem; }
@@ -111,7 +112,7 @@ dialog form { padding: 1.4rem; }
 .detail-metrics > div { padding: .85rem; border: 1px solid var(--line); border-radius: .6rem; background: #fafbfa; }
 .detail-metrics small, .detail-metrics strong { display: block; }
 .detail-metrics small { margin-bottom: .3rem; color: var(--muted); }
-.detail-actions { display: flex; justify-content: flex-end; }
+.detail-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; }
 .detail-section { margin-top: 1.4rem; padding-top: 1.2rem; border-top: 1px solid var(--line); }
 .detail-section pre { max-height: 260px; overflow: auto; padding: .8rem; border-radius: .5rem; color: #e5f0eb; background: #172521; white-space: pre-wrap; overflow-wrap: anywhere; }
 .attempt-table { overflow-x: auto; }
