@@ -124,9 +124,10 @@ reference, which Cloudflare rejects when creating a Container application. The c
 trigger invokes one guarded `/run-once` execution each minute. The Container claims
 at most one job per invocation, rejects concurrent work as `busy`, downloads sources
 with the existing SSRF and size protections, maintains a heartbeat thread, uploads
-checksum-bound frames, and finalizes `frame-set-manifest.v1`. Remote rollout,
-real-media execution, and Container resource sizing still require verification in
-an authenticated Cloudflare account.
+checksum-bound frames, and finalizes `frame-set-manifest.v1`. The runner and
+control plane are deployed, and a production sampling run completed through
+frame-set finalization. Crash recovery, cancellation races, and Container resource
+sizing still require qualification.
 
 ## Cloudflare project layout
 

@@ -98,7 +98,7 @@ function reviewSummary(review: ReviewRecord) {
 }
 const INTERNAL_AREAS = [
   { id: "datasets", label: "Datasets", status: "available", summary: "D1-backed dataset registration and immutable initial versions are available." },
-  { id: "sampling", label: "Sampling jobs", status: "runner_available", summary: "A separate cron-driven Container runner uses durable leases, heartbeats, verified uploads, and frame-set finalization; remote rollout remains to be verified." },
+  { id: "sampling", label: "Sampling jobs", status: "runner_available", summary: "The deployed runner uses durable leases, heartbeats, verified uploads, and frame-set finalization; a production run succeeded, with crash-recovery and resource qualification remaining." },
   { id: "frame-sets", label: "Frame sets", status: "available", summary: "Sampling finalization registers immutable manifests and administrator APIs expose membership and private evidence." },
   { id: "templates", label: "Templates", status: "legacy_cli", summary: "Templates are currently generated as files; registered artifacts and reference-based review creation are planned." },
   { id: "reviews", label: "Review campaigns", status: "available", summary: "Assignment-scoped review and adjudication APIs are available through the existing review service." },

@@ -123,10 +123,11 @@ the dataset `ready`, freezes its initial version, and records durable `queued` s
 metadata in the control-plane D1 database. The control plane also exposes a
 runner-authenticated claim/lease protocol, heartbeats, attempt history, completion
 and failure reporting, requeue behavior, and administrator cancel/retry operations.
-The separately deployed sampling-runner Worker and Container now execute that
-protocol with the shared engine and register verified frame-set outputs. Remote
-Cloudflare rollout and real-media verification remain open, so the existing CLI
-remains the operational fallback until that verification is complete. Cross-database
+The separately deployed sampling-runner Worker and Container execute that protocol
+with the shared engine and register verified frame-set outputs; a production
+sampling run has completed through frame-set finalization. Crash-recovery,
+cancellation-race, and resource-sizing qualification remain open, and the CLI
+continues as an operational fallback and reproducibility path. Cross-database
 references are validated by the application because separate D1 databases cannot
 provide foreign keys or atomic transactions across that boundary. Large immutable
 media and reports belong in object storage. See the

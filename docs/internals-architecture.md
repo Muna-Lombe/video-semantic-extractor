@@ -48,7 +48,8 @@ routes require authenticated identities and explicit authorization.
    not in the control-plane Worker and not in the Product capsule Container. The
    runner reaches the control plane through a same-account Service binding; it
    does not require the control-plane API to be exposed as a public runner URL.
-   This runner now ships in the repository; remote deployment remains to be verified.
+   The runner is deployed, and a production sampling run has completed through
+   frame-set finalization; broader crash-recovery and resource qualification remain.
 
 ## Product and Internals boundary
 
@@ -154,9 +155,9 @@ an initial `queued` state. Runner-authenticated endpoints provide atomic claims
 with expiring leases, heartbeats, verified frame uploads, manifest finalization,
 failure/requeue behavior, and attempt audit records; administrator endpoints
 provide cancellation and retry. That makes the request, artifact-registration,
-    and orchestration surfaces durable and queryable. A separate sampling executor
-    now ships, while the CLI remains the offline/recovery path. Until the runner is
-    deployed and verified, hosted jobs will still remain queued.
+and orchestration surfaces durable and queryable. The separately deployed sampling
+executor has completed a production run through verified frame-set finalization;
+the CLI remains the offline/recovery path.
 
 ### Sampling-runner deployment topology
 
@@ -467,7 +468,7 @@ Progress values are planning estimates, not measured completion claims.
 
 | Current problem | Decision |
 | --- | --- |
-| Sampling runner is not remotely verified | Deploy the shipped sampling-runner Worker and Container, verify real-media execution through its `CONTROL_PLANE` Service binding, and retain CLI execution/import. |
+| Sampling runner operational qualification is incomplete | The runner and control plane are deployed, and a production run through frame-set finalization is verified; continue crash-recovery, cancellation-race, and resource-sizing exercises while retaining CLI execution/import. |
 | Templates are loose generated files | Register immutable template artifacts in D1 with content in R2. |
 | Review creation accepts raw templates and URL maps | Migrate to validated template references and managed evidence resolution; keep a compatibility route temporarily. |
 | Diagnostics are not durable jobs | Wrap shared diagnostic engines in queued, retryable, auditable jobs. |
