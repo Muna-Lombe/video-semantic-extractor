@@ -9,6 +9,7 @@ import type { AdjudicationEnv } from "./types";
 import { listRunnerPresence } from "./runner-presence";
 import { handleTemplateRegistry } from "./template-registry";
 import { handleGroundTruthApi } from "./ground-truth";
+import { canAccessInternals, resolveInternalActor, type InternalUser } from "./internal-auth";
 
 type JsonRecord = Record<string, unknown>;
 type DatasetStatus = "draft" | "ready" | "active" | "archived";
@@ -24,11 +25,6 @@ function json(value: unknown, status = 200): Response {
 
 function error(code: string, message: string, status: number, details?: JsonRecord): Response {
   return json({ error: { code, message, ...(details ? { details } : {}) } }, status);
-}
-
-function authorized(request: Request, env: AdjudicationEnv): boolean {
-  const header = request.headers.get("authorization");
-  return header?.startsWith("Bearer ") === true && header.slice(7) === env.ADMIN_TOKEN;
 }
 
 async function body(request: Request): Promise<JsonRecord | Response> {
@@ -284,11 +280,13 @@ async function frameSetObject(frameSetId: string, frameId: string | null, env: A
 }
 
 /** Return null when the path is not owned by this module. */
-export async function handleInternalsApi(request: Request, env: AdjudicationEnv): Promise<Response | null> {
+export async function handleInternalsApi(request: Request, env: AdjudicationEnv, authenticatedUser: InternalUser | null = null): Promise<Response | null> {
   const url = new URL(request.url), path = url.pathname.replace(/\/$/, "");
   if (!path.startsWith("/api/internal/v1/")) return null;
-  if (!authorized(request, env)) return error("unauthorized", "administrator bearer token required", 401);
-  const groundTruth = await handleGroundTruthApi(request, env);
+  const actor = await resolveInternalActor(request, env);
+  if (!actor) return error("unauthorized", "verified Internals sign-in required", 401);
+  if (!canAccessInternals(actor, request)) return error("forbidden", "your role is not allowed to perform this operation", 403);
+  const groundTruth = await handleGroundTruthApi(request, env, authenticatedUser ?? (actor.kind === "user" ? actor.user : null));
   if (groundTruth) return groundTruth;
   const registry = await handleTemplateRegistry(request, env);
   if (registry) return registry;

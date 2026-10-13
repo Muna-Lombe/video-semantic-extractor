@@ -47,15 +47,31 @@
         <main id="content" tabindex="-1">
           <section id="login-panel" class="login-card" aria-labelledby="login-title">
             <div>
-              <p class="eyebrow">Administrator access</p>
-              <h2 id="login-title">Connect to Internals</h2>
-              <p>Enter the administrator token to load control-plane data. It is stored only in this browser tab.</p>
+              <p class="eyebrow">Named account access</p>
+              <h2 id="login-title">Sign in to Internals</h2>
+              <p>Use your verified email address. We will send a one-time sign-in link.</p>
             </div>
-            <form id="login-form">
-              <label for="admin-token">Administrator token</label>
-              <div class="input-action"><input id="admin-token" type="password" autocomplete="current-password" required><button type="submit">Connect</button></div>
-              <p id="login-status" class="form-status" role="status"></p>
-            </form>
+            <div>
+              <form id="login-form">
+                <label for="login-email">Work email</label>
+                <div class="input-action"><input id="login-email" type="email" autocomplete="email" required><button type="submit">Send link</button></div>
+                <p id="login-status" class="form-status" role="status"></p>
+              </form>
+              <form id="legacy-login-form" hidden>
+                <label for="legacy-admin-token">Administrator token</label>
+                <input id="legacy-admin-token" type="password" autocomplete="current-password" required>
+                <button type="submit">Connect</button>
+                <p id="legacy-login-status" class="form-status" role="status"></p>
+              </form>
+              <form id="bootstrap-form" hidden>
+                <label for="bootstrap-email">Owner email</label><input id="bootstrap-email" type="email" autocomplete="email" required>
+                <label for="bootstrap-name">Display name</label><input id="bootstrap-name" autocomplete="name" required maxlength="120">
+                <label for="bootstrap-token">One-time bootstrap credential</label><input id="bootstrap-token" type="password" autocomplete="off" required>
+                <button type="submit">Create owner account</button>
+                <p id="bootstrap-status" class="form-status" role="status"></p>
+              </form>
+              <p id="bootstrap-note" class="field-help" hidden>Initial owner setup is available. Use the one-time credential provided by your deployment administrator.</p>
+            </div>
           </section>
 
           <div id="workspace" hidden>
@@ -65,6 +81,22 @@
                 <button class="secondary" type="button" data-refresh>Refresh data</button>
               </div>
               <div id="overview-cards" class="metric-grid" aria-live="polite"></div>
+              <section id="identity-admin-panel" class="panel identity-admin" hidden>
+                <div class="panel-heading"><div><p class="eyebrow">Access control</p><h3>People and roles</h3></div></div>
+                <form id="internal-user-form" class="identity-form">
+                  <label for="internal-user-name">Display name</label><input id="internal-user-name" name="display_name" required maxlength="120">
+                  <label for="internal-user-email">Email</label><input id="internal-user-email" name="email" type="email" required>
+                  <label for="internal-user-roles">Roles <span>(select one or more)</span></label>
+                  <select id="internal-user-roles" name="roles" multiple required>
+                    <option value="operator">Operator</option><option value="researcher">Researcher</option>
+                    <option value="review_coordinator">Review coordinator</option><option value="reviewer">Reviewer</option>
+                    <option value="adjudicator">Adjudicator</option><option value="release_approver">Release approver</option>
+                    <option value="owner">Owner</option>
+                  </select>
+                  <button type="submit">Invite user</button><p id="internal-user-status" class="form-status" role="status"></p>
+                </form>
+                <div id="internal-users-table"></div>
+              </section>
               <div class="content-grid">
                 <article class="panel span-two">
                   <div class="panel-heading"><div><p class="eyebrow">Pipeline</p><h3>Development flow</h3></div><span class="badge neutral">Foundation</span></div>
@@ -145,8 +177,8 @@
         <div class="dialog-heading"><div><p class="eyebrow">Independent annotation</p><h2>Create review campaign</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div>
         <label for="campaign-name">Name</label><input id="campaign-name" name="name" required maxlength="120">
         <label for="campaign-template">Registered template</label><select id="campaign-template" name="template_id" required></select>
-        <label for="campaign-expiry">Invitation lifetime (hours)</label><input id="campaign-expiry" name="expires_in_hours" type="number" min="1" max="720" value="168" required>
-        <p class="field-help">Two independent reviewers and a third adjudicator receive separate invitations. Reviewers see only their own work. The adjudicator can open both submissions after both passes are complete.</p>
+        <label for="campaign-expiry">Assignment token lifetime (hours)</label><input id="campaign-expiry" name="expires_in_hours" type="number" min="1" max="720" value="168" required>
+        <p class="field-help">A campaign creates two independent reviewer assignments and one adjudicator assignment. Generate each separate, role-scoped job token from the campaign's Assignments section. Tokens are independent of Internals sign-in and are shown only once.</p>
         <p class="form-status" role="status"></p><div class="dialog-actions"><button class="secondary" type="button" data-dialog-close>Cancel</button><button type="submit">Create campaign</button></div>
       </form>
     </dialog>
@@ -154,7 +186,7 @@
       <div class="detail-shell"><div class="dialog-heading"><h2 id="campaign-title">Campaign</h2><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div><div id="campaign-detail" aria-live="polite"></div></div>
     </dialog>
     <dialog id="invitations-dialog">
-      <div class="detail-shell"><div class="dialog-heading"><h2>Assignment invitations</h2><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div><p>Copy these private links now. Closing this window clears them. You can reissue a lost invitation from the campaign details.</p><div id="invitation-links"></div></div>
+      <div class="detail-shell"><div class="dialog-heading"><h2>Assignment access</h2><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div><p>Copy the assignment link or job token now. Closing this window clears the secret. Regenerating the token invalidates its previous value.</p><div id="invitation-links"></div></div>
     </dialog>
     <dialog id="policy-dialog">
       <form id="policy-form">

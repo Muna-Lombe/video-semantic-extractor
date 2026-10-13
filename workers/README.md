@@ -47,7 +47,9 @@ Set `ADMIN_TOKEN` to a long random secret. The administrator creates reviews and
 lists their status, while generated reviewer and adjudicator tokens are scoped to
 one assignment and expire after seven days by default (configurable from one to
 720 hours with `expires_in_hours`). Raw invitation secrets are returned only by
-the create response; the administrator list never returns them. Administrators can
+the legacy create response; managed campaigns can issue or rotate each reviewer
+and adjudicator job token from the Internals assignment details. Tokens are
+independent of Internals sign-in, and assignment listings never return them. Administrators can
 revoke an assignment through
 `POST /api/v1/admin/reviews/<id>/assignments/<role>/revoke`. Completed results are private by
 default and are available only to the administrator or matching adjudicator.
@@ -120,7 +122,15 @@ also ship locally with D1-isolated assignments and candidate artifacts; apply
 `0006_managed_campaigns.sql` before deploying that slice. Recorded diagnostic
 validation, approval/rejection, supersession, and eligibility are also implemented
 locally; apply `0007_ground_truth_governance.sql` before deployment. Managed
-evaluations and named-user RBAC remain open. See `../docs/ground-truth-governance.md`,
+email-link identities and operation-level role checks are implemented locally;
+apply `0008_internal_identity.sql` and `0009_campaign_assignment_tokens.sql` before
+deployment. Cloudflare Email Service must have `noreply@katundu.org` onboarded for
+the configured, sender-restricted send binding before enabling email-link sessions.
+Until then, `INTERNAL_AUTH_MODE = "legacy"` keeps Internals on the administrator-token
+compatibility path. Bootstrap for named accounts still uses the `ADMIN_TOKEN` secret.
+Internals issues role-scoped reviewer/adjudicator job
+tokens individually from campaign assignment details; raw tokens are shown only at
+issuance and can be rotated or revoked. Managed evaluations remain open. See `../docs/ground-truth-governance.md`,
 `../docs/managed-review-campaigns.md`, and
 `../docs/internals-architecture.md` and `../docs/internals-roadmap.md`.
 

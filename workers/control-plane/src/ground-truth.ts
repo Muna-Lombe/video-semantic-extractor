@@ -1,5 +1,6 @@
 /** @type implementation @purpose Persist candidate validation and explicit diagnostic approval decisions. */
 import type { AdjudicationEnv } from "./types";
+import type { InternalUser } from "./internal-auth";
 import type { JsonRecord } from "./review-comparison";
 import { compareReviews } from "./review-comparison";
 import { assertManagedCoverage, sameJson, validateManagedSubmission } from "./managed-annotations";
@@ -129,9 +130,9 @@ async function context(env: AdjudicationEnv, value: JsonRecord) {
   return { template, candidate, profile, candidateBytes, provenance: { reviewer_submissions: await Promise.all(reviewers.map(async (reviewer) => ({ assignment_id: reviewer.id, sha256: await sha256Hex(reviewer.submission_json) }))), comparison_sha256: await sha256Hex(adjudication.comparison_json), adjudication_sha256: await sha256Hex(adjudication.merged_json) } };
 }
 
-function audit(env: AdjudicationEnv, value: JsonRecord, operation: string, action: string, timestamp: string, details: JsonRecord) {
-  return env.CONTROL_DB.prepare("INSERT INTO internal_audit_events (action, resource_type, resource_id, details_json, created_at) SELECT ?, 'ground_truth', ?, ?, ? WHERE EXISTS (SELECT 1 FROM ground_truth_versions WHERE id = ? AND last_operation_id = ?)")
-    .bind(action, value.id, JSON.stringify(details), timestamp, value.id, operation);
+function audit(env: AdjudicationEnv, value: JsonRecord, operation: string, action: string, timestamp: string, details: JsonRecord, actorUserId: string | null = null) {
+  return env.CONTROL_DB.prepare("INSERT INTO internal_audit_events (actor_user_id, action, resource_type, resource_id, details_json, created_at) SELECT ?, ?, 'ground_truth', ?, ?, ? WHERE EXISTS (SELECT 1 FROM ground_truth_versions WHERE id = ? AND last_operation_id = ?)")
+    .bind(actorUserId, action, value.id, JSON.stringify(details), timestamp, value.id, operation);
 }
 const PIN_GUARD = `EXISTS (SELECT 1 FROM ground_truth_versions g JOIN artifacts a ON a.id = g.artifact_id
   JOIN review_campaigns c ON c.id = g.campaign_id JOIN templates t ON t.id = c.template_id
@@ -206,10 +207,11 @@ export async function getEligibleGroundTruth(env: AdjudicationEnv, versionId: st
   }
 }
 
-async function decide(request: Request, env: AdjudicationEnv, value: JsonRecord, action: "approve" | "reject" | "supersede"): Promise<Response> {
+async function decide(request: Request, env: AdjudicationEnv, value: JsonRecord, action: "approve" | "reject" | "supersede", authenticatedUser: InternalUser | null): Promise<Response> {
   const expected = revision(request), decision = await body(request);
-  const allowed = ["actor_reference", "reason", ...(action === "approve" ? ["scope", "attestations"] : action === "supersede" ? ["replacement_id"] : [])];
-  if (Object.keys(decision).some((key) => !allowed.includes(key)) || typeof decision.actor_reference !== "string" || !decision.actor_reference.trim() || decision.actor_reference.trim().length > 200 || typeof decision.reason !== "string" || !decision.reason.trim() || decision.reason.trim().length > 2000) fail("invalid_decision", "actor_reference and reason are required and must fit their limits");
+  const allowed = [...(authenticatedUser ? [] : ["actor_reference"]), "reason", ...(action === "approve" ? ["scope", "attestations"] : action === "supersede" ? ["replacement_id"] : [])];
+  const actorReference = authenticatedUser?.email ?? decision.actor_reference;
+  if (Object.keys(decision).some((key) => !allowed.includes(key)) || typeof actorReference !== "string" || !actorReference.trim() || actorReference.trim().length > 200 || typeof decision.reason !== "string" || !decision.reason.trim() || decision.reason.trim().length > 2000) fail("invalid_decision", authenticatedUser ? "reason and decision evidence are required; actor identity is server-derived" : "actor_reference and reason are required and must fit their limits");
   if (value.revision !== expected) fail("stale_revision", "candidate changed; reload before deciding", 412);
   if (action === "supersede" ? value.approval_status !== "approved" || value.status !== "approved" : value.approval_status !== "pending") fail("terminal_version", "this decision is not allowed in the current version state", 409);
   let replacement: JsonRecord | undefined;
@@ -234,15 +236,15 @@ async function decide(request: Request, env: AdjudicationEnv, value: JsonRecord,
       WHERE id = ? AND revision = ? AND approval_status = ? AND latest_validation_id IS ? AND ${PIN_GUARD}${replacementGuard} RETURNING *`)
       .bind(status, approval, action === "reject" ? null : "diagnostic", action === "approve" ? timestamp : value.approved_at, replacement?.id ?? null, operation, value.id, expected, action === "supersede" ? "approved" : "pending", value.latest_validation_id, ...pinValues(value), ...(replacement ? [replacement.id, replacement.revision] : [])),
     env.CONTROL_DB.prepare("INSERT INTO ground_truth_decisions (id, ground_truth_id, decision, actor_reference, reason, attestation_json, validation_id, candidate_sha256, replacement_id, created_at) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM ground_truth_versions WHERE id = ? AND last_operation_id = ?)")
-      .bind(decisionId, value.id, action, decision.actor_reference.trim(), decision.reason.trim(), decision.attestations ? JSON.stringify(decision.attestations) : null, value.latest_validation_id, value.candidate_sha256, replacement?.id ?? null, timestamp, value.id, operation),
-    audit(env, value, operation, `ground_truth.${action}`, timestamp, { authentication: "administrator_token", actor_reference: decision.actor_reference.trim(), decision_id: decisionId, validation_id: value.latest_validation_id, candidate_sha256: value.candidate_sha256, ...(replacement ? { replacement_id: replacement.id } : {}) }),
+      .bind(decisionId, value.id, action, actorReference.trim(), decision.reason.trim(), decision.attestations ? JSON.stringify(decision.attestations) : null, value.latest_validation_id, value.candidate_sha256, replacement?.id ?? null, timestamp, value.id, operation),
+    audit(env, value, operation, `ground_truth.${action}`, timestamp, { authentication: authenticatedUser ? "email_link_session" : "legacy_administrator_token", actor_reference: actorReference.trim(), decision_id: decisionId, validation_id: value.latest_validation_id, candidate_sha256: value.candidate_sha256, ...(replacement ? { replacement_id: replacement.id } : {}) }, authenticatedUser?.id ?? null),
   ]);
   if (!results[0].results?.length) fail("stale_revision", "candidate, validation, or replacement changed during the decision", 412);
   return json({ data: metadata(await row(env, value.id)), decision_id: decisionId });
 }
 
 /** Called behind the Internals administrator guard. */
-export async function handleGroundTruthApi(request: Request, env: AdjudicationEnv): Promise<Response | null> {
+export async function handleGroundTruthApi(request: Request, env: AdjudicationEnv, authenticatedUser: InternalUser | null = null): Promise<Response | null> {
   const url = new URL(request.url), path = url.pathname.replace(/\/$/, ""), base = "/api/internal/v1/ground-truth";
   if (path !== base && !path.startsWith(`${base}/`)) return null;
   try {
@@ -258,7 +260,7 @@ export async function handleGroundTruthApi(request: Request, env: AdjudicationEn
     const value = await row(env, match[1]), action = match[2];
     if (action === "validate" || action === "approve" || action === "reject" || action === "supersede") {
       if (request.method !== "POST") fail("method_not_allowed", "method not allowed", 405);
-      return action === "validate" ? await validate(request, env, value) : await decide(request, env, value, action);
+      return action === "validate" ? await validate(request, env, value) : await decide(request, env, value, action, authenticatedUser);
     }
     if (request.method !== "GET") fail("method_not_allowed", "method not allowed", 405);
     if (action === "eligibility") return json(await getEligibleGroundTruth(env, value.id, url.searchParams.get("scope") ?? "diagnostic"));

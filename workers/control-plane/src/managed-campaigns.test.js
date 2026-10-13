@@ -35,6 +35,36 @@ describe("managed review campaigns", () => {
     expect([...new Uint8Array(await evidence.arrayBuffer())]).toEqual([1, 2, 3]);
   });
 
+  it("issues job tokens on demand from an assignment and invalidates each rotated token", async () => {
+    const { env, template } = await fixture();
+    const createdResponse = await call(env, adminBase, "POST", { name: "On-demand tokens", template_id: template.id, issue_tokens: false });
+    expect(createdResponse.status).toBe(201);
+    const created = await createdResponse.json();
+    expect(created).not.toHaveProperty("invitations");
+    expect(created.data.assignments.every((assignment) => assignment.job_token_issued_at === null)).toBe(true);
+
+    const role = "reviewer-a";
+    const action = `${adminBase}/${created.data.id}/assignments/${role}/issue`;
+    const issuedResponse = await call(env, action, "POST");
+    expect(issuedResponse.status).toBe(200);
+    const issued = await issuedResponse.json();
+    expect(issued.invitation).toMatchObject({ assignment_id: expect.any(String), job_token: expect.any(String) });
+    expect(issued.assignment.job_token_issued_at).toEqual(expect.any(String));
+    expect((await call(env, reviewerPath(issued.invitation), "GET", undefined, issued.invitation.job_token)).status).toBe(200);
+    expect((await call(env, reviewerPath(issued.invitation), "GET", undefined, "unissued-token")).status).toBe(401);
+
+    const rotatedResponse = await call(env, action, "POST");
+    const rotated = await rotatedResponse.json();
+    expect(rotated.invitation.job_token).not.toBe(issued.invitation.job_token);
+    expect((await call(env, reviewerPath(issued.invitation), "GET", undefined, issued.invitation.job_token)).status).toBe(401);
+    expect((await call(env, reviewerPath(rotated.invitation), "GET", undefined, rotated.invitation.job_token)).status).toBe(200);
+
+    const revoked = await call(env, `${adminBase}/${created.data.id}/assignments/${role}/revoke`, "POST");
+    expect(revoked.status).toBe(200);
+    expect((await call(env, reviewerPath(rotated.invitation), "GET", undefined, rotated.invitation.job_token)).status).toBe(401);
+    expect(await (await call(env, `${adminBase}/${created.data.id}`)).text()).not.toContain(rotated.invitation.job_token);
+  });
+
   it("deduplicates campaign creation and allows recovery by reissuing lost invitations", async () => {
     const { env, template } = await fixture(), created = await campaign(env, template, "Recovery", "request-1");
     const duplicate = await call(env, adminBase, "POST", { name: "Recovery", template_id: template.id, idempotency_key: "request-1" });

@@ -5,6 +5,10 @@ export interface AdjudicationEnv {
   CONTROL_DB: D1Database;
   DATASET_DB: D1Database;
   ADMIN_TOKEN: string;
+  EMAIL?: SendEmail;
+  EMAIL_FROM?: string;
+  PUBLIC_BASE_URL?: string;
+  INTERNAL_AUTH_MODE?: "legacy" | "sessions";
   RUNNER_TOKEN?: string;
   ASSETS: Fetcher;
 }

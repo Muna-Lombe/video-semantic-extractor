@@ -1,5 +1,6 @@
 /** @type implementation @purpose Run template-referenced campaigns with D1-isolated assignments and private evidence. */
 import type { AdjudicationEnv } from "./types";
+import { canAccessInternals, resolveInternalActor, type InternalActor } from "./internal-auth";
 import { readRegisteredTemplate } from "./template-registry";
 import { sha256Hex } from "./artifact-pipeline";
 import { compareReviews, type JsonRecord } from "./review-comparison";
@@ -40,7 +41,7 @@ function expectedRevision(request: Request): number {
   return value;
 }
 function publicAssignment(row: JsonRecord) {
-  return { id: row.id, role: row.role, status: row.status, revision: row.revision, created_at: row.created_at, updated_at: row.updated_at, expires_at: row.expires_at, completed_at: row.completed_at, revoked_at: row.revoked_at, reviewed_frames: Number(row.reviewed_count ?? 0) };
+  return { id: row.id, role: row.role, status: row.status, revision: row.revision, created_at: row.created_at, updated_at: row.updated_at, expires_at: row.expires_at, completed_at: row.completed_at, revoked_at: row.revoked_at, job_token_issued_at: row.token_issued_at ?? null, reviewed_frames: Number(row.reviewed_count ?? 0) };
 }
 const CAMPAIGN_SELECT = "SELECT c.*, t.frame_count, t.frame_set_id, t.policy_version_id FROM review_campaigns c JOIN templates t ON t.id = c.template_id";
 const ASSIGNMENTS_SELECT = "SELECT *, COALESCE(json_array_length(json_extract(submission_json, '$.review.reviewed_frames')), 0) AS reviewed_count FROM campaign_assignments";
@@ -51,10 +52,10 @@ async function assignments(env: AdjudicationEnv, campaignId: string): Promise<Js
 async function summary(env: AdjudicationEnv, campaign: JsonRecord) {
   return { id: campaign.id, name: campaign.name, template_id: campaign.template_id, template_sha256: campaign.template_sha256, frame_set_id: campaign.frame_set_id, policy_version_id: campaign.policy_version_id, frame_count: campaign.frame_count, status: campaign.status, created_at: campaign.created_at, updated_at: campaign.updated_at, completed_at: campaign.completed_at, assignments: (await assignments(env, campaign.id)).map(publicAssignment) };
 }
-function audit(env: AdjudicationEnv, action: string, campaignId: string, operation: string, timestamp: string, details: JsonRecord, table = "campaign_assignments") {
-  return env.CONTROL_DB.prepare(`INSERT INTO internal_audit_events (action, resource_type, resource_id, details_json, created_at)
-    SELECT ?, 'review_campaign', ?, ?, ? WHERE EXISTS (SELECT 1 FROM ${table} WHERE campaign_id = ? AND last_operation_id = ?)`)
-    .bind(action, campaignId, JSON.stringify(details), timestamp, campaignId, operation);
+function audit(env: AdjudicationEnv, action: string, campaignId: string, operation: string, timestamp: string, details: JsonRecord, table = "campaign_assignments", actorUserId: string | null = null) {
+  return env.CONTROL_DB.prepare(`INSERT INTO internal_audit_events (actor_user_id, action, resource_type, resource_id, details_json, created_at)
+    SELECT ?, ?, 'review_campaign', ?, ?, ? WHERE EXISTS (SELECT 1 FROM ${table} WHERE campaign_id = ? AND last_operation_id = ?)`)
+    .bind(actorUserId, action, campaignId, JSON.stringify(details), timestamp, campaignId, operation);
 }
 async function pinnedTemplate(env: AdjudicationEnv, campaign: JsonRecord) {
   const loaded = await readRegisteredTemplate(env, campaign.template_id);
@@ -71,17 +72,18 @@ async function pinnedPolicy(env: AdjudicationEnv, template: JsonRecord, requireA
   return { id: row.id, name: row.name, version: row.version, sha256: row.sha256, document: definition.document };
 }
 function invitation(origin: string, assignmentId: string, role: Role, secret: string) {
-  return { assignment_id: assignmentId, url: `${origin}/${role === "adjudicator" ? "adjudicate" : "review"}/#token=${encodeURIComponent(secret)}`, api_token: secret };
+  return { assignment_id: assignmentId, url: `${origin}/${role === "adjudicator" ? "adjudicate" : "review"}/#token=${encodeURIComponent(secret)}`, job_token: secret, api_token: secret };
 }
 
-async function createCampaign(request: Request, env: AdjudicationEnv): Promise<Response> {
+async function createCampaign(request: Request, env: AdjudicationEnv, actor: InternalActor): Promise<Response> {
   const value = await body(request, 64 * 1024), hours = value.expires_in_hours ?? 168;
-  if (Object.keys(value).some((key) => !["name", "template_id", "expires_in_hours", "idempotency_key"].includes(key)) || typeof value.name !== "string" || !value.name.trim() || value.name.trim().length > 120 || typeof value.template_id !== "string" || !/^tpl_[a-f0-9]{32}$/.test(value.template_id)) fail("name and a registered template_id are required; embedded templates and frame URLs are not accepted");
+  if (Object.keys(value).some((key) => !["name", "template_id", "expires_in_hours", "idempotency_key", "issue_tokens"].includes(key)) || (value.issue_tokens !== undefined && typeof value.issue_tokens !== "boolean") || typeof value.name !== "string" || !value.name.trim() || value.name.trim().length > 120 || typeof value.template_id !== "string" || !/^tpl_[a-f0-9]{32}$/.test(value.template_id)) fail("name, a registered template_id, and an optional boolean issue_tokens are required; embedded templates and frame URLs are not accepted");
+  const issueTokens = value.issue_tokens !== false;
   if (!Number.isInteger(hours) || hours < 1 || hours > 720) fail("expires_in_hours must be an integer from 1 through 720");
   if (value.idempotency_key !== undefined && (typeof value.idempotency_key !== "string" || !/^[a-zA-Z0-9._:-]{1,200}$/.test(value.idempotency_key))) fail("idempotency_key must contain 1-200 safe characters");
   const duplicate = async (row: JsonRecord) => {
     if (row.template_id !== value.template_id || row.name !== value.name.trim() || row.invitation_hours !== hours) fail("idempotency_key is already associated with a different campaign", 409);
-    return json({ data: await summary(env, row), meta: { deduplicated: true }, warning: "Invitation secrets cannot be retrieved again. Reissue an invitation if its original response was lost." });
+    return json({ data: await summary(env, row), meta: { deduplicated: true }, warning: "Job token secrets cannot be retrieved again. Generate or rotate a token from the assignment details." });
   };
   if (value.idempotency_key) {
     const existing = await env.CONTROL_DB.prepare(`${CAMPAIGN_SELECT} WHERE c.idempotency_key = ?`).bind(value.idempotency_key).first<JsonRecord>();
@@ -97,13 +99,13 @@ async function createCampaign(request: Request, env: AdjudicationEnv): Promise<R
   const expires = new Date(Date.now() + hours * 3600000).toISOString();
   const records = await Promise.all(ROLES.map(async (role) => {
     const secret = crypto.randomUUID() + crypto.randomUUID();
-    return { id: id("ca"), role, secret, hash: await sha256Hex(secret) };
+    return { id: id("ca"), role, secret, hash: issueTokens ? await sha256Hex(secret) : null };
   }));
   try {
     await env.CONTROL_DB.batch([
       env.CONTROL_DB.prepare("INSERT INTO review_campaigns (id, name, template_id, template_sha256, status, idempotency_key, invitation_hours, created_at, updated_at) VALUES (?, ?, ?, ?, 'ready', ?, ?, ?, ?)").bind(campaignId, value.name.trim(), value.template_id, loaded.registration.sha256, value.idempotency_key ?? null, hours, timestamp, timestamp),
-      ...records.map((record) => env.CONTROL_DB.prepare("INSERT INTO campaign_assignments (id, campaign_id, role, token_hash, created_at, updated_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)").bind(record.id, campaignId, record.role, record.hash, timestamp, timestamp, expires)),
-      env.CONTROL_DB.prepare("INSERT INTO internal_audit_events (action, resource_type, resource_id, details_json, created_at) VALUES ('campaign.create', 'review_campaign', ?, ?, ?)").bind(campaignId, JSON.stringify({ authentication: "administrator_token", template_id: value.template_id, template_sha256: loaded.registration.sha256 }), timestamp),
+      ...records.map((record) => env.CONTROL_DB.prepare("INSERT INTO campaign_assignments (id, campaign_id, role, token_hash, token_issued_at, created_at, updated_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").bind(record.id, campaignId, record.role, record.hash, issueTokens ? timestamp : null, timestamp, timestamp, expires)),
+      env.CONTROL_DB.prepare("INSERT INTO internal_audit_events (actor_user_id, action, resource_type, resource_id, details_json, created_at) VALUES (?, 'campaign.create', 'review_campaign', ?, ?, ?)").bind(actor.kind === "user" ? actor.user.id : null, campaignId, JSON.stringify({ authentication: actor.kind === "user" ? "email_link_session" : "legacy_administrator_token", template_id: value.template_id, template_sha256: loaded.registration.sha256, job_tokens_issued: issueTokens }), timestamp),
     ]);
   } catch (cause) {
     if (value.idempotency_key) {
@@ -113,17 +115,20 @@ async function createCampaign(request: Request, env: AdjudicationEnv): Promise<R
     throw cause;
   }
   const campaign = await env.CONTROL_DB.prepare(`${CAMPAIGN_SELECT} WHERE c.id = ?`).bind(campaignId).first<JsonRecord>();
-  return json({ data: await summary(env, campaign!), invitations: Object.fromEntries(records.map((record) => [record.role, invitation(new URL(request.url).origin, record.id, record.role, record.secret)])), warning: "Invitation secrets are returned only in this response." }, 201);
+  return json({
+    data: await summary(env, campaign!),
+    ...(issueTokens ? { invitations: Object.fromEntries(records.map((record) => [record.role, invitation(new URL(request.url).origin, record.id, record.role, record.secret)])), warning: "Job token secrets are returned only in this response." } : {}),
+  }, 201);
 }
 
 async function handleAdmin(request: Request, env: AdjudicationEnv): Promise<Response> {
   const url = new URL(request.url), path = url.pathname.replace(/\/$/, "");
-  const token = bearer(request);
-  if (!token) fail("administrator token required", 401);
-  if (!env.ADMIN_TOKEN || token !== env.ADMIN_TOKEN) fail("administrator access required", 403);
+  const actor = await resolveInternalActor(request, env);
+  if (!actor) fail("verified Internals sign-in required", request.headers.has("authorization") ? 403 : 401);
+  if (!canAccessInternals(actor, request)) fail("review coordinator role required", 403);
   const base = "/api/internal/v1/review-campaigns";
   if (path === base) {
-    if (request.method === "POST") return createCampaign(request, env);
+    if (request.method === "POST") return createCampaign(request, env, actor);
     if (request.method !== "GET") fail("method not allowed", 405);
     const limit = url.searchParams.get("limit") ?? "50", offset = url.searchParams.get("offset") ?? "0";
     if (!/^\d+$/.test(limit) || Number(limit) < 1 || Number(limit) > 100 || !/^\d+$/.test(offset) || !Number.isSafeInteger(Number(offset))) fail("invalid campaign pagination");
@@ -131,7 +136,7 @@ async function handleAdmin(request: Request, env: AdjudicationEnv): Promise<Resp
     const hasMore = rows.length > Number(limit);
     return json({ data: await Promise.all(rows.slice(0, Number(limit)).map((row) => summary(env, row))), pagination: { limit: Number(limit), offset: Number(offset), has_more: hasMore, next_offset: hasMore ? Number(offset) + Number(limit) : null } });
   }
-  const match = path.match(/^\/api\/internal\/v1\/review-campaigns\/(campaign_[a-f0-9]{32})(?:\/(cancel|assignments\/(reviewer-a|reviewer-b|adjudicator)\/(revoke|reissue)))?$/);
+  const match = path.match(/^\/api\/internal\/v1\/review-campaigns\/(campaign_[a-f0-9]{32})(?:\/(cancel|assignments\/(reviewer-a|reviewer-b|adjudicator)\/(revoke|issue|reissue)))?$/);
   if (!match) fail("campaign route not found", 404);
   const campaign = await env.CONTROL_DB.prepare(`${CAMPAIGN_SELECT} WHERE c.id = ?`).bind(match[1]).first<JsonRecord>();
   if (!campaign) fail("campaign not found", 404);
@@ -147,7 +152,7 @@ async function handleAdmin(request: Request, env: AdjudicationEnv): Promise<Resp
     await env.CONTROL_DB.batch([
       env.CONTROL_DB.prepare("UPDATE review_campaigns SET status = 'cancelled', updated_at = ? WHERE id = ? AND status NOT IN ('completed', 'cancelled')").bind(timestamp, campaign.id),
       env.CONTROL_DB.prepare("UPDATE campaign_assignments SET revoked_at = COALESCE(revoked_at, ?), revision = revision + 1, updated_at = ?, last_operation_id = ? WHERE campaign_id = ? AND EXISTS (SELECT 1 FROM review_campaigns WHERE id = ? AND status = 'cancelled')").bind(timestamp, timestamp, operation, campaign.id, campaign.id),
-      audit(env, "campaign.cancel", campaign.id, operation, timestamp, { authentication: "administrator_token" }),
+      audit(env, "campaign.cancel", campaign.id, operation, timestamp, { authentication: actor.kind === "user" ? "email_link_session" : "legacy_administrator_token" }, "campaign_assignments", actor.kind === "user" ? actor.user.id : null),
     ]);
     const current = await env.CONTROL_DB.prepare(`${CAMPAIGN_SELECT} WHERE c.id = ?`).bind(campaign.id).first<JsonRecord>();
     if (current?.status !== "cancelled") fail("campaign changed; reload before cancelling", 409);
@@ -155,17 +160,18 @@ async function handleAdmin(request: Request, env: AdjudicationEnv): Promise<Resp
   }
   const role = match[3] as Role, action = match[4];
   const secret = crypto.randomUUID() + crypto.randomUUID(), hash = await sha256Hex(secret);
-  const set = action === "revoke" ? "revoked_at = ?" : "token_hash = ?, revoked_at = NULL, expires_at = ?";
-  const fields = action === "revoke" ? [timestamp] : [hash, new Date(Date.now() + campaign.invitation_hours * 3600000).toISOString()];
+  const tokenAction = action !== "revoke";
+  const set = tokenAction ? "token_hash = ?, revoked_at = NULL, expires_at = ?, token_issued_at = ?" : "revoked_at = ?";
+  const fields = tokenAction ? [hash, new Date(Date.now() + campaign.invitation_hours * 3600000).toISOString(), timestamp] : [timestamp];
   const results = await env.CONTROL_DB.batch([
-    env.CONTROL_DB.prepare(`UPDATE campaign_assignments SET ${set}, revision = revision + 1, updated_at = ?, last_operation_id = ?
-      WHERE campaign_id = ? AND role = ? ${action === "reissue" ? "AND status != 'complete'" : ""}
+    env.CONTROL_DB.prepare(`UPDATE campaign_assignments SET ${set}, revision = revision + CASE WHEN token_issued_at IS NULL THEN 0 ELSE 1 END, updated_at = ?, last_operation_id = ?
+      WHERE campaign_id = ? AND role = ? ${tokenAction ? "AND status != 'complete'" : ""}
       AND EXISTS (SELECT 1 FROM review_campaigns WHERE id = ? AND status NOT IN ('completed', 'cancelled')) RETURNING *`).bind(...fields, timestamp, operation, campaign.id, role, campaign.id),
-    audit(env, `invitation.${action}`, campaign.id, operation, timestamp, { authentication: "administrator_token", role }),
+    audit(env, `job_token.${action}`, campaign.id, operation, timestamp, { authentication: actor.kind === "user" ? "email_link_session" : "legacy_administrator_token", role }, "campaign_assignments", actor.kind === "user" ? actor.user.id : null),
   ]);
   const row = results[0].results?.[0] as JsonRecord | undefined;
   if (!row) fail("assignment cannot be changed in its current state", 409);
-  return json({ assignment: publicAssignment(row), ...(action === "reissue" ? { invitation: invitation(url.origin, row.id, role, secret), warning: "The old token is invalid; the new secret is returned only in this response." } : {}) });
+  return json({ assignment: publicAssignment(row), ...(tokenAction ? { invitation: invitation(url.origin, row.id, role, secret), warning: "The prior token is invalid; this job token is returned only in this response." } : {}) });
 }
 
 /** A single versioned assignment write cannot overwrite the other reviewer's row. */
@@ -311,7 +317,9 @@ export async function handleManagedCampaigns(request: Request, env: Adjudication
   try {
     if (internal) return await handleAdmin(request, env);
     const token = bearer(request);
-    if (resultMatch && token === env.ADMIN_TOKEN && env.ADMIN_TOKEN) {
+    const internalActor = await resolveInternalActor(request, env);
+    const canReadResult = internalActor && (internalActor.kind === "legacy_admin" || internalActor.user.roles.some((role) => role === "owner" || role === "review_coordinator"));
+    if (resultMatch && canReadResult) {
       if (request.method !== "GET") fail("method not allowed", 405);
       const campaign = await env.CONTROL_DB.prepare(`${CAMPAIGN_SELECT} WHERE c.id = ?`).bind(resultMatch[1]).first<JsonRecord>();
       if (!campaign) fail("campaign not found", 404);

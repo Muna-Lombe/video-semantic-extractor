@@ -4,6 +4,9 @@ name = "video-semantic-extractor"
 main = "control-plane/src/adjudication.ts"
 compatibility_date = "2026-09-01"
 
+[vars]
+INTERNAL_AUTH_MODE = "legacy"
+
 [observability]
 enabled = true
 head_sampling_rate = 1

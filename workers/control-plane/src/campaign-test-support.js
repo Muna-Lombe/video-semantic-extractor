@@ -17,9 +17,17 @@ async function fixture(options = {}) {
   return { env, template, registered, manifest };
 }
 async function campaign(env, template, name = "Independent diagnostic review", key) {
-  const response = await call(env, "/api/internal/v1/review-campaigns", "POST", { name, template_id: template.id, ...(key ? { idempotency_key: key } : {}) });
+  const response = await call(env, "/api/internal/v1/review-campaigns", "POST", { name, template_id: template.id, issue_tokens: false, ...(key ? { idempotency_key: key } : {}) });
   expect(response.status).toBe(201);
-  return response.json();
+  const created = await response.json();
+  expect(created).not.toHaveProperty("invitations");
+  created.invitations = {};
+  for (const role of ["reviewer-a", "reviewer-b", "adjudicator"]) {
+    const issued = await call(env, `/api/internal/v1/review-campaigns/${created.data.id}/assignments/${role}/issue`, "POST");
+    expect(issued.status).toBe(200);
+    created.invitations[role] = (await issued.json()).invitation;
+  }
+  return created;
 }
 const reviewerPath = (invitation) => `/api/v1/assignments/${invitation.assignment_id}`;
 const adjudicatorPath = (invitation) => `/api/v1/adjudications/${invitation.assignment_id}`;

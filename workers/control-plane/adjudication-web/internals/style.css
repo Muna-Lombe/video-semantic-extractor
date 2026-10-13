@@ -38,6 +38,10 @@ nav a:hover, nav a.active, .sidebar-section a:hover { color: #fff; background: #
 #menu-toggle { display: none; }
 main { max-width: 1440px; padding: clamp(1rem, 4vw, 2.5rem); }
 .login-card { max-width: 760px; display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 7vh auto; padding: clamp(1.5rem, 4vw, 2.5rem); border: 1px solid var(--line); border-radius: 1rem; background: var(--paper); box-shadow: 0 18px 50px rgba(25,52,44,.08); }
+.identity-admin { margin: 1rem 0; }
+.identity-form { display: grid; grid-template-columns: minmax(130px, .7fr) minmax(180px, 1.3fr); align-items: center; gap: .65rem 1rem; max-width: 760px; margin: 1rem 0 1.5rem; }
+.identity-form button, .identity-form .form-status { grid-column: 2; justify-self: start; }
+.identity-form select { min-height: 8rem; }
 label { display: block; margin: 0 0 .35rem; color: #34433e; font-size: .85rem; font-weight: 750; }
 label span { color: var(--muted); font-weight: 400; }
 input, textarea, select { width: 100%; padding: .72rem .8rem; border: 1px solid #bdc9c2; border-radius: .5rem; color: var(--ink); background: #fff; }

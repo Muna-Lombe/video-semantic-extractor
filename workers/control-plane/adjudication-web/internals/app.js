@@ -1,7 +1,9 @@
 /** @type implementation @purpose Drive the internal control-plane workspace. */
 const $ = (id) => document.getElementById(id);
 const API = "/api/internal/v1";
-let token = sessionStorage.getItem("internals-admin-token") || "";
+let currentUser = null;
+let legacyToken = null;
+let internalUsers = [];
 let datasets = [];
 let samplingJobs = [];
 let frameSets = [];
@@ -28,9 +30,13 @@ async function api(path, options = {}) {
 }
 
 async function apiResponse(path, options = {}) {
+  const headers = new Headers(options.headers);
+  if (!headers.has("accept")) headers.set("accept", "application/json");
+  if (legacyToken && !headers.has("authorization")) headers.set("authorization", `Bearer ${legacyToken}`);
   return fetch(`${API}${path}`, {
     ...options,
-    headers: { accept: "application/json", ...options.headers, authorization: `Bearer ${token}` },
+    credentials: "same-origin",
+    headers,
   });
 }
 
@@ -66,7 +72,13 @@ function setConnected(connected) {
   $("workspace").hidden = !connected;
   $("sign-out").hidden = !connected;
   $("connection").classList.toggle("connected", connected);
-  $("connection").innerHTML = `<span></span>${connected ? " Administrator session" : " Not connected"}`;
+  $("connection").innerHTML = `<span></span>${connected ? ` ${escapeHtml(currentUser?.email || "Signed in")}` : " Not connected"}`;
+}
+
+function renderUsers() {
+  $("internal-users-table").innerHTML = internalUsers.length
+    ? `<table><thead><tr><th>Name</th><th>Email</th><th>Roles</th><th>Status</th><th>Verification</th><th>Action</th></tr></thead><tbody>${internalUsers.map((user) => `<tr><td>${escapeHtml(user.display_name)}</td><td>${escapeHtml(user.email)}</td><td>${escapeHtml(user.roles.join(", ").replaceAll("_", " "))}</td><td>${statusBadge(user.status)}</td><td>${user.email_verified ? "Verified" : "Pending"}</td><td>${user.email_verified || user.status !== "active" ? "—" : `<button class="secondary" type="button" data-resend-invitation="${escapeHtml(user.id)}">Resend invitation</button>`}</td></tr>`).join("")}</tbody></table>`
+    : '<p class="muted">No named users are registered yet.</p>';
 }
 
 function showPage(name) {
@@ -180,11 +192,16 @@ function renderCampaigns() {
 function showInvitations(invitations) {
   $("invitation-links").replaceChildren();
   for (const [role, invitation] of Object.entries(invitations)) {
-    const label = document.createElement("label"); label.textContent = role;
-    const input = document.createElement("input"); input.readOnly = true; input.value = invitation.url; input.setAttribute("aria-label", `${role} invitation`);
-    const button = document.createElement("button"); button.type = "button"; button.className = "secondary"; button.textContent = "Copy link";
-    button.onclick = () => navigator.clipboard.writeText(input.value).then(() => toast("Invitation copied.")).catch(() => { input.focus(); input.select(); toast("Select and copy the invitation link."); });
-    $("invitation-links").append(label, input, button);
+    for (const [labelText, value, copiedMessage] of [
+      [`${role} assignment link`, invitation.url, "Assignment link copied."],
+      [`${role} job token`, invitation.job_token || invitation.api_token, "Job token copied."],
+    ]) {
+      const label = document.createElement("label"); label.textContent = labelText;
+      const input = document.createElement("input"); input.readOnly = true; input.value = value; input.autocomplete = "off"; input.setAttribute("aria-label", labelText);
+      const button = document.createElement("button"); button.type = "button"; button.className = "secondary"; button.textContent = "Copy";
+      button.onclick = () => navigator.clipboard.writeText(input.value).then(() => toast(copiedMessage)).catch(() => { input.focus(); input.select(); toast("Select and copy the value."); });
+      $("invitation-links").append(label, input, button);
+    }
   }
   $("invitations-dialog").showModal();
 }
@@ -196,7 +213,7 @@ async function inspectCampaign(id) {
     const item = (await api(`/review-campaigns/${encodeURIComponent(id)}`)).data;
     $("campaign-title").textContent = item.name;
     const terminal = ["completed", "cancelled"].includes(item.status);
-    $("campaign-detail").innerHTML = `<section class="detail-section"><h3>Inputs and progress</h3><p>${statusBadge(item.status)} · ${escapeHtml(item.frame_count)} frames</p><p>Template <code>${escapeHtml(item.template_id)}</code></p><p>SHA-256 <code>${escapeHtml(item.template_sha256)}</code></p></section><section class="detail-section"><h3>Assignments</h3>${item.assignments.map((assignment) => `<article><h4>${escapeHtml(assignment.role)}</h4><p>${statusBadge(assignment.status)} · ${escapeHtml(assignment.reviewed_frames)} frames reviewed${assignment.revoked_at ? " · revoked" : ""}</p><p class="muted">Expires ${escapeHtml(formatDate(assignment.expires_at))}</p>${terminal ? "" : `${assignment.revoked_at ? "" : `<button class="secondary" type="button" data-invitation-action="revoke" data-campaign="${escapeHtml(item.id)}" data-role="${escapeHtml(assignment.role)}">Revoke invitation</button>`} ${assignment.status === "complete" ? "" : `<button class="secondary" type="button" data-invitation-action="reissue" data-campaign="${escapeHtml(item.id)}" data-role="${escapeHtml(assignment.role)}">Reissue invitation</button>`}`}</article>`).join("")}</section><section class="detail-section"><h3>Audit history</h3>${item.audit_events.map((event) => `<p><strong>${escapeHtml(event.action)}</strong> · ${escapeHtml(formatDate(event.created_at))}${event.details.role ? ` · ${escapeHtml(event.details.role)}` : ""}</p>`).join("")}</section>${item.result_url ? `<p>The adjudicated artifact is a ground-truth candidate. Validation and approval remain pending.</p><button type="button" data-campaign-result="${escapeHtml(item.id)}">Download candidate</button>` : ""}${terminal ? "" : `<button class="secondary danger" type="button" data-campaign-cancel="${escapeHtml(item.id)}">Cancel campaign</button>`}`;
+    $("campaign-detail").innerHTML = `<section class="detail-section"><h3>Inputs and progress</h3><p>${statusBadge(item.status)} · ${escapeHtml(item.frame_count)} frames</p><p>Template <code>${escapeHtml(item.template_id)}</code></p><p>SHA-256 <code>${escapeHtml(item.template_sha256)}</code></p></section><section class="detail-section"><h3>Assignments</h3><p class="muted">Generate a separate, role-scoped job token for each person. Tokens are shown once; regenerating one immediately invalidates the previous token.</p>${item.assignments.map((assignment) => `<article><h4>${escapeHtml(assignment.role)}</h4><p>${statusBadge(assignment.status)} · ${escapeHtml(assignment.reviewed_frames)} frames reviewed${assignment.revoked_at ? " · revoked" : ""}</p><p class="muted">Expires ${escapeHtml(formatDate(assignment.expires_at))}${assignment.job_token_issued_at ? ` · Token issued ${escapeHtml(formatDate(assignment.job_token_issued_at))}` : " · No job token issued"}</p>${terminal ? "" : `${assignment.revoked_at ? "" : `<button class="secondary" type="button" data-assignment-action="revoke" data-campaign="${escapeHtml(item.id)}" data-role="${escapeHtml(assignment.role)}">Revoke job token</button>`} ${assignment.status === "complete" ? "" : `<button class="secondary" type="button" data-assignment-action="issue" data-campaign="${escapeHtml(item.id)}" data-role="${escapeHtml(assignment.role)}">${assignment.job_token_issued_at ? "Regenerate job token" : "Generate job token"}</button>`}`}</article>`).join("")}</section><section class="detail-section"><h3>Audit history</h3>${item.audit_events.map((event) => `<p><strong>${escapeHtml(event.action)}</strong> · ${escapeHtml(formatDate(event.created_at))}${event.details.role ? ` · ${escapeHtml(event.details.role)}` : ""}</p>`).join("")}</section>${item.result_url ? `<p>The adjudicated artifact is a ground-truth candidate. Validation and approval remain pending.</p><button type="button" data-campaign-result="${escapeHtml(item.id)}">Download candidate</button>` : ""}${terminal ? "" : `<button class="secondary danger" type="button" data-campaign-cancel="${escapeHtml(item.id)}">Cancel campaign</button>`}`;
   } catch (error) { $("campaign-detail").textContent = error.message; }
 }
 
@@ -205,13 +222,13 @@ async function campaignAction(button) {
   try {
     if (button.dataset.campaignResult) {
       const id = button.dataset.campaignResult;
-      const response = await fetch(`/api/v1/campaigns/${encodeURIComponent(id)}/result`, { headers: { authorization: `Bearer ${token}` } });
+      const response = await fetch(`/api/v1/campaigns/${encodeURIComponent(id)}/result`, { credentials: "same-origin" });
       if (!response.ok) throw new Error(`Candidate unavailable (${response.status})`);
       const url = URL.createObjectURL(await response.blob()), link = document.createElement("a");
       link.href = url; link.download = `${id}.candidate.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); return;
     }
     const id = button.dataset.campaignCancel || button.dataset.campaign;
-    const path = button.dataset.campaignCancel ? `/review-campaigns/${id}/cancel` : `/review-campaigns/${id}/assignments/${button.dataset.role}/${button.dataset.invitationAction}`;
+    const path = button.dataset.campaignCancel ? `/review-campaigns/${id}/cancel` : `/review-campaigns/${id}/assignments/${button.dataset.role}/${button.dataset.assignmentAction}`;
     const payload = await api(path, { method: "POST" });
     if (payload.invitation) showInvitations({ [button.dataset.role]: payload.invitation });
     await inspectCampaign(id); await loadAll();
@@ -419,20 +436,117 @@ async function loadAll() {
   templates = results[6].status === "fulfilled" ? normaliseList(results[6].value, "data") : [];
   campaigns = results[7].status === "fulfilled" ? normaliseList(results[7].value, "data") : [];
   groundTruths = results[8].status === "fulfilled" ? normaliseList(results[8].value, "data") : [];
+  if (currentUser?.roles.includes("owner")) {
+    try {
+      internalUsers = normaliseList(await api("/users"), "data");
+      $("identity-admin-panel").hidden = false;
+      renderUsers();
+    } catch (error) {
+      $("identity-admin-panel").hidden = true;
+      toast(`Could not load identity administration: ${error.message}`);
+    }
+  } else {
+    $("identity-admin-panel").hidden = true;
+  }
   renderOverview(results[0].status === "fulfilled" ? results[0].value : {});
   renderGroundTruth(); renderCampaigns(); renderRegistry(); renderRunnerPresence(); renderDatasets(); renderSampling(); renderFrameSets(); populateDatasetSelect();
   const unavailable = results.filter((item) => item.status === "rejected").length;
   if (unavailable) toast(`${unavailable} control-plane resource${unavailable === 1 ? " is" : "s are"} not available yet.`);
 }
 
-async function connect() {
-  token = $("admin-token").value.trim() || token;
-  if (!token) throw new Error("An administrator token is required.");
-  $("login-status").textContent = "Connecting…";
-  await api("/overview");
-  sessionStorage.setItem("internals-admin-token", token);
+async function acceptSession() {
+  currentUser = (await api("/auth/me")).data;
   setConnected(true);
   await loadAll();
+}
+
+async function initialiseAuth() {
+  const mode = (await api("/auth/status")).data.authentication;
+  const legacyMode = mode === "administrator_token";
+  $("legacy-login-form").hidden = !legacyMode;
+  $("login-form").hidden = legacyMode;
+  $("bootstrap-form").hidden = legacyMode;
+  $("bootstrap-note").hidden = legacyMode;
+  if (legacyMode) return;
+
+  const params = new URLSearchParams(location.hash.slice(1));
+  const authToken = params.get("auth-token");
+  if (authToken) {
+    history.replaceState(null, "", `${location.pathname}${location.search}`);
+    try {
+      await api("/auth/verify", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: authToken }) });
+      await acceptSession();
+      return;
+    } catch (error) {
+      $("login-status").textContent = error.message;
+    }
+  }
+  try {
+    await acceptSession();
+  } catch (error) {
+    if (/network|fetch/i.test(error.message)) $("login-status").textContent = error.message;
+  }
+  const setup = await api("/auth/status");
+  const available = setup.data.bootstrap_available;
+  $("bootstrap-form").hidden = !available;
+  $("bootstrap-note").hidden = !available;
+}
+
+async function requestSignIn(event) {
+  event.preventDefault();
+  const submit = $("login-form").querySelector('[type="submit"]');
+  submit.disabled = true;
+  $("login-status").textContent = "Sending sign-in link…";
+  try {
+    await api("/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: $("login-email").value.trim() }) });
+    $("login-status").textContent = "If the address belongs to a verified account, a sign-in link has been sent.";
+  } catch (error) {
+    $("login-status").textContent = error.message;
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+async function bootstrapOwner(event) {
+  event.preventDefault();
+  const form = $("bootstrap-form"), submit = form.querySelector('[type="submit"]');
+  submit.disabled = true;
+  $("bootstrap-status").textContent = "Creating owner account…";
+  try {
+    await api("/auth/bootstrap", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${$("bootstrap-token").value}` },
+      body: JSON.stringify({ email: $("bootstrap-email").value.trim(), display_name: $("bootstrap-name").value.trim() }),
+    });
+    $("bootstrap-status").textContent = "Verification email sent. Follow its link to finish setup.";
+    form.reset();
+    form.hidden = true;
+    $("bootstrap-note").hidden = true;
+  } catch (error) {
+    $("bootstrap-status").textContent = error.message;
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+async function connectLegacyAdministrator(event) {
+  event.preventDefault();
+  const form = $("legacy-login-form"), submit = form.querySelector('[type="submit"]');
+  submit.disabled = true;
+  $("legacy-login-status").textContent = "Checking administrator access…";
+  legacyToken = $("legacy-admin-token").value;
+  try {
+    await api("/overview");
+    currentUser = { email: "Administrator token" };
+    form.reset();
+    setConnected(true);
+    await loadAll();
+  } catch (error) {
+    legacyToken = null;
+    $("legacy-login-status").textContent = error.message;
+  } finally {
+    submit.disabled = false;
+  }
 }
 
 async function submitForm(form, path, body) {
@@ -446,8 +560,37 @@ async function submitForm(form, path, body) {
   finally { submit.disabled = form.id === "sampling-form" ? $("sampling-dataset").disabled : form.id === "template-form" && (!$("template-frame-set").value || !$("template-policy").value); }
 }
 
-$("login-form").addEventListener("submit", (event) => { event.preventDefault(); connect().catch((error) => { $("login-status").textContent = error.message; setConnected(false); }); });
-$("sign-out").onclick = () => { document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close()); $("invitation-links").replaceChildren(); sessionStorage.removeItem("internals-admin-token"); token = ""; $("admin-token").value = ""; setConnected(false); };
+$("login-form").addEventListener("submit", requestSignIn);
+$("legacy-login-form").addEventListener("submit", connectLegacyAdministrator);
+$("bootstrap-form").addEventListener("submit", bootstrapOwner);
+$("sign-out").onclick = async () => {
+  document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
+  $("invitation-links").replaceChildren();
+  try { if (!legacyToken) await api("/auth/logout", { method: "POST" }); }
+  finally { currentUser = null; internalUsers = []; setConnected(false); }
+  legacyToken = null;
+};
+$("internal-user-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget, submit = form.querySelector('[type="submit"]'), status = $("internal-user-status");
+  submit.disabled = true; status.textContent = "Sending invitation…";
+  const roles = Array.from($("internal-user-roles").selectedOptions, (option) => option.value);
+  try {
+    await api("/users", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: $("internal-user-email").value.trim(), display_name: $("internal-user-name").value.trim(), roles }) });
+    form.reset(); status.textContent = "Invitation sent."; internalUsers = normaliseList(await api("/users"), "data"); renderUsers();
+  } catch (error) { status.textContent = error.message; }
+  finally { submit.disabled = false; }
+});
+$("internal-users-table").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-resend-invitation]");
+  if (!button) return;
+  button.disabled = true;
+  try {
+    await api(`/users/${encodeURIComponent(button.dataset.resendInvitation)}/resend`, { method: "POST" });
+    toast("Verification invitation resent.");
+  } catch (error) { toast(error.message); }
+  finally { button.disabled = false; }
+});
 $("menu-toggle").onclick = () => { const open = document.body.classList.toggle("menu-open"); $("menu-toggle").setAttribute("aria-expanded", String(open)); };
 window.addEventListener("hashchange", () => showPage(location.hash.slice(1)));
 document.querySelectorAll("[data-route-link]").forEach((link) => link.onclick = () => showPage(link.dataset.routeLink));
@@ -494,22 +637,21 @@ $("campaigns-table").addEventListener("click", (event) => {
   const button = event.target.closest("[data-campaign-inspect]"); if (button) inspectCampaign(button.dataset.campaignInspect);
 });
 $("campaign-detail").addEventListener("click", (event) => {
-  const button = event.target.closest("[data-invitation-action], [data-campaign-cancel], [data-campaign-result]"); if (button) campaignAction(button);
+  const button = event.target.closest("[data-assignment-action], [data-campaign-cancel], [data-campaign-result]"); if (button) campaignAction(button);
 });
 $("campaign-form").addEventListener("submit", async (event) => {
   event.preventDefault(); const form = event.currentTarget, submit = form.querySelector('[type="submit"]'), status = form.querySelector(".form-status");
   submit.disabled = true; status.textContent = "Creating campaign…";
   try {
-    const data = Object.fromEntries(new FormData(form)); data.expires_in_hours = Number(data.expires_in_hours);
+    const data = Object.fromEntries(new FormData(form)); data.expires_in_hours = Number(data.expires_in_hours); data.issue_tokens = false;
     const fingerprint = JSON.stringify(data);
     if (!form.dataset.requestKey || form.dataset.requestFingerprint !== fingerprint) { form.dataset.requestKey = crypto.randomUUID(); form.dataset.requestFingerprint = fingerprint; }
     data.idempotency_key = form.dataset.requestKey;
     const payload = await api("/review-campaigns", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(data) });
     delete form.dataset.requestKey; delete form.dataset.requestFingerprint; form.closest("dialog").close(); form.reset();
-    // Show one-time secrets before refreshing unrelated resources.
-    if (payload.invitations) showInvitations(payload.invitations);
-    else { toast(payload.warning || "Campaign already exists."); await inspectCampaign(payload.data.id); }
     await loadAll();
+    await inspectCampaign(payload.data.id);
+    toast(payload.meta?.deduplicated ? payload.warning : "Campaign created. Generate job tokens from the assignment section.");
   } catch (error) { status.textContent = error.message; }
   finally { submit.disabled = !$("campaign-template").value; }
 });
@@ -559,6 +701,8 @@ $("sampling-form").addEventListener("submit", (event) => {
 });
 
 showPage(location.hash.slice(1));
-$("admin-token").value = token;
-if (token) connect().catch((error) => { $("login-status").textContent = error.message; setConnected(false); });
-else setConnected(false);
+setConnected(false);
+initialiseAuth().catch((error) => {
+  $("login-status").textContent = error.message;
+  setConnected(false);
+});

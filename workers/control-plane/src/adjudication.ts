@@ -4,6 +4,7 @@ import { handleInternalsApi } from "./internals";
 import { handleAdminJobAction, handleRunnerApi } from "./job-lifecycle";
 import type { AdjudicationEnv } from "./types";
 import { handleManagedCampaigns } from "./managed-campaigns";
+import { canAccessInternals, handleIdentityApi, resolveInternalActor, type InternalUser } from "./internal-auth";
 
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" };
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
@@ -22,7 +23,7 @@ interface ReviewRecord {
   merged?: JsonRecord;
 }
 interface TokenRecord { review_id: string; assignment_id: string; role: Role; }
-interface Principal { kind: "admin" | "assignment"; token?: TokenRecord; }
+interface Principal { kind: "admin" | "assignment" | "internal_user"; token?: TokenRecord; user?: InternalUser; }
 
 const json = (value: unknown, status = 200, headers: HeadersInit = {}) => new Response(JSON.stringify(value), { status, headers: { ...JSON_HEADERS, ...headers } });
 const reviewKey = (id: string) => `reviews/${id}.json`;
@@ -53,10 +54,11 @@ async function putJson(env: AdjudicationEnv, key: string, value: unknown): Promi
   await env.REVIEW_BUCKET.put(key, JSON.stringify(value), { httpMetadata: { contentType: "application/json" } });
 }
 async function principal(request: Request, env: AdjudicationEnv): Promise<Principal | null> {
+  const internalActor = await resolveInternalActor(request, env);
+  if (internalActor?.kind === "legacy_admin") return { kind: "admin" };
+  if (internalActor?.kind === "user") return { kind: "internal_user", user: internalActor.user };
   const supplied = bearer(request);
   if (!supplied) return null;
-  const adminSecret = env.ADMIN_TOKEN;
-  if (adminSecret && supplied === adminSecret) return { kind: "admin" };
   const token = await getJson<TokenRecord>(env, tokenKey(await digest(supplied)));
   if (!token) return null;
   const review = await getJson<ReviewRecord>(env, reviewKey(token.review_id));
@@ -419,6 +421,8 @@ async function evidence(env: AdjudicationEnv, token: TokenRecord, source: string
 
 async function handleControlPlaneRequest(request: Request, env: AdjudicationEnv): Promise<Response> {
   const url = new URL(request.url), path = url.pathname, method = request.method;
+  const identityResponse = await handleIdentityApi(request, env);
+  if (identityResponse) return identityResponse;
   if (method === "GET" && path === "/") return Response.redirect(`${url.origin}/internals/`, 302);
   if (method === "GET" && (path === "/internals" || path === "/internals/" || path === "/internals/app.js" || path === "/internals/style.css")) {
     const assetPath = path === "/internals" ? "/internals/" : path;
@@ -458,30 +462,37 @@ async function handleControlPlaneRequest(request: Request, env: AdjudicationEnv)
   if (!actor) return json({ error: "unauthorized" }, 401);
   try {
     if (path === "/api/internal/v1/overview") {
-      if (actor.kind !== "admin") return json({ error: "forbidden" }, 403);
+      if (actor.kind === "assignment") return json({ error: "forbidden" }, 403);
+      const internalActor = await resolveInternalActor(request, env);
+      if (!internalActor) return json({ error: "unauthorized" }, 401);
+      if (!canAccessInternals(internalActor, request)) return json({ error: "forbidden" }, 403);
       return method === "GET" ? json(internalOverview()) : json({ error: "method not allowed" }, 405);
     }
     if (path.startsWith("/api/internal/v1/")) {
-      if (actor.kind !== "admin") return json({ error: "forbidden" }, 403);
-      const lifecycleResponse = await handleAdminJobAction(request, env);
-      if (lifecycleResponse) return lifecycleResponse;
-      const response = await handleInternalsApi(request, env);
-      if (response) return response;
+        const internalActor = await resolveInternalActor(request, env);
+        if (!internalActor) return json({ error: "unauthorized" }, 401);
+        if (!canAccessInternals(internalActor, request)) return json({ error: "forbidden" }, 403);
+        const lifecycleResponse = await handleAdminJobAction(request, env);
+        if (lifecycleResponse) return lifecycleResponse;
+        const response = await handleInternalsApi(request, env, actor.kind === "internal_user" ? actor.user ?? null : null);
+        if (response) return response;
     }
     if (path === "/api/v1/me" && method === "GET") {
-      if (actor.kind !== "assignment" || !actor.token) return json({ actor: { role: "administrator" }, links: { reviews: "/api/v1/admin/reviews" } });
+      if (actor.kind === "internal_user" && actor.user) return json({ actor: { id: actor.user.id, email: actor.user.email, roles: actor.user.roles } });
+      if (actor.kind === "admin") return json({ actor: { role: "administrator" }, links: { reviews: "/api/v1/admin/reviews" } });
+      if (!actor.token) return json({ error: "unauthorized" }, 401);
       const token = actor.token;
       return json({ actor: { role: token.role }, assignment_id: token.assignment_id, review_id: token.review_id, links: token.role === "adjudicator" ? { state: `/api/v1/adjudications/${token.assignment_id}`, ui: "/adjudicate/" } : { state: `/api/v1/assignments/${token.assignment_id}`, ui: "/review/" } });
     }
     if (path === "/api/v1/admin/reviews") {
-      if (actor.kind !== "admin") return json({ error: "forbidden" }, 403);
+      if (actor.kind !== "admin" && !(actor.kind === "internal_user" && actor.user?.roles.some((role) => role === "owner" || role === "review_coordinator"))) return json({ error: "forbidden" }, 403);
       if (method === "POST") return await createReview(request, env, url.origin);
       if (method === "GET") return await listReviews(env);
       return json({ error: "method not allowed" }, 405);
     }
     const revokeMatch = path.match(/^\/api\/v1\/admin\/reviews\/([a-z0-9][a-z0-9_-]{0,63})\/assignments\/(reviewer-a|reviewer-b|adjudicator)\/revoke$/);
     if (revokeMatch) {
-      if (actor.kind !== "admin") return json({ error: "forbidden" }, 403);
+      if (actor.kind !== "admin" && !(actor.kind === "internal_user" && actor.user?.roles.some((role) => role === "owner" || role === "review_coordinator"))) return json({ error: "forbidden" }, 403);
       return method === "POST" ? await revokeAssignment(env, revokeMatch[1], revokeMatch[2] as Role) : json({ error: "method not allowed" }, 405);
     }
     const assignmentMatch = path.match(/^\/api\/v1\/assignments\/([^/]+)$/);
