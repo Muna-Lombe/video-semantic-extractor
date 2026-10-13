@@ -25,8 +25,12 @@ The companion [`Internals architecture`](internals-architecture.md) defines the
 target resource contracts, storage split, authorization model, and route map. This
 document tracks sequencing and the implemented-versus-planned boundary.
 
-A route prefix is not a security boundary. `/internals` requires authenticated
-identities, authorization, and auditability before it can be treated as private.
+A route prefix is not a security boundary. Named-user email-link identity and
+operation-level roles now exist in code, but production remains in administrator
+token compatibility mode until the sender domain is onboarded for Cloudflare Email
+Sending. Do not treat Internals as multi-user ready until that identity mode is
+enabled, verified reviewer/adjudicator provenance is enforced, and all routes use
+the intended role matrix.
 
 ## Product principles
 
@@ -111,15 +115,19 @@ The following are working foundations, not the complete Internals control plane:
 - Immutable active policy-version registration and a fixed `object-annotations.v1`
   contract; idempotent template generation from verified frame sets and policies;
   private artifacts, embedded validation reports, audit events, and Internals
-  policy/template screens. This new slice is locally tested; migration/deployment
-  remain pending. See [`template registry`](template-registry.md).
+  policy/template screens. Migrations 0005–0009 and the current managed Internals
+  deployment are applied; operation-specific qualification and broader policy
+  lifecycle remain open. See [`template registry`](template-registry.md).
 - Template-referenced D1 campaigns with isolated versioned submissions, scoped
   evidence and instructions, coordinator progress/audit views, recoverable invitations,
-  and immutable ground-truth candidates. Locally tested; deployment pending. See
-  [`managed review campaigns`](managed-review-campaigns.md).
+  and immutable ground-truth candidates. Per-role reviewer/adjudicator job tokens
+  can be issued, rotated, and revoked independently from Internals authentication.
+  The feature is deployed; identity binding and further operational qualification
+  remain open. See [`managed review campaigns`](managed-review-campaigns.md).
 - Checksum-bound diagnostic validation reports, explicit approval/rejection and
   approved supersession, decision/audit history, and a current evidence eligibility
-  gate. Implemented and tested locally; migration/deployment pending. See
+  gate. Implemented and deployed; trusted named-approver enforcement remains gated
+  on production identity rollout. See
   [`ground-truth governance`](ground-truth-governance.md).
 
 A separate cron-driven sampling-runner Worker and Container now ship. They claim
@@ -130,9 +138,10 @@ are deployed, and a production sampling run completed through frame-set
 finalization. Crash recovery, cancellation races, and Container resource sizing
 remain to be qualified; the control-plane Worker does not execute sampling itself.
 
-The existing hosted review API still accepts embedded template JSON and frame URLs,
-uses a shared administrator token, and stores mutable review records as objects.
-Those are prototype constraints to migrate, not the target control-plane model.
+The legacy hosted review API still accepts embedded template JSON and frame URLs,
+uses administrator-token compatibility, and stores mutable review records as
+objects. Keep those endpoints for compatibility until replacement workflows and
+legacy import tooling are verified.
 
 ## Planned Internals surfaces
 
@@ -142,10 +151,10 @@ Those are prototype constraints to migrate, not the target control-plane model.
 | Datasets | Versioned source-media collections and provenance | Dedicated D1 registry accepts HTTPS source URLs, marks the dataset ready, and freezes its initial version |
 | Sampling | Create, monitor, retry, and inspect durable sampling jobs | Deployed runner and control plane; one production run verified through frame-set finalization; further crash-recovery, cancellation-race, and resource-sizing exercises remain |
 | Frame sets | Browse immutable manifests, evidence, coverage, and checksums | Registration, relational membership, administrator UI, and private evidence retrieval implemented |
-| Policies | Version annotation rules, schemas, taxonomy, and lifecycle | Immutable active policy-version registration implemented locally; broader lifecycle and configurable schemas planned |
-| Templates | Generate, validate, register, and version templates | Verified generation, private artifacts, and Internals inspection implemented locally; deployment pending |
-| Reviews | Create template-referenced campaigns and monitor progress | D1 assignments, private evidence, and Internals coordination implemented locally; deployment pending |
-| Ground truth | Validate, approve, version, and supersede adjudicated artifacts | Diagnostic validation, explicit approval/rejection, supersession, and eligibility implemented locally; deployment and named-user RBAC pending |
+| Policies | Version annotation rules, schemas, taxonomy, and lifecycle | Immutable active policy-version registration deployed; broader lifecycle and configurable schemas planned |
+| Templates | Generate, validate, register, and version templates | Verified generation, private artifacts, and Internals inspection deployed |
+| Reviews | Create template-referenced campaigns and monitor progress | D1 assignments, private evidence, Internals coordination, and on-demand role-scoped tokens deployed |
+| Ground truth | Validate, approve, version, and supersede adjudicated artifacts | Diagnostic validation, explicit decisions, supersession, and eligibility deployed; named-approver enforcement remains gated on identity rollout |
 | Evaluations | Run diagnostics durably and compare reproducible results | CLI engines exist; managed jobs planned |
 | Models | Register immutable model versions and evidence | Planned |
 | Releases | Approve, activate, supersede, and roll back pipeline configurations | Planned |
@@ -169,11 +178,16 @@ estimates, not model accuracy or whole-product completion.
   configuration, frame timestamps/reasons, media types, sizes, and checksums.
 - [x] Select a separate sampling-runner Worker and Container connected to the
   Internals Worker through a private Service binding.
-- [ ] Define identity, RBAC, and audit-event contracts.
+- [x] Define initial identity, RBAC, and audit-event contracts in code and migrations.
+- [ ] Enable verified named-user sign-in in production; Cloudflare Email Sending
+  onboarding for `katundu.org` is currently absent.
+- [ ] Enforce verified reviewer/adjudicator identity assignment and named
+  release-approver authorization.
 
 ### Phase 1 — Control-plane foundation (in progress, 80%)
 
-- Add authenticated internal users and explicit roles.
+- [x] Add named internal users, email-link challenges/sessions, role records, and
+  operation-level permission checks (production currently retains legacy-token mode).
 - [x] Add the initial D1-backed dataset registry and durable queued sampling-job
   metadata.
 - [x] Bind the provisioned dataset and control-plane D1 databases and document
@@ -198,18 +212,19 @@ estimates, not model accuracy or whole-product completion.
 - Continue adding resource-specific screens and operations for later pipeline
   stages.
 
-This phase is a prerequisite for presenting later phases as reliable hosted
-workflows. A shared `ADMIN_TOKEN` may remain as a development bootstrap but is not
-the final authorization design.
+This phase remains a prerequisite for presenting later phases as reliable hosted
+workflows. `ADMIN_TOKEN` is retained in production compatibility mode until the
+email sender domain is onboarded and verified. Session-only mode must not be
+enabled before verified sign-in and bootstrap recovery are operational.
 
 ### Phase 2 — Dataset-to-template vertical slice (in progress, 65%)
 
 The reusable sampling and initializer engines exist. Dataset records, queued
 sampling metadata, and a separately deployable sampling executor are implemented.
 The runner and control plane are deployed, and a production sampling run completed
-through verified frame-set finalization. Policy-version registration, the initial
-annotation contract, and bounded template generation are now implemented locally.
-Deployment and hosted/CLI parity for managed manifests remain open.
+through verified frame-set finalization. Policy-version registration, the initial annotation contract, and bounded template
+generation are implemented and deployed. Hosted/CLI parity for managed manifests
+and operational qualification remain open.
 
 - [x] Register HTTPS source URLs with an initial ready/frozen dataset version.
 - [x] Bind each sampling request to a dataset-version ID rather than mutable
@@ -225,7 +240,8 @@ Deployment and hosted/CLI parity for managed manifests remain open.
   frame evidence artifacts with administrator inspection and private retrieval.
 - [x] Register immutable policy versions and pin the initial object annotation schema.
 - [x] Generate and validate a template from a frame-set ID plus policy-version ID.
-- Deploy and verify the registry slice and extend CLI support to managed manifests.
+- [x] Deploy the registry slice.
+- [ ] Extend CLI support to managed manifests.
 - Retain equivalent CLI commands as supported fallback entry points.
 
 ### Phase 3 — Template-to-ground-truth vertical slice (in progress, 90%)
@@ -239,7 +255,9 @@ Deployment and hosted/CLI parity for managed manifests remain open.
 - [x] Validate and explicitly approve or reject the candidate for diagnostic evaluation.
 - [x] Retain immutable validation/decision history and supersede approval with a compatible approved replacement.
 - [x] Keep current legacy review APIs available during migration.
-- Deploy and verify managed campaigns remotely.
+- [x] Deploy and verify managed campaigns remotely.
+- [x] Add administrator issue/rotate/revoke operations for separate assignment
+  tokens; retain token independence from Internals login.
 
 ### Phase 4 — Managed evaluations (planned, 15%)
 
@@ -281,7 +299,7 @@ The diagnostic engines exist; durable scheduling and registered outputs do not.
 | Legacy review creation accepts raw templates and URL maps | Managed campaigns accept template references and resolve private evidence; keep the legacy compatibility API | 2-3 |
 | Diagnostics are not durable jobs | Wrap the existing engines with durable scheduling and provenance | 1, 4 |
 | Transactional metadata spans two provisioned D1 databases | Keep dataset ownership in `DATASET_DB` and orchestration in `CONTROL_DB`; explicitly validate references because cross-D1 foreign keys and transactions do not exist | 1 |
-| There is no internal-user authentication or RBAC | Required before Internals is considered private or multi-user ready | 1 |
+| Identity and role checks exist, but named-user sign-in remains disabled in production, and campaign assignments/approval decisions do not yet enforce verified identities | Onboard the email sender, enable sessions after verification, and bind reviewer/adjudicator/approver actions to authenticated actors | 1, 3, 5 |
 | Ground truth now has diagnostic governance; models and pipeline releases remain ungoverned | Deploy the validation/approval slice and continue model/release lifecycle resources | 3, 5 |
 | There is no complete `/internals` UI | Expand the status shell with each guarded vertical slice | 1-5 |
 
@@ -294,9 +312,9 @@ operator can:
 2. schedule and observe a durable sampling job; **implemented**
 3. inspect its immutable frame-set manifest and evidence; **implemented**
 4. generate a schema-valid registered template from that frame set and an active
-   policy version; **implemented locally; deployment pending** and
+   policy version; **implemented and deployed** and
 5. create a review campaign by template ID without pasting JSON or per-frame URLs;
-   **implemented locally; deployment pending**.
+   **implemented and deployed**.
 
 The milestone must also leave the equivalent CLI diagnostics documented and usable.
 It does not claim that model training, model approval, or production promotion is
@@ -320,8 +338,10 @@ demonstrates the happy path, not exhaustive operational qualification; crash
 recovery, cancellation races, and resource sizing still need testing. The existing
 command-line workflow remains the supported fallback and reproducibility path.
 
-The locally tested repository slice extends through policy/template registration,
-managed independent review campaigns, and immutable adjudicated candidates.
-Migrations 0005–0007 and deployment remain pending. Diagnostic validation, explicit
-approval/rejection, compatible supersession, and a fresh eligibility check are now
-implemented locally. Managed evaluations and named-user identities/RBAC remain open.
+The deployed slice extends through policy/template registration, managed review
+campaigns, assignment-scoped reviewer/adjudicator tokens, and immutable adjudicated
+candidates with diagnostic validation and approval records. Control migrations
+0008–0009 are applied. Named-user sign-in remains disabled because the chosen email
+sender domain is not onboarded; reviewer/adjudicator identity binding, full
+production RBAC, managed evaluations, model/release governance, and the operational
+qualifications listed above remain open.

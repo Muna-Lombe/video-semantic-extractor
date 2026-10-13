@@ -1,23 +1,28 @@
 <!-- @type documentation @purpose Record verification and the deployment sequence for managed review and ground-truth governance. -->
 # Managed review and ground-truth release
 
-Prepared on 2026-10-13. This slice adds immutable policy/template registration,
-managed independent review and adjudication campaigns, and recorded diagnostic
-ground-truth validation, decisions, and eligibility checks. Existing legacy review
-routes remain available. Named-user authentication and managed evaluation runners
-remain separate work.
+Prepared on 2026-10-13. This release adds immutable policy/template registration, managed independent
+review and adjudication campaigns, recorded diagnostic ground-truth validation and
+decisions, and separate role-scoped job tokens for each reviewer/adjudicator
+assignment. Existing legacy review routes remain available. Named-user identity
+code is present, but production remains in administrator-token compatibility mode
+until Cloudflare Email Sending is enabled for the selected sender domain. Managed
+evaluation runners remain future work.
 
 ## Verification and current delivery state
 
-- 108 Worker tests pass using actual SQLite migrations.
+- 111 Worker tests pass using actual SQLite migrations.
 - TypeScript checking, JavaScript syntax checks, and Git whitespace checks pass.
 - Wrangler 4.150.0 production dry-run bundles the Worker and seven asset files
-  successfully (219.33 KiB Worker upload, 44.58 KiB compressed).
-- Browser smoke checks against mock local APIs cover the new forms and revision
-  handling. Production migrations, deployment, and authenticated smoke checks have
-  not been performed for this slice.
-- Wrangler reports no authenticated Cloudflare account in the current environment.
-  The application administrator token does not grant Cloudflare deployment access.
+  successfully (249.46 KiB Worker upload, 50.37 KiB compressed).
+- Control migrations `0008_internal_identity.sql` and
+  `0009_campaign_assignment_tokens.sql` are applied; both D1 databases report no
+  pending migrations.
+- Worker version `210a108f-3e29-4dc5-b1f5-5fb41f64942d` is deployed.
+- `/health` returns `ok`; the Internals overview returns `401` without
+  administrator credentials. Cloudflare Access protects the Internals browser URL.
+- Email Sending onboarding for `katundu.org` is absent, so the deployment
+  deliberately retains administrator-token authentication.
 
 ## Deployment sequence
 
@@ -30,11 +35,10 @@ npm run migrate:dataset:remote
 npm run deploy:adjudication
 ```
 
-Control migrations 0005, 0006, and 0007 must run in order before the new Worker:
-template registry, managed campaigns, then ground-truth governance. The dataset
-migration command also verifies the existing dataset schema is current. Record the
-deployed Worker version and migration output. These are additive schema changes;
-do not delete registered evidence or revert database tables during rollback.
+Control migrations 0005–0009 have been applied in order. The dataset migration
+command reports no pending changes. Future schema changes must remain compatible
+with the deployed Worker until publication. Do not delete registered evidence or
+revert database tables during rollback.
 
 ## Post-deployment checks
 
