@@ -1,6 +1,6 @@
 /** @type test @purpose Exercise recorded validation, adequacy, approval, rejection, supersession, and eligibility gates. */
 import { describe, expect, it } from "vitest";
-import { fixture, campaign, call, state, save, reviewerPath, adjudicatorPath } from "./campaign-test-support";
+import { fixture, campaign, call, callWithHeaders, state, save, reviewerPath, adjudicatorPath } from "./campaign-test-support";
 import { getEligibleGroundTruth } from "./ground-truth";
 import { sha256Hex } from "./artifact-pipeline";
 import { parseValidationProfile, validateGroundTruthContent } from "./ground-truth-validation";
@@ -9,6 +9,10 @@ const base = "/api/internal/v1/ground-truth";
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const approveBody = { actor_reference: "test-data-custodian", reason: "Checked frozen policy, independent review, and diagnostic licensing scope.", scope: "diagnostic", attestations: { policy_reviewed: true, independent_humans_confirmed: true, predictions_unseen_confirmed: true, licensing_scope_confirmed: true } };
 const rejectBody = { actor_reference: "test-data-custodian", reason: "Candidate must be replaced after review." };
+async function hash(value) {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return [...new Uint8Array(bytes)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 
 async function candidate(existing, edit) {
   const prepared = existing ?? await fixture({ sourceCount: 5, profile: true }), { env, template } = prepared;
@@ -75,6 +79,29 @@ describe("ground-truth validation and diagnostic approval", () => {
     expect(env.CONTROL_DB.db.prepare("SELECT approved_by FROM ground_truth_versions").get().approved_by).toBeNull();
     expect((await call(env, `${base}/${truth.id}/eligibility?scope=production`)).status).toBe(400);
     expect((await call(env, `${base}/${truth.id}/artifact`)).status).toBe(200);
+  });
+
+  it("authorizes a named release approver and records the authenticated user ID", async () => {
+    const prepared = await candidate();
+    const validated = await validate(prepared);
+    expect(validated.status).toBe(200);
+    const { data } = await validated.json();
+    const env = prepared.env, timestamp = new Date().toISOString(), userId = `user_${"c".repeat(32)}`;
+    const session = "verified-release-approver-session";
+    env.CONTROL_DB.db.prepare("INSERT INTO internal_users (id, email, display_name, status, email_verified_at, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, ?, ?)")
+      .run(userId, "approver@example.test", "Release Approver", timestamp, timestamp, timestamp);
+    env.CONTROL_DB.db.prepare("INSERT INTO internal_user_roles (user_id, role, created_at) VALUES (?, 'release_approver', ?)")
+      .run(userId, timestamp);
+    env.CONTROL_DB.db.prepare("INSERT INTO internal_sessions (id, user_id, token_hash, created_at, expires_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?)")
+      .run("session_approver_test", userId, await hash(session), timestamp, new Date(Date.now() + 60_000).toISOString(), timestamp);
+    const response = await callWithHeaders(env, `${base}/${prepared.truth.id}/approve`, "POST", {
+      reason: "Verified evidence and approval attestations.",
+      scope: "diagnostic",
+      attestations: approveBody.attestations,
+    }, { cookie: `internals_session=${session}`, "if-match": String(data.revision) });
+    expect(response.status).toBe(200);
+    const decision = env.CONTROL_DB.db.prepare("SELECT actor_user_id, actor_reference FROM ground_truth_decisions WHERE ground_truth_id = ?").get(prepared.truth.id);
+    expect(decision).toEqual({ actor_user_id: userId, actor_reference: "approver@example.test" });
   });
 
   it.each([

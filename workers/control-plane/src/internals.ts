@@ -10,6 +10,7 @@ import { listRunnerPresence } from "./runner-presence";
 import { handleTemplateRegistry } from "./template-registry";
 import { handleGroundTruthApi } from "./ground-truth";
 import { canAccessInternals, resolveInternalActor, type InternalUser } from "./internal-auth";
+import { handlePipelineTracking } from "./pipeline-tracking";
 
 type JsonRecord = Record<string, unknown>;
 type DatasetStatus = "draft" | "ready" | "active" | "archived";
@@ -288,6 +289,8 @@ export async function handleInternalsApi(request: Request, env: AdjudicationEnv,
   if (!canAccessInternals(actor, request)) return error("forbidden", "your role is not allowed to perform this operation", 403);
   const groundTruth = await handleGroundTruthApi(request, env, authenticatedUser ?? (actor.kind === "user" ? actor.user : null));
   if (groundTruth) return groundTruth;
+  const pipeline = await handlePipelineTracking(request, env);
+  if (pipeline) return pipeline;
   const registry = await handleTemplateRegistry(request, env);
   if (registry) return registry;
   if (path === "/api/internal/v1/datasets") {

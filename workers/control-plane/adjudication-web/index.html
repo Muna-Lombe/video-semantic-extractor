@@ -17,6 +17,18 @@
       <button id="open">Open assignment</button>
       <p id="login-status" class="status" role="status"></p>
     </section>
+    <section id="assigned-identity" class="card narrow" hidden>
+      <p class="eyebrow">Verified assignment</p>
+      <h1>Sign in to your assigned account</h1>
+      <p>This assignment is bound to a named, verified user. Enter that account's email to receive a one-time sign-in link. Open the link in this browser, then return here and continue.</p>
+      <form id="assigned-login-form">
+        <label for="assigned-email">Work email</label>
+        <input id="assigned-email" type="email" autocomplete="email" required>
+        <button type="submit">Send sign-in link</button>
+      </form>
+      <p id="assigned-login-status" class="status" role="status"></p>
+      <button id="retry-assignment" type="button">Continue after signing in</button>
+    </section>
 
     <section id="assignment-policy" class="card" hidden>
       <details><summary id="policy-heading">Reviewer instructions</summary><pre id="policy-instructions" style="white-space: pre-wrap"></pre></details>
@@ -29,22 +41,45 @@
         <button id="complete-review">Complete pass</button>
       </header>
       <main>
-        <aside><h2>Frames</h2><div id="review-frames"></div></aside>
+        <aside class="frame-sidebar"><h2>Frames</h2><div id="review-frames"></div></aside>
         <section class="workspace">
-          <h2 id="review-title">Select a frame</h2>
-          <img id="review-image" alt="Source evidence">
-          <div class="columns two">
-            <article>
-              <h3>Objects JSON</h3>
-              <p class="hint">Each object needs an ID, COCO label, subset, and [x, y, width, height] region.</p>
-              <textarea id="objects" aria-label="Objects JSON"></textarea>
-            </article>
-            <article>
-              <h3>Out-of-taxonomy concepts</h3>
-              <p class="hint">Enter one visible concept per line.</p>
-              <textarea id="out-of-taxonomy" aria-label="Out-of-taxonomy concepts"></textarea>
-              <button id="mark-reviewed">Save frame and mark reviewed</button>
-            </article>
+          <h2 id="review-title" title="">Select a frame</h2>
+          <div class="review-layout">
+            <div class="review-canvas-column">
+              <div class="canvas-toolbar">
+                <label>Object label
+                  <select id="object-label" aria-label="Object label"></select>
+                </label>
+                <label>Subset
+                  <select id="object-subset" aria-label="Object subset">
+                    <option value="live">Live</option>
+                    <option value="composited">Composited</option>
+                    <option value="screen">Screen</option>
+                  </select>
+                </label>
+                <button id="draw-box" type="button" aria-pressed="false">Draw box</button>
+                <button id="suggest-objects" type="button">Suggest objects</button>
+              </div>
+              <p id="canvas-status" class="hint" role="status">Select a frame to begin reviewing.</p>
+              <div class="canvas-wrap"><canvas id="review-canvas" aria-label="Frame evidence and annotation regions"></canvas></div>
+              <h3>Object suggestions <span class="hint">(optional; confirm or reject each)</span></h3>
+              <div id="suggestion-list" class="object-list"></div>
+            </div>
+            <div class="review-details">
+              <article>
+                <h3>Objects</h3>
+                <p class="hint">Draw boxes on the image. Coordinates are saved in source pixels.</p>
+                <div id="object-list" class="object-list"></div>
+              </article>
+              <article>
+                <h3>Out-of-taxonomy concepts</h3>
+                <p class="hint">Enter one visible concept per line.</p>
+                <textarea id="out-of-taxonomy" aria-label="Out-of-taxonomy concepts" rows="5"></textarea>
+              </article>
+              <div class="frame-actions">
+                <button id="mark-reviewed" type="button">Save frame and mark reviewed</button>
+              </div>
+            </div>
           </div>
         </section>
       </main>

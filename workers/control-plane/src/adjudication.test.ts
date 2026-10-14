@@ -42,7 +42,8 @@ function environment(bucket = new MemoryBucket()): AdjudicationEnv {
     CONTROL_DB: {} as D1Database,
     DATASET_DB: {} as D1Database,
     ADMIN_TOKEN: "admin-secret",
-    ASSETS: { fetch: async (request: Request) => new Response(new URL(request.url).pathname.startsWith("/internals/") ? "<h1>Internals workspace</h1>" : "<h1>Secure annotation workspace</h1>", { headers: { "content-type": "text/html" } }) } as unknown as Fetcher,
+    INTERNAL_AUTH_MODE: "legacy",
+    ASSETS: { fetch: async (request: Request) => new Response(new URL(request.url).pathname === "/favicon.svg" ? "<svg></svg>" : new URL(request.url).pathname.startsWith("/internals/") ? "<h1>Internals workspace</h1>" : "<h1>Secure annotation workspace</h1>", { headers: { "content-type": new URL(request.url).pathname === "/favicon.svg" ? "image/svg+xml" : "text/html" } }) } as unknown as Fetcher,
   };
 }
 async function create(env: AdjudicationEnv, id = "review-1") {
@@ -63,6 +64,17 @@ describe("hosted review worker", () => {
     expect(await review.text()).toContain("Secure annotation workspace");
   });
 
+  it("serves favicon requests as public static assets", async () => {
+    const env = environment();
+    for (const path of ["/favicon.ico", "/favicon.svg"]) {
+      const response = await worker.fetch(request(path), env);
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toBe("image/svg+xml");
+      expect(response.headers.get("cache-control")).toContain("public");
+      expect(await response.text()).toContain("<svg");
+    }
+  });
+
   it("serves an honest Internals foundation while protecting its overview API", async () => {
     const env = environment();
     const page = await worker.fetch(request("/internals/"), env);
@@ -70,8 +82,13 @@ describe("hosted review worker", () => {
     expect(page.headers.get("x-robots-tag")).toBe("noindex");
     const markup = await page.text();
     expect(markup).toContain("Internals workspace");
+    expect(page.headers.get("cache-control")).toBe("no-store");
+
+    const appScript = await worker.fetch(request("/internals/app.js"), env);
+    expect(appScript.headers.get("cache-control")).toBe("no-store");
 
     expect((await worker.fetch(request("/api/internal/v1/overview"), env)).status).toBe(401);
+    expect((await worker.fetch(request("/api/internal/v1/overview", "GET", undefined, "incorrect-token"), env)).status).toBe(401);
     const assignmentEnv = environment();
     const created = await create(assignmentEnv, "internal-auth");
     expect((await worker.fetch(request("/api/internal/v1/overview", "GET", undefined, created.invitations["reviewer-a"].api_token), assignmentEnv)).status).toBe(403);
@@ -86,6 +103,20 @@ describe("hosted review worker", () => {
     expect(overview.areas).toContainEqual(expect.objectContaining({ id: "datasets", status: "available" }));
     expect(overview.areas).toContainEqual(expect.objectContaining({ id: "sampling", status: "runner_available" }));
     expect(overview.areas).toContainEqual(expect.objectContaining({ id: "frame-sets", status: "available" }));
+    expect(overview.areas).toContainEqual(expect.objectContaining({ id: "pipelines", status: "available" }));
+
+    const sessionResponse = await worker.fetch(new Request("https://review.test/api/internal/v1/auth/admin-session", {
+      method: "POST",
+      headers: { origin: "https://review.test", authorization: "Bearer admin-secret" },
+    }), env);
+    expect(sessionResponse.status).toBe(200);
+    const sessionCookie = sessionResponse.headers.get("set-cookie")?.split(";", 1)[0];
+    expect(sessionCookie).toMatch(/^internals_admin_session=/);
+    if (!sessionCookie) throw new Error("admin session cookie was not issued");
+    const restored = await worker.fetch(new Request("https://review.test/api/internal/v1/overview", {
+      headers: { cookie: sessionCookie },
+    }), env);
+    expect(restored.status).toBe(200);
   });
 
   it("publishes safe API discovery without listing active work", async () => {
@@ -103,6 +134,8 @@ describe("hosted review worker", () => {
     expect(openapi.paths).toHaveProperty("/api/internal/v1/overview");
     expect(openapi.paths).toHaveProperty("/api/internal/v1/datasets");
     expect(openapi.paths).toHaveProperty("/api/internal/v1/sampling-jobs");
+    expect(openapi.paths).toHaveProperty("/api/internal/v1/pipelines");
+    expect(openapi.paths).toHaveProperty("/api/internal/v1/pipelines/{id}/resources/{resource_type}/{resource_id}");
     expect(openapi.paths).toHaveProperty("/api/internal/v1/runner/sampling-jobs/claim");
     expect(openapi.paths).toHaveProperty("/api/internal/v1/runner/dataset-versions/{id}/sources");
   });

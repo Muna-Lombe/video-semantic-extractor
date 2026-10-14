@@ -72,6 +72,17 @@ input[type="checkbox"] { width: auto; margin-right: .5rem; }
 .badge.running { color: #15547a; background: #e2f1fa; }
 .badge.failed { color: #982f25; background: #fde8e5; }
 .badge.cancelled { color: #5e6260; background: #e9edeb; }
+.badge.complete { color: #28624e; background: var(--green-soft); }
+.badge.in_progress { color: #15547a; background: #e2f1fa; }
+.badge.attention { color: #982f25; background: #fde8e5; }
+.badge.not_started { color: #52645d; background: #edf1ee; }
+.overview-pipelines { margin: 1.25rem 0; }
+.overview-pipeline-list { display: grid; gap: .5rem; }
+.overview-pipeline { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .8rem 1rem; color: var(--ink); background: #f7f9f7; text-align: left; }
+.overview-pipeline:hover { background: var(--green-soft); }
+.overview-pipeline > span { display: grid; gap: .2rem; }
+.overview-pipeline > span:last-child { justify-items: end; flex: none; }
+.overview-pipeline small { color: var(--muted); font-size: .75rem; }
 .pipeline { display: grid; grid-template-columns: repeat(5,1fr); gap: .35rem; padding: 0; margin: 1.25rem 0 0; list-style: none; }
 .pipeline li { position: relative; display: flex; gap: .55rem; align-items: center; color: var(--muted); }
 .pipeline li:not(:last-child)::after { content: ""; position: absolute; left: calc(100% - .25rem); width: .5rem; border-top: 1px solid #b9c6c0; }

@@ -445,6 +445,7 @@ Canonical control-plane resources live under `/api/internal/v1`, for example:
 /api/internal/v1/templates
 /api/internal/v1/review-campaigns
 /api/internal/v1/ground-truth
+/api/internal/v1/pipelines
 /api/internal/v1/evaluation-runs
 /api/internal/v1/models
 /api/internal/v1/pipeline-releases
@@ -454,6 +455,17 @@ Existing `/api/v1/admin/reviews`, assignment APIs, `/review/`, and `/adjudicate/
 remain compatible during migration. New internal review APIs initially delegate to
 the same domain behavior. Old administrative creation routes are deprecated only
 after template references, the Internals UI, and migration tooling are usable.
+
+Pipeline tracking is a control-plane grouping resource, not a replacement for the
+resource-specific registries. `pipelines` and `pipeline_resources` live in
+`CONTROL_DB`; resource links retain opaque IDs because dataset records are owned by
+the separate `DATASET_DB`. Link creation verifies the target in its owning database.
+Supported links include datasets and versions, sampling jobs, frame sets,
+templates, review campaigns, evaluation runs, model versions, and pipeline releases.
+Progress is derived from each linked resource's current state rather than stored as
+a second mutable status. Evaluation links also expose the ground-truth-to-campaign-
+to-template-to-frame-set-to-dataset-version lineage, where those relationships are
+available.
 
 ## Delivery plan and current work
 
@@ -492,7 +504,7 @@ Progress values are planning estimates, not measured completion claims.
 | Review creation accepts raw templates and URL maps | Migrate to validated template references and managed evidence resolution; keep a compatibility route temporarily. |
 | Diagnostics are not durable jobs | Wrap shared diagnostic engines in queued, retryable, auditable jobs. |
 | Metadata spans two provisioned D1 databases | Keep dataset ownership and orchestration separate; validate references explicitly and use reconciliation because no cross-D1 foreign keys or transactions exist. |
-| No internal-user authentication or RBAC | Add identity and operation-level RBAC as a foundation, not route-prefix security. |
+| Production remains on the administrator-token path while named identities are not operational | Keep the legacy administrator token as the primary owner override; add role-checked named sessions, verified assignment bindings, and authenticated approver attribution as an additional path, then enable email delivery before exercising it. |
 | Ground truth has local diagnostic governance; models and releases remain open | Deploy the ground-truth slice and continue model/release lifecycle resources. |
 | No complete `/internals` UI | Expand the status shell with vertical-slice screens after resource/state contracts are defined. |
 

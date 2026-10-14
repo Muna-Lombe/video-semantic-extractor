@@ -1,7 +1,7 @@
 /** @type test @purpose Verify email-link bootstrap, sessions, invitations, and role eligibility. */
 import { describe, expect, it } from "vitest";
 import { environment } from "./registry-test-support";
-import { handleIdentityApi } from "./internal-auth";
+import { canAccessInternals, handleIdentityApi, resolveInternalActor } from "./internal-auth";
 
 function request(path, method = "GET", payload, headers = {}) {
   return new Request(`https://internal.test${path}`, {
@@ -26,6 +26,94 @@ function tokenFrom(email) {
 }
 
 describe("Internals identity", () => {
+  it("keeps administrator-token authentication primary while allowing it to administer named roles", async () => {
+    const env = environment();
+    env.INTERNAL_AUTH_MODE = "legacy";
+    const sent = [];
+    Object.assign(env, {
+      EMAIL: { send: async (message) => { sent.push(message); } },
+      EMAIL_FROM: "noreply@example.test",
+      PUBLIC_BASE_URL: "https://internal.test",
+    });
+    const headers = { origin: "https://internal.test", authorization: "Bearer test-admin" };
+    const status = await call(env, request("/api/internal/v1/auth/status"));
+    expect((await status.json()).data.authentication).toBe("administrator_token");
+
+    const created = await call(env, request("/api/internal/v1/users", "POST", {
+      email: "operator@example.test",
+      display_name: "Named Operator",
+      roles: ["operator"],
+    }, headers));
+    expect(created.status).toBe(201);
+    expect(sent).toHaveLength(1);
+    const identity = (await created.json()).data;
+    expect(identity).toMatchObject({ email: "operator@example.test", roles: ["operator"], email_verified: false });
+    const listed = await call(env, request("/api/internal/v1/users", "GET", undefined, { authorization: "Bearer test-admin" }));
+    expect((await listed.json()).data).toEqual([expect.objectContaining({ id: identity.id, roles: ["operator"], email_verified: false })]);
+    const audit = env.CONTROL_DB.db.prepare("SELECT actor_user_id, details_json FROM internal_audit_events WHERE action = 'identity.invite'").get();
+    expect(audit.actor_user_id).toBeNull();
+    expect(JSON.parse(audit.details_json).authentication).toBe("legacy_administrator_token");
+  });
+
+  it("applies the role matrix to named users and denies unmatched operations", () => {
+    const actor = (role) => ({ kind: "user", user: { id: "user_test", email: "user@example.test", display_name: "User", roles: [role] } });
+    const allowed = (role, path, method = "GET") => canAccessInternals(actor(role), request(path, method));
+    expect(allowed("operator", "/api/internal/v1/datasets")).toBe(true);
+    expect(allowed("operator", "/api/internal/v1/datasets", "POST")).toBe(true);
+    expect(allowed("researcher", "/api/internal/v1/datasets", "POST")).toBe(false);
+    expect(allowed("researcher", "/api/internal/v1/ground-truth/gt_test/validate", "POST")).toBe(true);
+    expect(allowed("researcher", "/api/internal/v1/ground-truth/gt_test/approve", "POST")).toBe(false);
+    expect(allowed("release_approver", "/api/internal/v1/ground-truth/gt_test/approve", "POST")).toBe(true);
+    expect(allowed("reviewer", "/api/internal/v1/review-campaigns")).toBe(false);
+    expect(allowed("review_coordinator", "/api/internal/v1/review-campaigns", "POST")).toBe(true);
+    expect(allowed("operator", "/api/internal/v1/unregistered-operation")).toBe(false);
+  });
+
+  it("exchanges the administrator bearer for a short-lived browser-session cookie", async () => {
+    const env = environment();
+    env.INTERNAL_AUTH_MODE = "legacy";
+    const origin = { origin: "https://internal.test" };
+    const issued = await call(env, request("/api/internal/v1/auth/admin-session", "POST", undefined, {
+      ...origin,
+      authorization: "Bearer test-admin",
+    }));
+    expect(issued.status).toBe(200);
+    const setCookie = issued.headers.get("set-cookie");
+    expect(setCookie).toContain("internals_admin_session=");
+    expect(setCookie).toContain("Path=/api/internal/v1");
+    expect(setCookie).toContain("HttpOnly");
+    expect(setCookie).toContain("Secure");
+    expect(setCookie).toContain("SameSite=Strict");
+    expect(setCookie).not.toContain("Max-Age");
+
+    const sessionCookie = setCookie.split(";", 1)[0];
+    const overview = request("/api/internal/v1/overview", "GET", undefined, { cookie: sessionCookie });
+    expect(await resolveInternalActor(overview, env)).toEqual({ kind: "legacy_admin" });
+
+    const crossOriginWrite = request("/api/internal/v1/datasets", "POST", undefined, { cookie: sessionCookie, origin: "https://attacker.test" });
+    expect(await resolveInternalActor(crossOriginWrite, env)).toBeNull();
+
+    const logout = await call(env, request("/api/internal/v1/auth/logout", "POST", undefined, { ...origin, cookie: sessionCookie }));
+    expect(logout.headers.get("set-cookie")).toContain("internals_admin_session=; Path=/api/internal/v1; Max-Age=0");
+  });
+
+  it("rejects invalid admin-session exchanges and the email-only mode", async () => {
+    const env = environment();
+    env.INTERNAL_AUTH_MODE = "legacy";
+    const invalid = await call(env, request("/api/internal/v1/auth/admin-session", "POST", undefined, {
+      origin: "https://internal.test",
+      authorization: "Bearer wrong-token",
+    }));
+    expect(invalid.status).toBe(401);
+
+    env.INTERNAL_AUTH_MODE = "sessions";
+    const disabled = await call(env, request("/api/internal/v1/auth/admin-session", "POST", undefined, {
+      origin: "https://internal.test",
+      authorization: "Bearer test-admin",
+    }));
+    expect(disabled.status).toBe(401);
+  });
+
   it("bootstraps a verified owner, invites named reviewers, and requires a session in sessions mode", async () => {
     const env = environment();
     const sent = [];

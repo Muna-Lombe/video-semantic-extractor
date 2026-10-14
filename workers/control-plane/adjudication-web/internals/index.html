@@ -5,6 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Internal dataset, sampling, and review operations for Video Semantic Extractor.">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <title>Internals · Video Semantic Extractor</title>
     <link rel="stylesheet" href="/internals/style.css">
   </head>
@@ -18,6 +19,7 @@
         </a>
         <nav>
           <a href="#overview" data-route="overview" class="active"><span aria-hidden="true">⌂</span> Overview</a>
+          <a href="#pipelines" data-route="pipelines"><span aria-hidden="true">→</span> Pipelines</a>
           <a href="#datasets" data-route="datasets"><span aria-hidden="true">▤</span> Datasets</a>
           <a href="#sampling" data-route="sampling"><span aria-hidden="true">◫</span> Sampling jobs</a>
           <a href="#frame-sets" data-route="frame-sets"><span aria-hidden="true">▦</span> Frame sets</a>
@@ -47,9 +49,9 @@
         <main id="content" tabindex="-1">
           <section id="login-panel" class="login-card" aria-labelledby="login-title">
             <div>
-              <p class="eyebrow">Named account access</p>
+              <p id="login-eyebrow" class="eyebrow">Named account access</p>
               <h2 id="login-title">Sign in to Internals</h2>
-              <p>Use your verified email address. We will send a one-time sign-in link.</p>
+              <p id="login-instructions">Use your verified email address. We will send a one-time sign-in link.</p>
             </div>
             <div>
               <form id="login-form">
@@ -81,6 +83,10 @@
                 <button class="secondary" type="button" data-refresh>Refresh data</button>
               </div>
               <div id="overview-cards" class="metric-grid" aria-live="polite"></div>
+              <section class="panel overview-pipelines">
+                <div class="panel-heading"><div><p class="eyebrow">Workflow tracking</p><h3>Pipelines</h3></div><a href="#pipelines" data-route-link="pipelines">View all</a></div>
+                <div id="overview-pipelines" aria-live="polite"></div>
+              </section>
               <section id="identity-admin-panel" class="panel identity-admin" hidden>
                 <div class="panel-heading"><div><p class="eyebrow">Access control</p><h3>People and roles</h3></div></div>
                 <form id="internal-user-form" class="identity-form">
@@ -121,6 +127,11 @@
               <div class="panel table-panel"><div class="table-toolbar"><label class="search"><span class="sr-only">Filter datasets</span><input id="dataset-filter" type="search" placeholder="Filter datasets…"></label><button class="text-button" type="button" data-refresh>Refresh</button></div><div id="datasets-table"></div></div>
             </section>
 
+            <section class="page" data-page="pipelines" hidden>
+              <div class="page-heading"><div><p class="eyebrow">End-to-end lineage</p><h2>Pipelines</h2><p>Group datasets, sampling jobs, frame sets, templates, review campaigns, and evaluations to track related work and progress.</p></div><button id="pipeline-create-button" type="button" data-dialog-open="pipeline-create-dialog">New pipeline</button></div>
+              <div class="panel table-panel"><div class="table-toolbar"><span id="pipeline-summary" class="muted">Loading pipelines…</span><button class="text-button" type="button" data-refresh>Refresh</button></div><div id="pipelines-table"></div></div>
+            </section>
+
             <section class="page" data-page="sampling" hidden>
               <div class="page-heading"><div><p class="eyebrow">Frame preparation</p><h2>Sampling jobs</h2><p>Create durable job records and inspect their scheduling state.</p></div><button type="button" data-dialog-open="sampling-dialog">Schedule job</button></div>
               <div class="runner-capacity panel">
@@ -159,6 +170,18 @@
 
     <dialog id="ground-truth-dialog" class="detail-dialog">
       <div class="detail-shell"><div class="dialog-heading"><h2 id="ground-truth-title">Ground-truth candidate</h2><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div><div id="ground-truth-detail" aria-live="polite"></div></div>
+    </dialog>
+    <dialog id="pipeline-create-dialog">
+      <form id="pipeline-create-form">
+        <div class="dialog-heading"><div><p class="eyebrow">Lineage record</p><h2>Create pipeline</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div>
+        <label for="pipeline-name">Name</label><input id="pipeline-name" name="name" required maxlength="120">
+        <label for="pipeline-description">Description <span>Optional</span></label><textarea id="pipeline-description" name="description" rows="3" maxlength="2000"></textarea>
+        <p class="field-help">Create the pipeline, then link existing datasets, jobs, frame sets, review campaigns, evaluations, and registered versions from its detail view.</p>
+        <p class="form-status" role="status"></p><div class="dialog-actions"><button class="secondary" type="button" data-dialog-close>Cancel</button><button type="submit">Create pipeline</button></div>
+      </form>
+    </dialog>
+    <dialog id="pipeline-detail-dialog" class="detail-dialog">
+      <div class="detail-shell"><div class="dialog-heading"><h2 id="pipeline-detail-title">Pipeline</h2><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div><div id="pipeline-detail" aria-live="polite"></div></div>
     </dialog>
     <dialog id="ground-truth-decision-dialog">
       <form id="ground-truth-decision-form">

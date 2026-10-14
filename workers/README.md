@@ -121,18 +121,28 @@ and verified template generation are implemented locally; apply migration
 also ship locally with D1-isolated assignments and candidate artifacts; apply
 `0006_managed_campaigns.sql` before deploying that slice. Recorded diagnostic
 validation, approval/rejection, supersession, and eligibility are also implemented
-locally; apply `0007_ground_truth_governance.sql` before deployment. Managed
-email-link identities and operation-level role checks are implemented locally;
-apply `0008_internal_identity.sql` and `0009_campaign_assignment_tokens.sql` before
-deployment. Cloudflare Email Service must have `noreply@katundu.org` onboarded for
-the configured, sender-restricted send binding before enabling email-link sessions.
-Until then, `INTERNAL_AUTH_MODE = "legacy"` keeps Internals on the administrator-token
-compatibility path. Bootstrap for named accounts still uses the `ADMIN_TOKEN` secret.
-Internals issues role-scoped reviewer/adjudicator job
-tokens individually from campaign assignment details; raw tokens are shown only at
-issuance and can be rotated or revoked. Managed evaluations remain open. See `../docs/ground-truth-governance.md`,
+locally; apply `0007_ground_truth_governance.sql` before deployment. Managed email-link identities and operation-level role checks are implemented;
+control migrations `0008_internal_identity.sql`,
+`0009_campaign_assignment_tokens.sql`, and `0011_verified_identity_bindings.sql`
+provide their schema. `INTERNAL_AUTH_MODE = "legacy"` remains the production
+primary: the administrator token retains owner-level access and can manage named
+users and roles. Verified named-user sessions are an additional, role-limited
+path, not a replacement. Cloudflare Email Sending must be onboarded for the sender
+domain before users can verify accounts or exercise identity-bound workflows.
+Bootstrap for named accounts still uses the `ADMIN_TOKEN` secret. Coordinators can
+bind a pending managed review assignment to a verified user with the matching
+reviewer/adjudicator role; that assignment then requires both the user's session
+and the scoped job token. Unbound invitations remain token-compatible. Named
+release-approver decisions persist the authenticated user ID; the administrator
+token remains an owner override. Managed evaluations remain open. See `../docs/ground-truth-governance.md`,
 `../docs/managed-review-campaigns.md`, and
 `../docs/internals-architecture.md` and `../docs/internals-roadmap.md`.
+
+Pipeline lineage and progress are implemented locally under
+`/api/internal/v1/pipelines`; apply control migration
+`0010_pipeline_tracking.sql` before deploying that slice. It links existing
+resources without copying their lifecycle state and validates dataset resources
+against `DATASET_DB`.
 
 The current administrator-protected control-plane slice exposes:
 

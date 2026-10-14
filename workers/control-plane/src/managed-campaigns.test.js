@@ -1,8 +1,12 @@
 /** @type test @purpose Verify isolated campaigns, revocation races, and immutable candidates. */
 import { describe, expect, it } from "vitest";
-import { fixture, campaign, call, state, save, ready, finishReview, reviewerPath, adjudicatorPath } from "./campaign-test-support";
+import { fixture, campaign, call, callWithHeaders, state, save, ready, finishReview, reviewerPath, adjudicatorPath } from "./campaign-test-support";
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const adminBase = "/api/internal/v1/review-campaigns";
+async function hash(value) {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return [...new Uint8Array(bytes)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 function annotated(state, label = "person", reviewed = true) {
   const value = clone(state.annotations), source = value.sources[0], frame = source.frames[0];
   frame.objects = label ? [{ id: `${label}-1`, label, subset: "live", region: [1, 2, 20, 30] }] : [];
@@ -63,6 +67,58 @@ describe("managed review campaigns", () => {
     expect(revoked.status).toBe(200);
     expect((await call(env, reviewerPath(rotated.invitation), "GET", undefined, rotated.invitation.job_token)).status).toBe(401);
     expect(await (await call(env, `${adminBase}/${created.data.id}`)).text()).not.toContain(rotated.invitation.job_token);
+  });
+
+  it("binds managed assignments to a verified role and requires both the user session and job token", async () => {
+    const { env, template } = await fixture();
+    const createdResponse = await call(env, adminBase, "POST", { name: "Identity-bound review", template_id: template.id, issue_tokens: false });
+    expect(createdResponse.status).toBe(201);
+    const created = await createdResponse.json();
+    const userId = `user_${"a".repeat(32)}`;
+    const timestamp = new Date().toISOString();
+    env.CONTROL_DB.db.prepare("INSERT INTO internal_users (id, email, display_name, status, email_verified_at, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, ?, ?)")
+      .run(userId, "reviewer@example.test", "Verified Reviewer", timestamp, timestamp, timestamp);
+    env.CONTROL_DB.db.prepare("INSERT INTO internal_user_roles (user_id, role, created_at) VALUES (?, 'reviewer', ?)")
+      .run(userId, timestamp);
+    const session = "verified-reviewer-session";
+    env.CONTROL_DB.db.prepare("INSERT INTO internal_sessions (id, user_id, token_hash, created_at, expires_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?)")
+      .run("session_reviewer_test", userId, await hash(session), timestamp, new Date(Date.now() + 60_000).toISOString(), timestamp);
+
+    const assignPath = `${adminBase}/${created.data.id}/assignments/reviewer-a/assign`;
+    const bound = await call(env, assignPath, "POST", { user_id: userId });
+    expect(bound.status).toBe(200);
+    expect((await bound.json()).assignment).toMatchObject({ assignee_user_id: userId, assignee_email: "reviewer@example.test" });
+    const issued = await call(env, `${adminBase}/${created.data.id}/assignments/reviewer-a/issue`, "POST");
+    expect(issued.status).toBe(200);
+    const invitation = (await issued.json()).invitation;
+    const path = reviewerPath(invitation);
+
+    expect((await call(env, "/api/v1/me", "GET", undefined, invitation.job_token)).status).toBe(401);
+    const signedIn = await callWithHeaders(env, "/api/v1/me", "GET", undefined, {
+      authorization: `Bearer ${invitation.job_token}`,
+      cookie: `internals_session=${session}`,
+    });
+    expect(signedIn.status).toBe(200);
+    expect((await signedIn.json()).actor.role).toBe("reviewer-a");
+
+    const stateWithSession = await callWithHeaders(env, path, "GET", undefined, {
+      authorization: `Bearer ${invitation.job_token}`,
+      cookie: `internals_session=${session}`,
+    });
+    expect(stateWithSession.status).toBe(200);
+    const wrongSession = "other-verified-session";
+    const wrongUserId = `user_${"b".repeat(32)}`;
+    env.CONTROL_DB.db.prepare("INSERT INTO internal_users (id, email, display_name, status, email_verified_at, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, ?, ?)")
+      .run(wrongUserId, "other@example.test", "Other Reviewer", timestamp, timestamp, timestamp);
+    env.CONTROL_DB.db.prepare("INSERT INTO internal_user_roles (user_id, role, created_at) VALUES (?, 'reviewer', ?)")
+      .run(wrongUserId, timestamp);
+    env.CONTROL_DB.db.prepare("INSERT INTO internal_sessions (id, user_id, token_hash, created_at, expires_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?)")
+      .run("session_other_test", wrongUserId, await hash(wrongSession), timestamp, new Date(Date.now() + 60_000).toISOString(), timestamp);
+    const denied = await callWithHeaders(env, path, "GET", undefined, {
+      authorization: `Bearer ${invitation.job_token}`,
+      cookie: `internals_session=${wrongSession}`,
+    });
+    expect(denied.status).toBe(403);
   });
 
   it("deduplicates campaign creation and allows recovery by reissuing lost invitations", async () => {

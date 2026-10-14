@@ -11,9 +11,12 @@ export interface InternalUser {
 export type InternalActor = { kind: "user"; user: InternalUser } | { kind: "legacy_admin" };
 
 const COOKIE = "internals_session";
+const ADMIN_COOKIE = "internals_admin_session";
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
+const ADMIN_SESSION_SECONDS = 60 * 60 * 12;
 const CHALLENGE_SECONDS = 60 * 30;
 const BASE = "/api/internal/v1/auth";
+const ADMIN_SESSION_PURPOSE = "internals-admin-session-v1";
 const ROLES = new Set<InternalRole>(["owner", "operator", "researcher", "review_coordinator", "reviewer", "adjudicator", "release_approver"]);
 const json = (value: unknown, status = 200) => Response.json(value, { status, headers: { "cache-control": "no-store" } });
 const fail = (code: string, message: string, status: number) => json({ error: { code, message } }, status);
@@ -22,13 +25,70 @@ const id = (prefix: string) => `${prefix}_${crypto.randomUUID().replaceAll("-", 
 const bearer = (request: Request) => request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
 const legacyEnabled = (env: AdjudicationEnv) => env.INTERNAL_AUTH_MODE !== "sessions";
 
-function cookie(request: Request): string | null {
+function cookieValue(request: Request, name: string): string | null {
   const header = request.headers.get("cookie") ?? "";
   for (const part of header.split(";")) {
-    const [name, ...value] = part.trim().split("=");
-    if (name === COOKIE) return value.join("=") || null;
+    const [cookieName, ...value] = part.trim().split("=");
+    if (cookieName === name) return value.join("=") || null;
   }
   return null;
+}
+
+const cookie = (request: Request) => cookieValue(request, COOKIE);
+
+async function adminSessionKey(env: AdjudicationEnv, usage: KeyUsage[]): Promise<CryptoKey> {
+  if (!env.ADMIN_TOKEN) throw new Error("ADMIN_TOKEN is not configured");
+  return crypto.subtle.importKey("raw", new TextEncoder().encode(env.ADMIN_TOKEN), { name: "HMAC", hash: "SHA-256" }, false, usage);
+}
+
+function base64Url(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+}
+
+function decodeBase64Url(value: string): ArrayBuffer | null {
+  if (!/^[A-Za-z0-9_-]+$/.test(value)) return null;
+  try {
+    const base64 = value.replaceAll("-", "+").replaceAll("_", "/");
+    const decoded = atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "="));
+    const bytes = Uint8Array.from(decoded, (character) => character.charCodeAt(0));
+    const buffer = new ArrayBuffer(bytes.byteLength);
+    new Uint8Array(buffer).set(bytes);
+    return buffer;
+  } catch {
+    return null;
+  }
+}
+
+async function createAdminSessionToken(env: AdjudicationEnv): Promise<string> {
+  const issuedAt = String(Math.floor(Date.now() / 1000));
+  const signature = await crypto.subtle.sign("HMAC", await adminSessionKey(env, ["sign"]), new TextEncoder().encode(`${ADMIN_SESSION_PURPOSE}:${issuedAt}`));
+  return `${issuedAt}.${base64Url(new Uint8Array(signature))}`;
+}
+
+async function validAdminSession(request: Request, env: AdjudicationEnv): Promise<boolean> {
+  const rawToken = cookieValue(request, ADMIN_COOKIE);
+  const [issuedAt, encodedSignature, ...extra] = rawToken?.split(".") ?? [];
+  if (!env.ADMIN_TOKEN || extra.length || !/^\d{10}$/.test(issuedAt ?? "") || !encodedSignature) return false;
+  const timestamp = Number(issuedAt);
+  const age = Math.floor(Date.now() / 1000) - timestamp;
+  const signature = decodeBase64Url(encodedSignature);
+  if (!Number.isSafeInteger(timestamp) || age < -30 || age >= ADMIN_SESSION_SECONDS || !signature) return false;
+  return crypto.subtle.verify(
+    "HMAC",
+    await adminSessionKey(env, ["verify"]),
+    signature,
+    new TextEncoder().encode(`${ADMIN_SESSION_PURPOSE}:${issuedAt}`),
+  );
+}
+
+function responseWithAdminSession(response: Response, token: string): Response {
+  response.headers.append("set-cookie", `${ADMIN_COOKIE}=${token}; Path=/api/internal/v1; HttpOnly; Secure; SameSite=Strict`);
+  return response;
+}
+
+function clearAdminSessionCookie(response: Response): Response {
+  response.headers.append("set-cookie", `${ADMIN_COOKIE}=; Path=/api/internal/v1; Max-Age=0; HttpOnly; Secure; SameSite=Strict`);
+  return response;
 }
 
 async function resendInvitation(request: Request, env: AdjudicationEnv, userId: string): Promise<Response> {
@@ -44,7 +104,7 @@ async function resendInvitation(request: Request, env: AdjudicationEnv, userId: 
       return fail("email_unavailable", "could not send the verification email; try again later", 503);
     }
     await env.CONTROL_DB.prepare("INSERT INTO internal_audit_events (actor_user_id, action, resource_type, resource_id, details_json, created_at) VALUES (?, 'identity.invitation_resent', 'internal_user', ?, ?, ?)")
-      .bind(actor.id, user.id, JSON.stringify({ email: user.email }), now()).run();
+        .bind(actor.kind === "user" ? actor.user.id : null, user.id, JSON.stringify({ email: user.email, authentication: actor.kind === "user" ? "email_link_session" : "legacy_administrator_token" }), now()).run();
     return json({ data: { id: user.id, email: user.email, verification_sent: true } }, 202);
   }
 
@@ -67,7 +127,7 @@ async function updateUser(request: Request, env: AdjudicationEnv, userId: string
     const nextRoles = value.roles as InternalRole[] | undefined ?? currentRoles.results.map(({ role }) => role as InternalRole);
     const nextStatus = value.status as "active" | "disabled" | undefined ?? target.status as "active" | "disabled";
     if (!nextRoles.length) return fail("roles_required", "an account must retain at least one role", 400);
-    if (target.id === actor.id && (nextStatus !== "active" || !nextRoles.includes("owner"))) return fail("cannot_remove_self", "you cannot disable or remove your own owner access", 409);
+    if (actor.kind === "user" && target.id === actor.user.id && (nextStatus !== "active" || !nextRoles.includes("owner"))) return fail("cannot_remove_self", "you cannot disable or remove your own owner access", 409);
     if ((target.status === "active" && currentRoles.results.some(({ role }) => role === "owner")) && (nextStatus !== "active" || !nextRoles.includes("owner"))) {
       const otherOwners = await env.CONTROL_DB.prepare("SELECT COUNT(*) AS count FROM internal_user_roles r JOIN internal_users u ON u.id = r.user_id WHERE r.role = 'owner' AND u.status = 'active' AND u.id != ?").bind(userId).first<{ count: number }>();
       if (Number(otherOwners?.count ?? 0) === 0) return fail("last_owner", "at least one active owner must remain", 409);
@@ -79,7 +139,7 @@ async function updateUser(request: Request, env: AdjudicationEnv, userId: string
       ...nextRoles.map((role) => env.CONTROL_DB.prepare("INSERT INTO internal_user_roles (user_id, role, created_at) VALUES (?, ?, ?)").bind(userId, role, timestamp)),
       ...(nextStatus === "disabled" ? [env.CONTROL_DB.prepare("UPDATE internal_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL").bind(timestamp, userId)] : []),
       env.CONTROL_DB.prepare("INSERT INTO internal_audit_events (actor_user_id, action, resource_type, resource_id, details_json, created_at) VALUES (?, 'identity.user_updated', 'internal_user', ?, ?, ?)")
-        .bind(actor.id, userId, JSON.stringify({ roles: nextRoles, status: nextStatus, display_name_changed: value.display_name !== undefined }), timestamp),
+        .bind(actor.kind === "user" ? actor.user.id : null, userId, JSON.stringify({ roles: nextRoles, status: nextStatus, display_name_changed: value.display_name !== undefined, authentication: actor.kind === "user" ? "email_link_session" : "legacy_administrator_token" }), timestamp),
     ];
     await env.CONTROL_DB.batch(statements);
     return json({ data: { id: userId, status: nextStatus, roles: nextRoles, ...(typeof value.display_name === "string" ? { display_name: value.display_name.trim() } : {}) } });
@@ -187,6 +247,12 @@ export async function resolveInternalUser(request: Request, env: AdjudicationEnv
 export async function resolveInternalActor(request: Request, env: AdjudicationEnv): Promise<InternalActor | null> {
   const supplied = bearer(request);
   if (legacyEnabled(env) && env.ADMIN_TOKEN && supplied === env.ADMIN_TOKEN) return { kind: "legacy_admin" };
+  const path = new URL(request.url).pathname;
+  const safeMethod = ["GET", "HEAD", "OPTIONS"].includes(request.method.toUpperCase());
+  const sameOriginWrite = request.headers.get("origin") === new URL(request.url).origin;
+  if (legacyEnabled(env) && path.startsWith("/api/internal/v1/") && (safeMethod || sameOriginWrite) && await validAdminSession(request, env)) {
+    return { kind: "legacy_admin" };
+  }
   const user = await resolveInternalUser(request, env);
   if (user) return { kind: "user", user };
   return null;
@@ -200,6 +266,10 @@ export function canAccessInternals(actor: InternalActor, request: Request): bool
   if (path === "/api/internal/v1/overview") return roles.size > 0;
   if (path.startsWith(`${BASE}/users`)) return roles.has("owner");
   if (path === "/api/internal/v1/reviewers") return roles.has("review_coordinator");
+  if (path.startsWith("/api/internal/v1/pipelines")) {
+    if (method === "GET") return ["operator", "researcher", "review_coordinator", "release_approver"].some((role) => roles.has(role as InternalRole));
+    return ["operator", "researcher", "review_coordinator"].some((role) => roles.has(role as InternalRole));
+  }
   if (path.startsWith("/api/internal/v1/datasets")) return method === "GET" ? ["operator", "researcher", "review_coordinator", "release_approver"].some((role) => roles.has(role as InternalRole)) : roles.has("operator");
   if (path.startsWith("/api/internal/v1/sampling-jobs")) return method === "GET" ? ["operator", "researcher", "review_coordinator", "release_approver"].some((role) => roles.has(role as InternalRole)) : roles.has("operator");
   if (path === "/api/internal/v1/runners") return ["operator", "researcher", "review_coordinator"].some((role) => roles.has(role as InternalRole));
@@ -214,11 +284,11 @@ export function canAccessInternals(actor: InternalActor, request: Request): bool
   return false;
 }
 
-async function ownerRequired(request: Request, env: AdjudicationEnv): Promise<InternalUser | Response> {
+async function ownerRequired(request: Request, env: AdjudicationEnv): Promise<InternalActor | Response> {
   const actor = await resolveInternalActor(request, env);
   if (!actor) return fail("unauthorized", "verified Internals sign-in required", 401);
-  if (actor.kind !== "user" || !actor.user.roles.includes("owner")) return fail("forbidden", "owner role required", 403);
-  return actor.user;
+  if (actor.kind === "legacy_admin" || actor.user.roles.includes("owner")) return actor;
+  return fail("forbidden", "owner role required", 403);
 }
 
 async function sendChallengeResponse(request: Request, env: AdjudicationEnv, userId: string, email: string, purpose: "verify_email" | "sign_in"): Promise<void> {
@@ -289,7 +359,7 @@ async function createUser(request: Request, env: AdjudicationEnv): Promise<Respo
       .bind(userId, email, value.display_name.trim(), timestamp, timestamp),
     ...roles.map((role) => env.CONTROL_DB.prepare("INSERT INTO internal_user_roles (user_id, role, created_at) VALUES (?, ?, ?)").bind(userId, role, timestamp)),
     env.CONTROL_DB.prepare("INSERT INTO internal_audit_events (actor_user_id, action, resource_type, resource_id, details_json, created_at) VALUES (?, 'identity.invite', 'internal_user', ?, ?, ?)")
-      .bind(actor.id, userId, JSON.stringify({ email, roles }), timestamp),
+    .bind(actor.kind === "user" ? actor.user.id : null, userId, JSON.stringify({ email, roles, authentication: actor.kind === "user" ? "email_link_session" : "legacy_administrator_token" }), timestamp),
   ]);
   try {
     await sendChallengeResponse(request, env, userId, email, "verify_email");
@@ -362,6 +432,14 @@ async function status(env: AdjudicationEnv): Promise<Response> {
   return json({ data: { bootstrap_available: !owner, authentication: env.INTERNAL_AUTH_MODE === "sessions" ? "email_link" : "administrator_token" } });
 }
 
+async function createAdminSession(request: Request, env: AdjudicationEnv): Promise<Response> {
+  if (request.headers.get("origin") !== new URL(request.url).origin) return fail("origin_invalid", "request origin is invalid", 403);
+  const supplied = bearer(request);
+  if (!legacyEnabled(env) || !env.ADMIN_TOKEN || supplied !== env.ADMIN_TOKEN) return fail("unauthorized", "administrator token is invalid", 401);
+  const token = await createAdminSessionToken(env);
+  return responseWithAdminSession(json({ data: { authenticated: true, expires_in_seconds: ADMIN_SESSION_SECONDS } }), token);
+}
+
 async function listEligibleAssignees(request: Request, env: AdjudicationEnv): Promise<Response> {
   const actor = await resolveInternalActor(request, env);
   if (!actor) return fail("unauthorized", "verified Internals sign-in required", 401);
@@ -379,6 +457,7 @@ async function listEligibleAssignees(request: Request, env: AdjudicationEnv): Pr
 export async function handleIdentityApi(request: Request, env: AdjudicationEnv): Promise<Response | null> {
   const path = new URL(request.url).pathname.replace(/\/$/, "");
   if (path === `${BASE}/status` && request.method === "GET") return status(env);
+  if (path === `${BASE}/admin-session` && request.method === "POST") return createAdminSession(request, env);
   if (path === "/api/internal/v1/reviewers" && request.method === "GET") return listEligibleAssignees(request, env);
   if (path === `${BASE}/bootstrap` && request.method === "POST") return bootstrap(request, env);
   if (path === `${BASE}/login` && request.method === "POST") return requestSignIn(request, env);
@@ -387,7 +466,7 @@ export async function handleIdentityApi(request: Request, env: AdjudicationEnv):
     if (!sameOrigin(request)) return fail("origin_invalid", "request origin is invalid", 403);
     const rawToken = cookie(request);
     if (rawToken) await env.CONTROL_DB.prepare("UPDATE internal_sessions SET revoked_at = ? WHERE token_hash = ? AND revoked_at IS NULL").bind(now(), await sha256(rawToken)).run();
-    return clearSessionCookie(json({ data: { signed_out: true } }));
+    return clearAdminSessionCookie(clearSessionCookie(json({ data: { signed_out: true } })));
   }
   if (path === `${BASE}/me` && request.method === "GET") {
     const user = await resolveInternalUser(request, env);

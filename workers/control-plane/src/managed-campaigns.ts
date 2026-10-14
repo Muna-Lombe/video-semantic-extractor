@@ -1,6 +1,6 @@
 /** @type implementation @purpose Run template-referenced campaigns with D1-isolated assignments and private evidence. */
 import type { AdjudicationEnv } from "./types";
-import { canAccessInternals, resolveInternalActor, type InternalActor } from "./internal-auth";
+import { canAccessInternals, resolveInternalActor, resolveInternalUser, type InternalActor } from "./internal-auth";
 import { readRegisteredTemplate } from "./template-registry";
 import { sha256Hex } from "./artifact-pipeline";
 import { compareReviews, type JsonRecord } from "./review-comparison";
@@ -41,10 +41,10 @@ function expectedRevision(request: Request): number {
   return value;
 }
 function publicAssignment(row: JsonRecord) {
-  return { id: row.id, role: row.role, status: row.status, revision: row.revision, created_at: row.created_at, updated_at: row.updated_at, expires_at: row.expires_at, completed_at: row.completed_at, revoked_at: row.revoked_at, job_token_issued_at: row.token_issued_at ?? null, reviewed_frames: Number(row.reviewed_count ?? 0) };
+  return { id: row.id, role: row.role, status: row.status, revision: row.revision, created_at: row.created_at, updated_at: row.updated_at, expires_at: row.expires_at, completed_at: row.completed_at, revoked_at: row.revoked_at, job_token_issued_at: row.token_issued_at ?? null, assignee_user_id: row.assignee_user_id ?? null, assignee_email: row.assignee_email ?? null, assignee_display_name: row.assignee_display_name ?? null, reviewed_frames: Number(row.reviewed_count ?? 0) };
 }
 const CAMPAIGN_SELECT = "SELECT c.*, t.frame_count, t.frame_set_id, t.policy_version_id FROM review_campaigns c JOIN templates t ON t.id = c.template_id";
-const ASSIGNMENTS_SELECT = "SELECT *, COALESCE(json_array_length(json_extract(submission_json, '$.review.reviewed_frames')), 0) AS reviewed_count FROM campaign_assignments";
+const ASSIGNMENTS_SELECT = "SELECT a.*, u.email AS assignee_email, u.display_name AS assignee_display_name, COALESCE(json_array_length(json_extract(a.submission_json, '$.review.reviewed_frames')), 0) AS reviewed_count FROM campaign_assignments a LEFT JOIN internal_users u ON u.id = a.assignee_user_id";
 
 async function assignments(env: AdjudicationEnv, campaignId: string): Promise<JsonRecord[]> {
   return (await env.CONTROL_DB.prepare(`${ASSIGNMENTS_SELECT} WHERE campaign_id = ? ORDER BY role`).bind(campaignId).all<JsonRecord>()).results;
@@ -136,7 +136,7 @@ async function handleAdmin(request: Request, env: AdjudicationEnv): Promise<Resp
     const hasMore = rows.length > Number(limit);
     return json({ data: await Promise.all(rows.slice(0, Number(limit)).map((row) => summary(env, row))), pagination: { limit: Number(limit), offset: Number(offset), has_more: hasMore, next_offset: hasMore ? Number(offset) + Number(limit) : null } });
   }
-  const match = path.match(/^\/api\/internal\/v1\/review-campaigns\/(campaign_[a-f0-9]{32})(?:\/(cancel|assignments\/(reviewer-a|reviewer-b|adjudicator)\/(revoke|issue|reissue)))?$/);
+  const match = path.match(/^\/api\/internal\/v1\/review-campaigns\/(campaign_[a-f0-9]{32})(?:\/(cancel|assignments\/(reviewer-a|reviewer-b|adjudicator)\/(assign|revoke|issue|reissue)))?$/);
   if (!match) fail("campaign route not found", 404);
   const campaign = await env.CONTROL_DB.prepare(`${CAMPAIGN_SELECT} WHERE c.id = ?`).bind(match[1]).first<JsonRecord>();
   if (!campaign) fail("campaign not found", 404);
@@ -159,6 +159,27 @@ async function handleAdmin(request: Request, env: AdjudicationEnv): Promise<Resp
     return json({ data: await summary(env, current) });
   }
   const role = match[3] as Role, action = match[4];
+  if (action === "assign") {
+    const value = await body(request, 16 * 1024);
+    if (Object.keys(value).some((key) => key !== "user_id") || typeof value.user_id !== "string" || !/^user_[a-f0-9]{32}$/.test(value.user_id)) fail("a verified user_id is required");
+    const eligibleRole = role === "adjudicator" ? "adjudicator" : "reviewer";
+    const user = await env.CONTROL_DB.prepare(`SELECT u.id FROM internal_users u
+      JOIN internal_user_roles r ON r.user_id = u.id
+      WHERE u.id = ? AND u.status = 'active' AND u.email_verified_at IS NOT NULL AND r.role = ?`)
+      .bind(value.user_id, eligibleRole).first<JsonRecord>();
+    if (!user) fail(`assignment requires an active, email-verified user with the ${eligibleRole} role`, 409);
+    const timestamp = now(), operation = id("op");
+    const results = await env.CONTROL_DB.batch([
+      env.CONTROL_DB.prepare(`UPDATE campaign_assignments SET assignee_user_id = ?, revision = revision + 1, updated_at = ?, last_operation_id = ?
+        WHERE campaign_id = ? AND role = ? AND status = 'pending' AND token_issued_at IS NULL
+        AND EXISTS (SELECT 1 FROM review_campaigns WHERE id = ? AND status NOT IN ('completed', 'cancelled')) RETURNING id`)
+        .bind(user.id, timestamp, operation, campaign.id, role, campaign.id),
+      audit(env, "assignment.bind", campaign.id, operation, timestamp, { role, user_id: user.id }),
+    ]);
+    if (!results[0]?.results?.length) fail("assignment can only be bound before a job token is issued", 409);
+    const assigned = (await assignments(env, campaign.id)).find((item) => item.role === role);
+    return json({ assignment: publicAssignment(assigned!) });
+  }
   const secret = crypto.randomUUID() + crypto.randomUUID(), hash = await sha256Hex(secret);
   const tokenAction = action !== "revoke";
   const set = tokenAction ? "token_hash = ?, revoked_at = NULL, expires_at = ?, token_issued_at = ?" : "revoked_at = ?";
@@ -329,6 +350,12 @@ export async function handleManagedCampaigns(request: Request, env: Adjudication
     if (!token) fail("assignment token required", 401);
     const actor = await env.CONTROL_DB.prepare("SELECT a.* FROM campaign_assignments a JOIN review_campaigns c ON c.id = a.campaign_id WHERE a.token_hash = ? AND a.revoked_at IS NULL AND a.expires_at > ? AND c.status != 'cancelled'").bind(await sha256Hex(token), now()).first<JsonRecord>();
     if (!actor) { if (me) return null; fail("assignment token is invalid, expired, or revoked", 401); }
+    if (actor.assignee_user_id) {
+      const user = await resolveInternalUser(request, env);
+      const requiredRole = actor.role === "adjudicator" ? "adjudicator" : "reviewer";
+      if (!user) fail("verified assigned-user sign-in required", 401);
+      if (user.id !== actor.assignee_user_id || !user.roles.includes(requiredRole)) fail("assignment is bound to a different verified user", 403);
+    }
     if (me) return json({ actor: { role: actor.role }, assignment_id: actor.id, review_id: actor.campaign_id, campaign_id: actor.campaign_id, links: { state: `/api/v1/${actor.role === "adjudicator" ? "adjudications" : "assignments"}/${actor.id}`, policy: `/api/v1/assignments/${actor.id}/policy`, ui: actor.role === "adjudicator" ? "/adjudicate/" : "/review/" } });
     if (resultMatch) {
       if (actor.role !== "adjudicator" || actor.campaign_id !== resultMatch[1]) fail("forbidden", 403);

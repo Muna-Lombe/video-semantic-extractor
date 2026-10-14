@@ -25,12 +25,14 @@ The companion [`Internals architecture`](internals-architecture.md) defines the
 target resource contracts, storage split, authorization model, and route map. This
 document tracks sequencing and the implemented-versus-planned boundary.
 
-A route prefix is not a security boundary. Named-user email-link identity and
-operation-level roles now exist in code, but production remains in administrator
-token compatibility mode until the sender domain is onboarded for Cloudflare Email
-Sending. Do not treat Internals as multi-user ready until that identity mode is
-enabled, verified reviewer/adjudicator provenance is enforced, and all routes use
-the intended role matrix.
+A route prefix is not a security boundary. Production intentionally keeps the
+administrator token as its primary owner-level credential. Named-user email-link
+sessions, operation-level role checks, verified assignment binding, and
+session-derived named approval are available as an additional path. Cloudflare
+Email Sending is not configured for the sender domain, so named-user sign-in and
+those identity-bound workflows cannot yet be exercised in production. Do not
+switch `INTERNAL_AUTH_MODE` to `sessions` until email delivery and recovery are
+verified.
 
 ## Product principles
 
@@ -119,15 +121,26 @@ The following are working foundations, not the complete Internals control plane:
   deployment are applied; operation-specific qualification and broader policy
   lifecycle remain open. See [`template registry`](template-registry.md).
 - Template-referenced D1 campaigns with isolated versioned submissions, scoped
-  evidence and instructions, coordinator progress/audit views, recoverable invitations,
-  and immutable ground-truth candidates. Per-role reviewer/adjudicator job tokens
-  can be issued, rotated, and revoked independently from Internals authentication.
-  The feature is deployed; identity binding and further operational qualification
-  remain open. See [`managed review campaigns`](managed-review-campaigns.md).
+  evidence and instructions, coordinator progress/audit views, recoverable
+  invitations, and immutable ground-truth candidates. Per-role reviewer/adjudicator
+  tokens can be issued, rotated, revoked, and optionally bound to verified,
+  role-eligible named users. Bound assignments require both the named user's
+  session and the assignment token. Session-based release-approver decisions
+  record the authenticated user ID; the existing administrator token remains an
+  owner override. Email delivery and identity-bound production qualification remain
+  blocked on sender onboarding. See [`managed review campaigns`](managed-review-campaigns.md).
+- Local pipeline tracking now groups validated dataset, dataset-version,
+  sampling-job, frame-set, template, review-campaign, evaluation-run, model-version,
+  and pipeline-release references in `CONTROL_DB`. Pipeline progress is derived
+  from linked resource states; evaluation lineage exposes its ground-truth,
+  campaign, template, frame-set, and dataset-version inputs. Migration 0010 and
+  its Internals screen/API are implemented locally; production application and
+  deployment remain pending.
 - Checksum-bound diagnostic validation reports, explicit approval/rejection and
   approved supersession, decision/audit history, and a current evidence eligibility
-  gate. Implemented and deployed; trusted named-approver enforcement remains gated
-  on production identity rollout. See
+  gate. Implemented and deployed; named-session decisions are role-checked and
+  attributed to their authenticated user, while the current administrator token
+  remains an owner override. See
   [`ground-truth governance`](ground-truth-governance.md).
 
 A separate cron-driven sampling-runner Worker and Container now ship. They claim
@@ -148,13 +161,14 @@ legacy import tooling are verified.
 | Area | Purpose | Status |
 | --- | --- | --- |
 | Overview | Current capability status and implementation maturity | Foundation implemented; operational metrics planned |
+| Pipelines | Group resource lineage and show end-to-end progress | Local D1 registry, validated links, derived progress, evaluation lineage, API, and Internals screen implemented; migration/deployment pending |
 | Datasets | Versioned source-media collections and provenance | Dedicated D1 registry accepts HTTPS source URLs, marks the dataset ready, and freezes its initial version |
 | Sampling | Create, monitor, retry, and inspect durable sampling jobs | Deployed runner and control plane; one production run verified through frame-set finalization; further crash-recovery, cancellation-race, and resource-sizing exercises remain |
 | Frame sets | Browse immutable manifests, evidence, coverage, and checksums | Registration, relational membership, administrator UI, and private evidence retrieval implemented |
 | Policies | Version annotation rules, schemas, taxonomy, and lifecycle | Immutable active policy-version registration deployed; broader lifecycle and configurable schemas planned |
 | Templates | Generate, validate, register, and version templates | Verified generation, private artifacts, and Internals inspection deployed |
 | Reviews | Create template-referenced campaigns and monitor progress | D1 assignments, private evidence, Internals coordination, and on-demand role-scoped tokens deployed |
-| Ground truth | Validate, approve, version, and supersede adjudicated artifacts | Diagnostic validation, explicit decisions, supersession, and eligibility deployed; named-approver enforcement remains gated on identity rollout |
+| Ground truth | Validate, approve, version, and supersede adjudicated artifacts | Diagnostic validation, explicit decisions, supersession, and eligibility deployed; named session decisions are role-checked and actor IDs are recorded, while the legacy administrator remains an owner override |
 | Evaluations | Run diagnostics durably and compare reproducible results | CLI engines exist; managed jobs planned |
 | Models | Register immutable model versions and evidence | Planned |
 | Releases | Approve, activate, supersede, and roll back pipeline configurations | Planned |
@@ -179,10 +193,13 @@ estimates, not model accuracy or whole-product completion.
 - [x] Select a separate sampling-runner Worker and Container connected to the
   Internals Worker through a private Service binding.
 - [x] Define initial identity, RBAC, and audit-event contracts in code and migrations.
-- [ ] Enable verified named-user sign-in in production; Cloudflare Email Sending
-  onboarding for `katundu.org` is currently absent.
-- [ ] Enforce verified reviewer/adjudicator identity assignment and named
-  release-approver authorization.
+- [ ] Configure and verify Cloudflare Email Sending for `katundu.org`; retain the
+  administrator token as the primary credential until the user explicitly approves
+  an auth-mode change.
+- [x] Enforce verified reviewer/adjudicator identity binding for bound assignments
+  and derive named release-approver identity from authenticated sessions.
+- [ ] Exercise identity-bound workflows in production after email delivery is
+  available; legacy administrator-token access remains the current owner override.
 
 ### Phase 1 — Control-plane foundation (in progress, 80%)
 
@@ -192,6 +209,9 @@ estimates, not model accuracy or whole-product completion.
   metadata.
 - [x] Bind the provisioned dataset and control-plane D1 databases and document
   their ownership boundary and cross-database consistency constraints.
+- [x] Add cross-resource pipeline records and validated links for datasets,
+  sampling jobs, frame sets, templates, reviews, evaluations, and registered
+  versions; derive progress from source states without copying those states.
 - Evolve the D1 migrations for versions, attempts, progress, approvals, and audit
   events as each vertical slice becomes executable.
 - [x] Add durable sampling-job claims, expiring leases, attempt records,
@@ -340,8 +360,9 @@ command-line workflow remains the supported fallback and reproducibility path.
 
 The deployed slice extends through policy/template registration, managed review
 campaigns, assignment-scoped reviewer/adjudicator tokens, and immutable adjudicated
-candidates with diagnostic validation and approval records. Control migrations
-0008–0009 are applied. Named-user sign-in remains disabled because the chosen email
-sender domain is not onboarded; reviewer/adjudicator identity binding, full
-production RBAC, managed evaluations, model/release governance, and the operational
-qualifications listed above remain open.
+candidates with diagnostic validation and approval records. Control migrations 0008–0011 are applied. Named-user sign-in remains unavailable
+until the chosen email sender domain is onboarded. Role checks, administrator-token
+user management, optional verified assignment binding, and session-derived named
+approver attribution are implemented; production exercise of the identity-bound
+paths remains open. Managed evaluations, model/release governance, and the
+operational qualifications listed above also remain open.

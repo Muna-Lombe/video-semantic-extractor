@@ -9,6 +9,14 @@ afterEach(() => vi.restoreAllMocks());
 async function call(env, path, method = "GET", payload, token = "test-admin", revision) {
   return worker.fetch(new Request(`https://internal.test${path}`, { method, headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...(payload === undefined ? {} : { "content-type": "application/json" }), ...(revision === undefined ? {} : { "if-match": String(revision) }) }, ...(payload === undefined ? {} : { body: JSON.stringify(payload) }) }), env);
 }
+async function callWithHeaders(env, path, method = "GET", payload, headers = {}) {
+  return worker.fetch(new Request(`https://internal.test${path}`, {
+    method,
+    headers: { ...headers, ...(payload === undefined ? {} : { "content-type": "application/json" }) },
+    ...(payload === undefined ? {} : { body: JSON.stringify(payload) }),
+  }), env);
+}
+
 async function fixture(options = {}) {
   const env = environment(), manifest = await frameSet(env, options.sourceCount ?? 1);
   const profile = options.validation_profile ?? (options.profile ? { id: "coco-object-diagnostic.v1", source_sha256: manifest.sources.map((source) => source.source_sha256) } : undefined);
@@ -59,4 +67,4 @@ async function ready(env, created, labelA = "person", labelB = "chair") {
 const adminBase = "/api/internal/v1/review-campaigns";
 
 
-export { fixture, campaign, call, state, save, ready, finishReview, reviewerPath, adjudicatorPath };
+export { fixture, campaign, call, callWithHeaders, state, save, ready, finishReview, reviewerPath, adjudicatorPath };

@@ -4,6 +4,7 @@ const API = "/api/internal/v1";
 let currentUser = null;
 let legacyToken = null;
 let internalUsers = [];
+let eligibleAssignees = [];
 let datasets = [];
 let samplingJobs = [];
 let frameSets = [];
@@ -11,6 +12,8 @@ let policies = [];
 let templates = [];
 let campaigns = [];
 let groundTruths = [];
+let pipelines = [];
+let selectedPipelineId = null;
 let groundTruthDetail;
 let groundTruthRequest = 0;
 let runnerPresence = { available_count: 0, busy_count: 0, total_count: 0, heartbeat_ttl_seconds: 360, runners: [] };
@@ -82,11 +85,11 @@ function renderUsers() {
 }
 
 function showPage(name) {
-  const valid = ["overview", "datasets", "sampling", "frame-sets", "policies", "templates", "reviews", "ground-truth"];
+  const valid = ["overview", "pipelines", "datasets", "sampling", "frame-sets", "policies", "templates", "reviews", "ground-truth"];
   if (!valid.includes(name)) name = "overview";
   document.querySelectorAll(".page").forEach((page) => { page.hidden = page.dataset.page !== name; });
   document.querySelectorAll("nav [data-route]").forEach((link) => link.classList.toggle("active", link.dataset.route === name));
-  $("page-title").textContent = { overview: "Overview", datasets: "Datasets", sampling: "Sampling jobs", "frame-sets": "Frame sets", policies: "Policies", templates: "Templates", reviews: "Review campaigns", "ground-truth": "Ground truth" }[name];
+  $("page-title").textContent = { overview: "Overview", pipelines: "Pipelines", datasets: "Datasets", sampling: "Sampling jobs", "frame-sets": "Frame sets", policies: "Policies", templates: "Templates", reviews: "Review campaigns", "ground-truth": "Ground truth" }[name];
   document.body.classList.remove("menu-open");
   $("menu-toggle").setAttribute("aria-expanded", "false");
 }
@@ -95,6 +98,7 @@ function renderOverview(payload = {}) {
   const metrics = payload.metrics || payload.counts || {};
   const values = [
     ["Datasets", metrics.datasets ?? datasets.length, "Registered source collections"],
+    ["Pipelines", pipelines.length, "Linked workflow progress"],
     ["Sampling jobs", metrics.sampling_jobs ?? samplingJobs.length, "Durable scheduling records"],
     ["Available runners", runnerPresence.available_count, `Seen within ${Math.round(runnerPresence.heartbeat_ttl_seconds / 60)} minutes`],
     ["Frame sets", metrics.frame_sets ?? frameSets.length, "Immutable sampling outputs"],
@@ -103,6 +107,13 @@ function renderOverview(payload = {}) {
     ["Approved ground truth", groundTruths.filter((item) => item.approval_status === "approved").length, "Approved diagnostic versions"],
   ];
   $("overview-cards").innerHTML = values.map(([label, value, detail]) => `<article class="metric"><small>${label}</small><strong>${escapeHtml(value)}</strong><small>${detail}</small></article>`).join("");
+  renderOverviewPipelines();
+}
+
+function renderOverviewPipelines() {
+  $("overview-pipelines").innerHTML = pipelines.length
+    ? `<div class="overview-pipeline-list">${pipelines.slice(0, 5).map((pipeline) => `<button class="overview-pipeline" type="button" data-overview-pipeline="${escapeHtml(pipeline.id)}"><span><strong>${escapeHtml(pipeline.name)}</strong><small>${escapeHtml(pipeline.resources.length)} linked resources · ${escapeHtml(pipeline.progress.completed_count)}/${escapeHtml(pipeline.progress.total_count)} complete</small></span><span>${statusBadge(pipeline.progress.status)}<small>${escapeHtml(pipeline.progress.percentage)}%</small></span></button>`).join("")}</div>`
+    : '<p class="muted">No pipelines yet. Create a pipeline to track related datasets, frame sets, templates, reviews, and evaluations.</p>';
 }
 
 function renderRunnerPresence() {
@@ -173,8 +184,9 @@ async function downloadTemplate(id) {
 async function listAll(path) {
   const items = [];
   let offset = 0;
+  const limit = path === "/pipelines" ? 20 : 100;
   do {
-    const payload = await api(`${path}?limit=100&offset=${offset}`);
+    const payload = await api(`${path}?limit=${limit}&offset=${offset}`);
     items.push(...normaliseList(payload, "data"));
     if (!payload.pagination?.has_more) return { data: items };
     offset = payload.pagination.next_offset;
@@ -187,6 +199,48 @@ function renderCampaigns() {
   const available = templates.filter((item) => item.status === "ready");
   $("campaign-template").innerHTML = available.length ? available.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.id)} · ${escapeHtml(item.frame_count)} frames</option>`).join("") : '<option value="">No ready templates</option>';
   $("campaign-form").querySelector('[type="submit"]').disabled = !available.length;
+}
+
+function renderPipelines() {
+  $("pipeline-create-button").hidden = Array.isArray(currentUser?.roles) && !currentUser.roles.some((role) => ["owner", "operator", "researcher", "review_coordinator"].includes(role));
+  $("pipeline-summary").textContent = `${pipelines.length} pipeline${pipelines.length === 1 ? "" : "s"}`;
+  $("pipelines-table").innerHTML = pipelines.length ? `<table><thead><tr><th>Pipeline</th><th>Progress</th><th>Resources</th><th>Updated</th><th>Actions</th></tr></thead><tbody>${pipelines.map((pipeline) => `<tr><td><strong>${escapeHtml(pipeline.name)}</strong><small>${escapeHtml(pipeline.id)}</small></td><td>${statusBadge(pipeline.progress.status)}<small>${escapeHtml(pipeline.progress.completed_count)}/${escapeHtml(pipeline.progress.total_count)} resources · ${escapeHtml(pipeline.progress.percentage)}%</small></td><td>${pipeline.resources.map((resource) => `<small>${escapeHtml(resource.resource_type.replaceAll("_", " "))}: ${escapeHtml(resource.label)} · ${escapeHtml(resource.status)}</small>`).join("") || '<small class="muted">No resources linked</small>'}</td><td>${escapeHtml(formatDate(pipeline.updated_at))}</td><td><button class="secondary" type="button" data-pipeline-inspect="${escapeHtml(pipeline.id)}">Inspect</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty-state"><strong>No pipelines yet</strong><p>Create a pipeline to group related data, sampling, review, and evaluation resources.</p></div>';
+}
+
+function renderPipelineDetail(pipeline) {
+  selectedPipelineId = pipeline.id;
+  $("pipeline-detail-title").textContent = pipeline.name;
+  const canManage = !Array.isArray(currentUser?.roles) || currentUser.roles.some((role) => ["owner", "operator", "researcher", "review_coordinator"].includes(role));
+  const resources = pipeline.resources.length ? `<table><thead><tr><th>Resource</th><th>Reference / lineage</th><th>Status</th><th></th></tr></thead><tbody>${pipeline.resources.map((resource) => `<tr><td>${escapeHtml(resource.resource_type.replaceAll("_", " "))}</td><td><strong>${escapeHtml(resource.label)}</strong><small>${escapeHtml(resource.resource_id)}</small>${Object.entries(resource.lineage || {}).map(([kind, id]) => `<small>${escapeHtml(kind.replaceAll("_id", "").replaceAll("_", " "))}: ${escapeHtml(id)}</small>`).join("")}</td><td>${statusBadge(resource.status)}</td><td>${canManage ? `<button class="text-button" type="button" data-pipeline-unlink-type="${escapeHtml(resource.resource_type)}" data-pipeline-unlink-id="${escapeHtml(resource.resource_id)}">Unlink</button>` : ""}</td></tr>`).join("")}</tbody></table>` : '<p class="muted">No resources linked yet.</p>';
+  $("pipeline-detail").innerHTML = `<div class="detail-metrics"><div><small>Progress</small>${statusBadge(pipeline.progress.status)}</div><div><small>Completed resources</small><strong>${escapeHtml(pipeline.progress.completed_count)} / ${escapeHtml(pipeline.progress.total_count)}</strong></div><div><small>Completion</small><strong>${escapeHtml(pipeline.progress.percentage)}%</strong></div><div><small>Pipeline status</small>${statusBadge(pipeline.status)}</div></div><p>${escapeHtml(pipeline.description || "No description.")}</p><section class="detail-section"><h3>Linked resources</h3>${resources}</section>${canManage ? `<form id="pipeline-resource-form" class="detail-section"><h3>Link an existing resource</h3><label for="pipeline-resource-type">Resource type</label><select id="pipeline-resource-type" name="resource_type" required><option value="dataset">Dataset</option><option value="dataset_version">Dataset version</option><option value="sampling_job">Sampling job</option><option value="frame_set">Frame set</option><option value="template">Template</option><option value="review_campaign">Review campaign</option><option value="evaluation_run">Evaluation run</option><option value="model_version">Model version</option><option value="pipeline_release">Pipeline release</option></select><label for="pipeline-resource-id">Resource ID</label><input id="pipeline-resource-id" name="resource_id" list="pipeline-resource-options" required pattern="[A-Za-z0-9][A-Za-z0-9_-]{0,127}"><datalist id="pipeline-resource-options"></datalist><p class="field-help">Choose a known resource or enter an ID; the API verifies that it exists.</p><p class="form-status" role="status"></p><button type="submit">Link resource</button></form>` : ""}`;
+  $("pipeline-resource-type")?.addEventListener("change", updatePipelineResourceOptions);
+  updatePipelineResourceOptions();
+  $("pipeline-detail-dialog").showModal();
+}
+
+function updatePipelineResourceOptions() {
+  const type = $("pipeline-resource-type")?.value;
+  if (!type) return;
+  const known = {
+    dataset: datasets.map((item) => [item.id, item.name || item.id]),
+    dataset_version: datasets.filter((item) => item.latest_version?.id).map((item) => [item.latest_version.id, `${item.name || item.id} · ${item.latest_version.id}`]),
+    sampling_job: samplingJobs.map((item) => [item.id, `${item.id} · ${item.status}`]),
+    frame_set: frameSets.map((item) => [item.id, `${item.id} · ${item.frame_count} frames`]),
+    template: templates.map((item) => [item.id, `${item.id} · ${item.status}`]),
+    review_campaign: campaigns.map((item) => [item.id, `${item.name || item.id} · ${item.status}`]),
+    evaluation_run: [],
+    model_version: [],
+    pipeline_release: [],
+  };
+  $("pipeline-resource-options").innerHTML = (known[type] || []).map(([id, label]) => `<option value="${escapeHtml(id)}" label="${escapeHtml(label)}"></option>`).join("");
+}
+
+async function inspectPipeline(pipelineId) {
+  $("pipeline-detail-title").textContent = pipelineId;
+  $("pipeline-detail").textContent = "Loading…";
+  $("pipeline-detail-dialog").showModal();
+  try { renderPipelineDetail((await api(`/pipelines/${encodeURIComponent(pipelineId)}`)).data); }
+  catch (error) { $("pipeline-detail").textContent = error.message; }
 }
 
 function showInvitations(invitations) {
@@ -213,7 +267,15 @@ async function inspectCampaign(id) {
     const item = (await api(`/review-campaigns/${encodeURIComponent(id)}`)).data;
     $("campaign-title").textContent = item.name;
     const terminal = ["completed", "cancelled"].includes(item.status);
-    $("campaign-detail").innerHTML = `<section class="detail-section"><h3>Inputs and progress</h3><p>${statusBadge(item.status)} · ${escapeHtml(item.frame_count)} frames</p><p>Template <code>${escapeHtml(item.template_id)}</code></p><p>SHA-256 <code>${escapeHtml(item.template_sha256)}</code></p></section><section class="detail-section"><h3>Assignments</h3><p class="muted">Generate a separate, role-scoped job token for each person. Tokens are shown once; regenerating one immediately invalidates the previous token.</p>${item.assignments.map((assignment) => `<article><h4>${escapeHtml(assignment.role)}</h4><p>${statusBadge(assignment.status)} · ${escapeHtml(assignment.reviewed_frames)} frames reviewed${assignment.revoked_at ? " · revoked" : ""}</p><p class="muted">Expires ${escapeHtml(formatDate(assignment.expires_at))}${assignment.job_token_issued_at ? ` · Token issued ${escapeHtml(formatDate(assignment.job_token_issued_at))}` : " · No job token issued"}</p>${terminal ? "" : `${assignment.revoked_at ? "" : `<button class="secondary" type="button" data-assignment-action="revoke" data-campaign="${escapeHtml(item.id)}" data-role="${escapeHtml(assignment.role)}">Revoke job token</button>`} ${assignment.status === "complete" ? "" : `<button class="secondary" type="button" data-assignment-action="issue" data-campaign="${escapeHtml(item.id)}" data-role="${escapeHtml(assignment.role)}">${assignment.job_token_issued_at ? "Regenerate job token" : "Generate job token"}</button>`}`}</article>`).join("")}</section><section class="detail-section"><h3>Audit history</h3>${item.audit_events.map((event) => `<p><strong>${escapeHtml(event.action)}</strong> · ${escapeHtml(formatDate(event.created_at))}${event.details.role ? ` · ${escapeHtml(event.details.role)}` : ""}</p>`).join("")}</section>${item.result_url ? `<p>The adjudicated artifact is a ground-truth candidate. Validation and approval remain pending.</p><button type="button" data-campaign-result="${escapeHtml(item.id)}">Download candidate</button>` : ""}${terminal ? "" : `<button class="secondary danger" type="button" data-campaign-cancel="${escapeHtml(item.id)}">Cancel campaign</button>`}`;
+    const assignments = item.assignments.map((assignment) => {
+      const identityRole = assignment.role === "adjudicator" ? "adjudicator" : "reviewer";
+      const eligible = eligibleAssignees.filter((user) => user.roles.includes(identityRole));
+      const bound = assignment.assignee_user_id ? `${escapeHtml(assignment.assignee_display_name || assignment.assignee_email)} · ${escapeHtml(assignment.assignee_email || "")}` : "Unbound; assignment token alone is accepted";
+      const canBind = !terminal && assignment.status === "pending" && !assignment.job_token_issued_at;
+      const bindControl = canBind ? `<div class="input-action"><select aria-label="${escapeHtml(assignment.role)} verified assignee" data-assignee-select="${escapeHtml(assignment.role)}"><option value="">Select verified ${identityRole}</option>${eligible.map((user) => `<option value="${escapeHtml(user.id)}" ${assignment.assignee_user_id === user.id ? "selected" : ""}>${escapeHtml(user.display_name)} · ${escapeHtml(user.email)}</option>`).join("")}</select><button class="secondary" type="button" data-assignment-action="assign" data-campaign="${escapeHtml(item.id)}" data-role="${escapeHtml(assignment.role)}" ${eligible.length ? "" : "disabled"}>Bind verified identity</button></div>` : "";
+      return `<article><h4>${escapeHtml(assignment.role)}</h4><p>${statusBadge(assignment.status)} · ${escapeHtml(assignment.reviewed_frames)} frames reviewed${assignment.revoked_at ? " · revoked" : ""}</p><p><strong>Identity:</strong> ${bound}</p>${bindControl}<p class="muted">Expires ${escapeHtml(formatDate(assignment.expires_at))}${assignment.job_token_issued_at ? ` · Token issued ${escapeHtml(formatDate(assignment.job_token_issued_at))}` : " · No job token issued"}</p>${terminal ? "" : `${assignment.revoked_at ? "" : `<button class="secondary" type="button" data-assignment-action="revoke" data-campaign="${escapeHtml(item.id)}" data-role="${escapeHtml(assignment.role)}">Revoke job token</button>`} ${assignment.status === "complete" ? "" : `<button class="secondary" type="button" data-assignment-action="issue" data-campaign="${escapeHtml(item.id)}" data-role="${escapeHtml(assignment.role)}">${assignment.job_token_issued_at ? "Regenerate job token" : "Generate job token"}</button>`}`}</article>`;
+    }).join("");
+    $("campaign-detail").innerHTML = `<section class="detail-section"><h3>Inputs and progress</h3><p>${statusBadge(item.status)} · ${escapeHtml(item.frame_count)} frames</p><p>Template <code>${escapeHtml(item.template_id)}</code></p><p>SHA-256 <code>${escapeHtml(item.template_sha256)}</code></p></section><section class="detail-section"><h3>Assignments</h3><p class="muted">Optionally bind a verified named reviewer or adjudicator before issuing a job token. Bound assignments require both that user's verified Internals session and the separate assignment token. Unbound existing assignments retain token-only compatibility.</p>${assignments}</section><section class="detail-section"><h3>Audit history</h3>${item.audit_events.map((event) => `<p><strong>${escapeHtml(event.action)}</strong> · ${escapeHtml(formatDate(event.created_at))}${event.details.role ? ` · ${escapeHtml(event.details.role)}` : ""}</p>`).join("")}</section>${item.result_url ? `<p>The adjudicated artifact is a ground-truth candidate. Validation and approval remain pending.</p><button type="button" data-campaign-result="${escapeHtml(item.id)}">Download candidate</button>` : ""}${terminal ? "" : `<button class="secondary danger" type="button" data-campaign-cancel="${escapeHtml(item.id)}">Cancel campaign</button>`}`;
   } catch (error) { $("campaign-detail").textContent = error.message; }
 }
 
@@ -229,7 +291,13 @@ async function campaignAction(button) {
     }
     const id = button.dataset.campaignCancel || button.dataset.campaign;
     const path = button.dataset.campaignCancel ? `/review-campaigns/${id}/cancel` : `/review-campaigns/${id}/assignments/${button.dataset.role}/${button.dataset.assignmentAction}`;
-    const payload = await api(path, { method: "POST" });
+    const data = {};
+    if (button.dataset.assignmentAction === "assign") {
+      const select = $("campaign-detail").querySelector(`[data-assignee-select="${button.dataset.role}"]`);
+      if (!select?.value) throw new Error("Select a verified eligible user before binding the assignment");
+      data.user_id = select.value;
+    }
+    const payload = await api(path, { method: "POST", ...(Object.keys(data).length ? { headers: { "content-type": "application/json" }, body: JSON.stringify(data) } : {}) });
     if (payload.invitation) showInvitations({ [button.dataset.role]: payload.invitation });
     await inspectCampaign(id); await loadAll();
   } catch (error) { toast(error.message); }
@@ -426,7 +494,7 @@ function parseSourceUrls(value) {
 }
 
 async function loadAll() {
-  const results = await Promise.allSettled([api("/overview"), api("/datasets"), api("/sampling-jobs"), listAll("/frame-sets"), api("/runners"), listAll("/policies"), listAll("/templates"), listAll("/review-campaigns"), listAll("/ground-truth")]);
+  const results = await Promise.allSettled([api("/overview"), api("/datasets"), api("/sampling-jobs"), listAll("/frame-sets"), api("/runners"), listAll("/policies"), listAll("/templates"), listAll("/review-campaigns"), listAll("/ground-truth"), listAll("/pipelines"), api("/reviewers")]);
   if (results[0].status === "rejected" && results[0].reason.message.match(/401|403|unauth|forbid/i)) throw results[0].reason;
   datasets = results[1].status === "fulfilled" ? normaliseList(results[1].value, "data", "datasets", "items") : [];
   samplingJobs = results[2].status === "fulfilled" ? normaliseList(results[2].value, "data", "sampling_jobs", "jobs", "items") : [];
@@ -436,7 +504,9 @@ async function loadAll() {
   templates = results[6].status === "fulfilled" ? normaliseList(results[6].value, "data") : [];
   campaigns = results[7].status === "fulfilled" ? normaliseList(results[7].value, "data") : [];
   groundTruths = results[8].status === "fulfilled" ? normaliseList(results[8].value, "data") : [];
-  if (currentUser?.roles.includes("owner")) {
+  pipelines = results[9].status === "fulfilled" ? normaliseList(results[9].value, "data") : [];
+  eligibleAssignees = results[10].status === "fulfilled" ? normaliseList(results[10].value, "data") : [];
+  if (currentUser?.roles?.includes("owner")) {
     try {
       internalUsers = normaliseList(await api("/users"), "data");
       $("identity-admin-panel").hidden = false;
@@ -449,7 +519,8 @@ async function loadAll() {
     $("identity-admin-panel").hidden = true;
   }
   renderOverview(results[0].status === "fulfilled" ? results[0].value : {});
-  renderGroundTruth(); renderCampaigns(); renderRegistry(); renderRunnerPresence(); renderDatasets(); renderSampling(); renderFrameSets(); populateDatasetSelect();
+  renderGroundTruth(); renderCampaigns(); renderPipelines(); renderRegistry(); renderRunnerPresence(); renderDatasets(); renderSampling(); renderFrameSets(); populateDatasetSelect();
+  renderOverviewPipelines();
   const unavailable = results.filter((item) => item.status === "rejected").length;
   if (unavailable) toast(`${unavailable} control-plane resource${unavailable === 1 ? " is" : "s are"} not available yet.`);
 }
@@ -462,13 +533,6 @@ async function acceptSession() {
 
 async function initialiseAuth() {
   const mode = (await api("/auth/status")).data.authentication;
-  const legacyMode = mode === "administrator_token";
-  $("legacy-login-form").hidden = !legacyMode;
-  $("login-form").hidden = legacyMode;
-  $("bootstrap-form").hidden = legacyMode;
-  $("bootstrap-note").hidden = legacyMode;
-  if (legacyMode) return;
-
   const params = new URLSearchParams(location.hash.slice(1));
   const authToken = params.get("auth-token");
   if (authToken) {
@@ -481,6 +545,28 @@ async function initialiseAuth() {
       $("login-status").textContent = error.message;
     }
   }
+  const legacyMode = mode === "administrator_token";
+  $("login-eyebrow").textContent = legacyMode ? "Administrator access" : "Named account access";
+  $("login-instructions").textContent = legacyMode
+    ? "Enter the administrator token. Access lasts for this browser session, up to 12 hours."
+    : "Use your verified email address. We will send a one-time sign-in link.";
+  $("legacy-login-form").hidden = !legacyMode;
+  $("login-form").hidden = legacyMode;
+  $("bootstrap-form").hidden = legacyMode;
+  $("bootstrap-note").hidden = legacyMode;
+  if (legacyMode) {
+    try {
+      await api("/overview");
+      currentUser = { email: "Administrator token", roles: ["owner"] };
+      setConnected(true);
+      await loadAll();
+    } catch (error) {
+      if (!/401|unauthor/i.test(error.message)) $("legacy-login-status").textContent = error.message;
+      setConnected(false);
+    }
+    return;
+  }
+
   try {
     await acceptSession();
   } catch (error) {
@@ -536,8 +622,10 @@ async function connectLegacyAdministrator(event) {
   $("legacy-login-status").textContent = "Checking administrator access…";
   legacyToken = $("legacy-admin-token").value;
   try {
+    await api("/auth/admin-session", { method: "POST" });
+    legacyToken = null;
     await api("/overview");
-    currentUser = { email: "Administrator token" };
+    currentUser = { email: "Administrator token", roles: ["owner"] };
     form.reset();
     setConnected(true);
     await loadAll();
@@ -566,7 +654,7 @@ $("bootstrap-form").addEventListener("submit", bootstrapOwner);
 $("sign-out").onclick = async () => {
   document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
   $("invitation-links").replaceChildren();
-  try { if (!legacyToken) await api("/auth/logout", { method: "POST" }); }
+  try { await api("/auth/logout", { method: "POST" }); }
   finally { currentUser = null; internalUsers = []; setConnected(false); }
   legacyToken = null;
 };
@@ -635,6 +723,48 @@ $("ground-truth-decision-form").addEventListener("submit", async (event) => {
 $("invitations-dialog").addEventListener("close", () => $("invitation-links").replaceChildren());
 $("campaigns-table").addEventListener("click", (event) => {
   const button = event.target.closest("[data-campaign-inspect]"); if (button) inspectCampaign(button.dataset.campaignInspect);
+});
+$("pipelines-table").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-pipeline-inspect]");
+  if (button) inspectPipeline(button.dataset.pipelineInspect);
+});
+$("overview-pipelines").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-overview-pipeline]");
+  if (button) inspectPipeline(button.dataset.overviewPipeline);
+});
+$("pipeline-create-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget, submit = form.querySelector('[type="submit"]'), status = form.querySelector(".form-status");
+  submit.disabled = true; status.textContent = "Creating pipeline…";
+  try {
+    const payload = await api("/pipelines", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(Object.fromEntries(new FormData(form))) });
+    form.closest("dialog").close(); form.reset(); await loadAll(); showPage("pipelines"); renderPipelineDetail(payload.data);
+    toast("Pipeline created.");
+  } catch (error) { status.textContent = error.message; }
+  finally { submit.disabled = false; }
+});
+$("pipeline-detail").addEventListener("submit", async (event) => {
+  if (event.target.id !== "pipeline-resource-form") return;
+  event.preventDefault();
+  const form = event.target, submit = form.querySelector('[type="submit"]'), status = form.querySelector(".form-status");
+  submit.disabled = true; status.textContent = "Linking resource…";
+  try {
+    const payload = await api(`/pipelines/${encodeURIComponent(selectedPipelineId)}/resources`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(Object.fromEntries(new FormData(form))) });
+    pipelines = pipelines.map((pipeline) => pipeline.id === selectedPipelineId ? payload.data : pipeline);
+    renderPipelines(); renderPipelineDetail(payload.data); toast("Resource linked.");
+  } catch (error) { status.textContent = error.message; }
+  finally { submit.disabled = false; }
+});
+$("pipeline-detail").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-pipeline-unlink-type]");
+  if (!button) return;
+  button.disabled = true;
+  try {
+    const path = `/pipelines/${encodeURIComponent(selectedPipelineId)}/resources/${encodeURIComponent(button.dataset.pipelineUnlinkType)}/${encodeURIComponent(button.dataset.pipelineUnlinkId)}`;
+    const payload = await api(path, { method: "DELETE" });
+    pipelines = pipelines.map((pipeline) => pipeline.id === selectedPipelineId ? payload.data : pipeline);
+    renderPipelines(); renderPipelineDetail(payload.data); toast("Resource unlinked.");
+  } catch (error) { toast(error.message); button.disabled = false; }
 });
 $("campaign-detail").addEventListener("click", (event) => {
   const button = event.target.closest("[data-assignment-action], [data-campaign-cancel], [data-campaign-result]"); if (button) campaignAction(button);

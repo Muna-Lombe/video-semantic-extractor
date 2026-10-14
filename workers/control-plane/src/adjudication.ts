@@ -107,6 +107,7 @@ const INTERNAL_AREAS = [
   { id: "templates", label: "Templates", status: "available", summary: "Verified frame sets and active policies generate registered prediction-blind templates consumed by managed campaigns through template IDs." },
   { id: "reviews", label: "Review campaigns", status: "available", summary: "Template-referenced campaigns use D1-isolated assignments, pinned policy instructions, and private evidence; the legacy review service remains available." },
   { id: "ground-truth", label: "Ground truth", status: "available", summary: "Candidates have checksum-bound validation reports, diagnostic approval/rejection, approved replacements, and evidence-checked eligibility. Named user authentication remains planned." },
+  { id: "pipelines", label: "Pipelines", status: "available", summary: "Validated resource links group datasets, sampling jobs, frame sets, templates, campaigns, evaluations, and registered versions; progress is derived from linked states." },
   { id: "evaluations", label: "Evaluations", status: "legacy_cli", summary: "Diagnostic CLIs remain available; durable evaluation runs are not implemented yet." },
   { id: "models", label: "Models", status: "planned", summary: "Model registration and lifecycle governance are not implemented yet." },
   { id: "releases", label: "Pipeline releases", status: "planned", summary: "Pipeline promotion, activation, and rollback are not implemented yet." },
@@ -154,6 +155,11 @@ function apiDescription(origin: string) {
       { method: "POST", path: "/api/v1/admin/reviews/{id}/assignments/{role}/revoke", auth: "administrator", input: "empty JSON object", output: "RevocationResult" },
       { method: "GET", path: "/api/v1/reviews/{id}/result", auth: "administrator or matching adjudicator", output: "Completed merged annotation" },
       { method: "GET", path: "/api/internal/v1/overview", auth: "administrator", output: "Internals capability and implementation status" },
+      { method: "GET", path: "/api/internal/v1/pipelines", auth: "administrator", output: "Paginated pipeline lineage and derived progress" },
+      { method: "POST", path: "/api/internal/v1/pipelines", auth: "administrator", input: "CreatePipeline", output: "Pipeline with validated resource links" },
+      { method: "GET", path: "/api/internal/v1/pipelines/{id}", auth: "administrator", output: "Pipeline lineage and live resource statuses" },
+      { method: "POST", path: "/api/internal/v1/pipelines/{id}/resources", auth: "administrator", input: "PipelineResource", output: "Pipeline with linked resource" },
+      { method: "DELETE", path: "/api/internal/v1/pipelines/{id}/resources/{resource_type}/{resource_id}", auth: "administrator", output: "Pipeline with resource unlinked" },
       { method: "POST", path: "/api/internal/v1/review-campaigns", auth: "administrator", input: "CreateCampaign", output: "Campaign and one-time invitations" },
       { method: "GET", path: "/api/internal/v1/review-campaigns", auth: "administrator", output: "Paginated safe progress summaries" },
       { method: "GET", path: "/api/internal/v1/review-campaigns/{id}", auth: "administrator", output: "Campaign progress and audit history" },
@@ -218,6 +224,19 @@ function openApi(origin: string): JsonRecord {
         post: { summary: "Register a dataset and its initial version", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateDataset" } } } }, responses: { "201": { description: "Dataset created" } } },
       },
       "/api/internal/v1/datasets/{id}": { get: { summary: "Read a dataset and its versions", security: [{ bearerAuth: [] }], responses: { "200": { description: "Dataset" } } } },
+      "/api/internal/v1/pipelines": {
+        get: { summary: "List pipeline lineage and derived progress", security: [{ bearerAuth: [] }], responses: { "200": { description: "Paginated pipelines with linked datasets, sampling jobs, frame sets, templates, campaigns, and evaluations" } } },
+        post: { summary: "Create a pipeline with optional validated resource references", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreatePipeline" } } } }, responses: { "201": { description: "Pipeline created" }, "404": { description: "A referenced resource does not exist" } } },
+      },
+      "/api/internal/v1/pipelines/{id}": {
+        get: { summary: "Inspect pipeline lineage and current progress", security: [{ bearerAuth: [] }], parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }], responses: { "200": { description: "Pipeline detail" } } },
+      },
+      "/api/internal/v1/pipelines/{id}/resources": {
+        post: { summary: "Link a validated resource to a pipeline", security: [{ bearerAuth: [] }], parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/PipelineResource" } } } }, responses: { "201": { description: "Resource linked" }, "409": { description: "Resource already linked" } } },
+      },
+      "/api/internal/v1/pipelines/{id}/resources/{resource_type}/{resource_id}": {
+        delete: { summary: "Unlink a resource without deleting it", security: [{ bearerAuth: [] }], parameters: [{ in: "path", name: "id", required: true, schema: { type: "string" } }, { in: "path", name: "resource_type", required: true, schema: { type: "string" } }, { in: "path", name: "resource_id", required: true, schema: { type: "string" } }], responses: { "200": { description: "Resource unlinked" } } },
+      },
       "/api/internal/v1/sampling-jobs": {
         get: { summary: "List sampling-job records", security: [{ bearerAuth: [] }], responses: { "200": { description: "Sampling jobs" } } },
         post: { summary: "Persist queued sampling-job metadata without executing it", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/CreateSamplingJob" } } } }, responses: { "202": { description: "Sampling request recorded" } } },
@@ -279,6 +298,8 @@ function openApi(origin: string): JsonRecord {
         RegisterPolicy: { type: "object", additionalProperties: false, required: ["name", "version", "annotation_schema_version", "document"], properties: { name: { type: "string", minLength: 1, maxLength: 120 }, version: { type: "string", pattern: "^[a-zA-Z0-9._-]{1,80}$" }, annotation_schema_version: { const: "object-annotations.v1" }, document: { type: "string", minLength: 1, maxLength: 48000 }, validation_profile: { type: "object", additionalProperties: false, required: ["id", "source_sha256"], properties: { id: { const: "coco-object-diagnostic.v1" }, source_sha256: { type: "array", minItems: 5, maxItems: 5, uniqueItems: true, items: { type: "string", pattern: "^[a-f0-9]{64}$" } } } } } },
         GenerateTemplate: { type: "object", additionalProperties: false, required: ["frame_set_id", "policy_version_id", "annotation_schema_version"], properties: { frame_set_id: { type: "string" }, policy_version_id: { type: "string" }, annotation_schema_version: { const: "object-annotations.v1" } } },
         CreateReview: { type: "object", required: ["id", "template", "frame_urls"], properties: { id: { type: "string", pattern: ID_PATTERN.source }, template: { type: "object" }, frame_urls: { type: "object", additionalProperties: { type: "string", format: "uri" } }, expires_in_hours: { type: "integer", minimum: 1, maximum: 720, default: 168 } } },
+        PipelineResource: { type: "object", additionalProperties: false, required: ["resource_type", "resource_id"], properties: { resource_type: { enum: ["dataset", "dataset_version", "sampling_job", "frame_set", "template", "review_campaign", "evaluation_run", "model_version", "pipeline_release"] }, resource_id: { type: "string", minLength: 1, maxLength: 128 } } },
+        CreatePipeline: { type: "object", additionalProperties: false, required: ["name"], properties: { name: { type: "string", minLength: 1, maxLength: 120 }, description: { type: "string", maxLength: 2000 }, resources: { type: "array", maxItems: 100, items: { $ref: "#/components/schemas/PipelineResource" } } } },
         ReviewerSubmission: { type: "object", required: ["policy_version", "review", "sources"], properties: { policy_version: {}, review: { type: "object" }, sources: { type: "array" } } },
         AdjudicationResolution: { type: "object", required: ["frame", "resolution"], properties: { frame: { type: "object" }, resolution: { enum: ["reviewer_a", "reviewer_b", "edited", "ambiguous"] } } },
         CreateDataset: { type: "object", additionalProperties: false, required: ["name", "sources"], properties: { name: { type: "string", minLength: 1, maxLength: 120 }, description: { type: "string", maxLength: 2000 }, sources: { type: "array", minItems: 1, maxItems: 100, items: { type: "object", additionalProperties: false, required: ["url"], properties: { url: { type: "string", format: "uri", pattern: "^https://" }, display_name: { type: "string", minLength: 1, maxLength: 200 } } } } } },
@@ -424,11 +445,18 @@ async function handleControlPlaneRequest(request: Request, env: AdjudicationEnv)
   const identityResponse = await handleIdentityApi(request, env);
   if (identityResponse) return identityResponse;
   if (method === "GET" && path === "/") return Response.redirect(`${url.origin}/internals/`, 302);
+  if (method === "GET" && (path === "/favicon.ico" || path === "/favicon.svg")) {
+    const asset = await env.ASSETS.fetch(new Request(new URL("/favicon.svg", url), request));
+    const headers = new Headers(asset.headers);
+    headers.set("content-type", "image/svg+xml");
+    headers.set("cache-control", "public, max-age=3600");
+    return new Response(asset.body, { status: asset.status, headers });
+  }
   if (method === "GET" && (path === "/internals" || path === "/internals/" || path === "/internals/app.js" || path === "/internals/style.css")) {
     const assetPath = path === "/internals" ? "/internals/" : path;
     const response = await env.ASSETS.fetch(new Request(new URL(assetPath, url), request));
     const headers = new Headers(response.headers);
-    headers.set("cache-control", path.endsWith(".js") || path.endsWith(".css") ? "private, max-age=300" : "no-store");
+    headers.set("cache-control", "no-store");
     headers.set("x-robots-tag", "noindex");
     return new Response(response.body, { status: response.status, headers });
   }
