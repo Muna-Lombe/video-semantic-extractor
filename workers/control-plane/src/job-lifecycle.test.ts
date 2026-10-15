@@ -10,16 +10,16 @@ class Statement {
   bind(...values: unknown[]) { return new Statement(this.db, this.sql, values); }
   async first<T>() {
     if (this.sql.startsWith("UPDATE internal_jobs SET status = 'running'")) {
-      const job = this.db.jobs.find((item) => ((item.status === "queued") || (item.status === "running" && item.lease_expires_at <= String(this.values[7]))) && !item.cancellation_requested_at && item.attempt_count < item.max_attempts);
+      const job = this.db.jobs.find((item) => item.job_type === this.values[6] && ((item.status === "queued") || (item.status === "running" && item.lease_expires_at <= String(this.values[8]))) && !item.cancellation_requested_at && item.attempt_count < item.max_attempts);
       if (!job) return null;
       const [owner, hash, expires, heartbeat, started, updated] = this.values;
       Object.assign(job, { status: "running", lease_owner: owner, lease_token_hash: hash, lease_expires_at: expires, heartbeat_at: heartbeat, started_at: job.started_at ?? started, updated_at: updated, error_message: null, attempt_count: job.attempt_count + 1 });
       return { ...job } as T;
     }
     if (this.sql.startsWith("UPDATE internal_jobs SET heartbeat_at")) {
-      const [heartbeat, expires, progress, updated, jobId, hash, checkedAt] = this.values;
+      const [heartbeat, expires, progress, updated, jobId, jobType, hash, checkedAt] = this.values;
       const job = this.validLease(jobId, hash, checkedAt);
-      if (!job || !this.db.attempts.some((item) => item.job_id === jobId && item.lease_token_hash === hash && item.status === "running")) return null;
+      if (!job || job.job_type !== jobType || !this.db.attempts.some((item) => item.job_id === jobId && item.lease_token_hash === hash && item.status === "running")) return null;
       Object.assign(job, { heartbeat_at: heartbeat, lease_expires_at: expires, progress_json: progress ?? job.progress_json, updated_at: updated });
       return { cancellation_requested_at: job.cancellation_requested_at } as T;
     }
@@ -31,9 +31,9 @@ class Statement {
       return { id: job.id } as T;
     }
     if (this.sql.startsWith("UPDATE internal_jobs SET\n      status = CASE")) {
-      const [requeue, message, , completedAt, cancelledAt, updatedAt, jobId, hash, checkedAt] = this.values;
+      const [requeue, message, , completedAt, cancelledAt, updatedAt, jobId, jobType, hash, checkedAt] = this.values;
       const job = this.validLease(jobId, hash, checkedAt);
-      if (!job || !this.db.attempts.some((item) => item.job_id === jobId && item.lease_token_hash === hash && item.status === "running")) return null;
+      if (!job || job.job_type !== jobType || !this.db.attempts.some((item) => item.job_id === jobId && item.lease_token_hash === hash && item.status === "running")) return null;
       const status = job.cancellation_requested_at ? "cancelled" : requeue === 1 && job.attempt_count < job.max_attempts ? "queued" : "failed";
       Object.assign(job, { status, error_message: message, completed_at: status === "queued" ? null : completedAt, cancelled_at: status === "cancelled" ? cancelledAt : null, updated_at: updatedAt });
       return { status } as T;
@@ -164,6 +164,18 @@ async function claim(database: MemoryJobs) {
 }
 
 describe("sampling job lifecycle", () => {
+  it("claims managed evaluation jobs through the same lease and attempt protocol", async () => {
+    const database = new MemoryJobs();
+    database.jobs = [job({ id: "job_evaluation", job_type: "evaluation" })];
+    const response = await handleRunnerApi(request("/api/internal/v1/runner/evaluation-jobs/claim", { runner_id: "evaluation-runner", lease_seconds: 60 }), environment(database));
+    const payload = await response!.json() as any;
+    expect(response!.status).toBe(200);
+    expect(payload.data.job.type).toBe("evaluation");
+    expect(payload.data.frame_set_id).toBeUndefined();
+    expect(database.attempts).toHaveLength(1);
+    expect(database.attempts[0].status).toBe("running");
+  });
+
   it("claims and heartbeats without storing the raw lease or trusting metadata completion", async () => {
     const database = new MemoryJobs(), claimed = await claim(database);
     expect(claimed.response.status).toBe(200);
@@ -205,6 +217,23 @@ describe("sampling job lifecycle", () => {
     await claim(database);
     expect(database.jobs.map((item) => item.status)).toEqual(["cancelled", "failed"]);
     expect(database.attempts.every((item) => item.status === "lease_expired")).toBe(true);
+  });
+
+  it("reclaims a crashed attempt with a fresh lease and append-only attempt history", async () => {
+    const database = new MemoryJobs();
+    const first = await claim(database);
+    expect(first.payload.data.job.attempt_count).toBe(1);
+
+    // Model process loss: the job remains running until the persisted lease expires.
+    database.jobs[0].lease_expires_at = "2000-01-01T00:00:00.000Z";
+    database.attempts[0].lease_expires_at = "2000-01-01T00:00:00.000Z";
+    const recovered = await claim(database);
+
+    expect(recovered.payload.data.job.attempt_count).toBe(2);
+    expect(recovered.payload.data.lease_token).not.toBe(first.payload.data.lease_token);
+    expect(database.attempts).toHaveLength(2);
+    expect(database.attempts[0].status).toBe("lease_expired");
+    expect(database.attempts[1]).toEqual(expect.objectContaining({ attempt_number: 2, status: "running" }));
   });
 
   it("compensates when attempt creation fails", async () => {

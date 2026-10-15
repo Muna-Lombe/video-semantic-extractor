@@ -270,6 +270,10 @@ export function canAccessInternals(actor: InternalActor, request: Request): bool
     if (method === "GET") return ["operator", "researcher", "review_coordinator", "release_approver"].some((role) => roles.has(role as InternalRole));
     return ["operator", "researcher", "review_coordinator"].some((role) => roles.has(role as InternalRole));
   }
+  if (path.startsWith("/api/internal/v1/evaluations")) {
+    if (method === "GET") return ["operator", "researcher", "release_approver"].some((role) => roles.has(role as InternalRole));
+    return ["researcher", "operator"].some((role) => roles.has(role as InternalRole));
+  }
   if (path.startsWith("/api/internal/v1/datasets")) return method === "GET" ? ["operator", "researcher", "review_coordinator", "release_approver"].some((role) => roles.has(role as InternalRole)) : roles.has("operator");
   if (path.startsWith("/api/internal/v1/sampling-jobs")) return method === "GET" ? ["operator", "researcher", "review_coordinator", "release_approver"].some((role) => roles.has(role as InternalRole)) : roles.has("operator");
   if (path === "/api/internal/v1/runners") return ["operator", "researcher", "review_coordinator"].some((role) => roles.has(role as InternalRole));

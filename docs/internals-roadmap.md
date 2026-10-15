@@ -161,9 +161,9 @@ legacy import tooling are verified.
 | Area | Purpose | Status |
 | --- | --- | --- |
 | Overview | Current capability status and implementation maturity | Foundation implemented; operational metrics planned |
-| Pipelines | Group resource lineage and show end-to-end progress | Local D1 registry, validated links, derived progress, evaluation lineage, API, and Internals screen implemented; migration/deployment pending |
+| Pipelines | Group resource lineage and show end-to-end progress | Pipeline navigation is visible in the production Internals shell; the API is protected (unauthenticated requests return 401). Migration 0010 was reported applied in a previous session, but remote D1 history could not be verified with the current Cloudflare account credentials. |
 | Datasets | Versioned source-media collections and provenance | Dedicated D1 registry accepts HTTPS source URLs, marks the dataset ready, and freezes its initial version |
-| Sampling | Create, monitor, retry, and inspect durable sampling jobs | Deployed runner and control plane; one production run verified through frame-set finalization; further crash-recovery, cancellation-race, and resource-sizing exercises remain |
+| Sampling | Create, monitor, retry, and inspect durable sampling jobs | Deployed runner and control plane; one production run verified; frame count and temporary storage are bounded locally; production crash-recovery, cancellation-race, and resource-sizing exercises remain |
 | Frame sets | Browse immutable manifests, evidence, coverage, and checksums | Registration, relational membership, administrator UI, and private evidence retrieval implemented |
 | Policies | Version annotation rules, schemas, taxonomy, and lifecycle | Immutable active policy-version registration deployed; broader lifecycle and configurable schemas planned |
 | Templates | Generate, validate, register, and version templates | Verified generation, private artifacts, and Internals inspection deployed |
@@ -220,7 +220,13 @@ estimates, not model accuracy or whole-product completion.
   source download, shared-engine invocation, heartbeats, and verified finalization.
 - [x] Deploy the runner and control plane and verify a production sampling run
   against remote media.
-- Exercise crash recovery, cancellation races, and resource sizing under load.
+- [x] Bound frame-set output to the template registry's 500-frame limit and
+  release each source's temporary files after upload.
+- [x] Verify lease-expiry recovery and terminal cancellation/exhaustion behavior
+  in control-plane lifecycle tests.
+- Exercise crash recovery, cancellation races, and resource sizing under production
+  Container conditions; local lifecycle tests do not replace deployed failure
+  injection or load measurements.
 - [x] Add lease-bound immutable frame uploads, byte/checksum/media verification,
   and idempotent frame-set finalization backed by private object storage.
 - [x] Bind a dedicated private Internals R2 bucket separately from hosted review

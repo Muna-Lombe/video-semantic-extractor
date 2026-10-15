@@ -11,6 +11,7 @@ import { handleTemplateRegistry } from "./template-registry";
 import { handleGroundTruthApi } from "./ground-truth";
 import { canAccessInternals, resolveInternalActor, type InternalUser } from "./internal-auth";
 import { handlePipelineTracking } from "./pipeline-tracking";
+import { handleEvaluations } from "./evaluations";
 
 type JsonRecord = Record<string, unknown>;
 type DatasetStatus = "draft" | "ready" | "active" | "archived";
@@ -291,6 +292,8 @@ export async function handleInternalsApi(request: Request, env: AdjudicationEnv,
   if (groundTruth) return groundTruth;
   const pipeline = await handlePipelineTracking(request, env);
   if (pipeline) return pipeline;
+  const evaluation = await handleEvaluations(request, env, actor);
+  if (evaluation) return evaluation;
   const registry = await handleTemplateRegistry(request, env);
   if (registry) return registry;
   if (path === "/api/internal/v1/datasets") {

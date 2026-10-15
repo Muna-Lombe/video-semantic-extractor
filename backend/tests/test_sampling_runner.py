@@ -5,9 +5,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
 
 from video_semantic_extractor.pipeline import FrameCandidate
-from video_semantic_extractor.sampling_runner import SamplingRunner, _log_event, create_runner_app
+from video_semantic_extractor.sampling_runner import RunnerError, SamplingRunner, _log_event, _source_frame_limit, create_runner_app
 
 
 class StubRunner:
@@ -82,3 +83,20 @@ def test_runner_uploads_frames_and_finalizes_manifest(monkeypatch) -> None:
     assert control.manifest["frame_count"] == 1
     assert control.manifest["sources"][0]["frames"][0]["artifact"]["artifact_id"] == "artifact_1"
     assert control.manifest["sources"][0]["frames"][0]["reasons"] == ["near_final"]
+
+
+def test_source_frame_limit_preserves_a_global_budget_and_each_source() -> None:
+    remaining = 500
+    limits = []
+    for sources_left in (3, 2, 1):
+        limit = _source_frame_limit(250, remaining, sources_left)
+        limits.append(limit)
+        remaining -= limit
+
+    assert limits == [167, 167, 166]
+    assert sum(limits) == 500
+
+
+def test_source_frame_limit_rejects_impossible_source_coverage() -> None:
+    with pytest.raises(RunnerError, match="at least one frame per source"):
+        _source_frame_limit(250, 1, 2)

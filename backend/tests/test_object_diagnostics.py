@@ -115,3 +115,39 @@ def test_checksum_bound_ground_truth_rejects_different_source(tmp_path: Path) ->
 
     with pytest.raises(RuntimeError, match="does not match"):
         objects.load_ground_truth(truth, sampling)
+
+
+def test_managed_evaluation_keeps_sources_distinct_and_scores_frozen_frames(tmp_path: Path) -> None:
+    """Source-local timestamps must not collide in managed multi-source reports."""
+    frames = []
+    sources = []
+    for source_id in ("src_a", "src_b"):
+        frame_id = f"frame_{source_id}"
+        path = tmp_path / f"{frame_id}.jpg"
+        assert cv2.imwrite(str(path), np.zeros((20, 40, 3), dtype=np.uint8))
+        frames.append({"source_id": source_id, "frame_id": frame_id, "timestamp_sec": 1.0, "path": str(path), "sha256": "a" * 64})
+        sources.append({"source": source_id, "frames": [{"frame_id": frame_id, "objects": [{"label": "person", "region": [1, 2, 3, 4]}]}]})
+
+    report = objects.evaluate_managed_ground_truth(
+        tmp_path / "model.onnx",
+        frames,
+        {"sources": sources},
+        detector=lambda _image: ([objects.ObjectObservation("person", 0.9, (1, 2, 3, 4))], 2.5),
+    )
+
+    assert report["source_count"] == 2
+    assert report["frame_count"] == 2
+    assert report["object_f1"] == 1.0
+    assert set(report["sources"]) == {"src_a", "src_b"}
+    assert report["sources"]["src_a"]["frames"][0]["timestamp_sec"] == report["sources"]["src_b"]["frames"][0]["timestamp_sec"]
+
+
+def test_managed_evaluation_requires_exact_frozen_frame_coverage(tmp_path: Path) -> None:
+    """Missing registered images cannot quietly be dropped from an evaluation."""
+    with pytest.raises(ValueError, match="coverage differs"):
+        objects.evaluate_managed_ground_truth(
+            tmp_path / "model.onnx",
+            [],
+            {"sources": [{"source": "src_a", "frames": [{"frame_id": "frame_a", "objects": []}]}]},
+            detector=lambda _image: ([], 1.0),
+        )

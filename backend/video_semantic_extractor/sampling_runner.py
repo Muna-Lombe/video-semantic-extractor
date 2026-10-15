@@ -6,8 +6,11 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 import os
+import shutil
+import sys
 import tempfile
 import threading
 import time
@@ -31,6 +34,19 @@ from .pipeline import (
 
 class RunnerError(RuntimeError):
     """Raised when control-plane or sampling execution fails."""
+
+
+# Keep finalized frames within the current hosted template generator's hard limit.
+MAX_FRAME_SET_FRAMES = 500
+
+
+def _source_frame_limit(per_source_limit: int, remaining_frames: int, remaining_sources: int) -> int:
+    """Allocate a bounded, near-even frame budget while retaining one per source."""
+    if per_source_limit < 1:
+        raise RunnerError("per-source frame limit must be positive")
+    if remaining_sources < 1 or remaining_frames < remaining_sources:
+        raise RunnerError("frame-set limit cannot provide at least one frame per source")
+    return min(per_source_limit, (remaining_frames + remaining_sources - 1) // remaining_sources)
 
 
 def _log_event(event: str, **fields: Any) -> None:
@@ -95,6 +111,17 @@ class ControlPlaneClient:
             raise RunnerError(f"control plane rejected {path}: {message}")
         return payload
 
+    def download(self, path: str, *, lease: str) -> bytes:
+        """Fetch one lease-authorized immutable evaluation input as bytes."""
+        try:
+            response = requests.get(f"{self.base_url}{path}", headers={"x-job-lease-token": lease}, timeout=self.timeout)
+        except requests.RequestException as exc:
+            _log_event("evaluation_input_download_failed", error_type=type(exc).__name__)
+            raise
+        if not response.ok:
+            raise RunnerError(f"control plane rejected evaluation input download (HTTP {response.status_code})")
+        return response.content
+
 
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -131,10 +158,10 @@ class SamplingRunner:
         self.runner_id = os.getenv("RUNNER_ID", "cloudflare-sampling-runner")
         self.lease_seconds = _setting_int("RUNNER_LEASE_SECONDS", 300)
 
-    def _heartbeat(self, job_id: str, lease: str, stop: threading.Event, abort: threading.Event, cancelled: threading.Event) -> None:
+    def _heartbeat(self, job_id: str, lease: str, stop: threading.Event, abort: threading.Event, cancelled: threading.Event, job_type: str = "sampling") -> None:
         while not stop.wait(max(10, self.lease_seconds // 3)):
             try:
-                result = self.control.request("POST", f"/api/internal/v1/runner/sampling-jobs/{job_id}/heartbeat", lease=lease, json_body={"lease_seconds": self.lease_seconds})
+                result = self.control.request("POST", f"/api/internal/v1/runner/{job_type}-jobs/{job_id}/heartbeat", lease=lease, json_body={"lease_seconds": self.lease_seconds})
                 if result["data"].get("cancellation_requested"):
                     _log_event("sampling_job_cancellation_requested", job_id=job_id)
                     cancelled.set()
@@ -148,8 +175,7 @@ class SamplingRunner:
     def run_once(self) -> dict[str, Any]:
         claim = self.control.request("POST", "/api/internal/v1/runner/sampling-jobs/claim", json_body={"runner_id": self.runner_id, "lease_seconds": self.lease_seconds}).get("data")
         if claim is None:
-            _log_event("sampling_runner_idle", runner_id=self.runner_id)
-            return {"status": "idle"}
+            return self._run_evaluation_once()
         job, lease = claim["job"], claim["lease_token"]
         job_id, config = job["id"], job["input"]
         _log_event(
@@ -165,9 +191,13 @@ class SamplingRunner:
         try:
             source_payload = self.control.request("GET", f"/api/internal/v1/runner/dataset-versions/{config['dataset_version_id']}/sources")["data"]
             manifest_sources: list[dict[str, Any]] = []
+            sources = source_payload["sources"]
+            if not sources or len(sources) > MAX_FRAME_SET_FRAMES:
+                raise RunnerError(f"sampling requires 1-{MAX_FRAME_SET_FRAMES} sources")
+            remaining_frames = MAX_FRAME_SET_FRAMES
             with tempfile.TemporaryDirectory(prefix=f"sampling-{job_id}-") as directory:
                 root = Path(directory)
-                for source in source_payload["sources"]:
+                for source_index, source in enumerate(sources):
                     if abort.is_set():
                         raise RunnerError("sampling cancelled or heartbeat lease lost")
                     download_started_at = time.monotonic()
@@ -184,7 +214,16 @@ class SamplingRunner:
                     )
                     metadata = probe_video(video)
                     frames = []
-                    for ordinal, candidate in enumerate(_candidates(video, source_dir / "frames", config, metadata.duration_sec)):
+                    source_limit = _source_frame_limit(
+                        int(config.get("max_frames", 250)),
+                        remaining_frames,
+                        len(sources) - source_index,
+                    )
+                    source_config = {**config, "max_frames": source_limit}
+                    candidates = _candidates(video, source_dir / "frames", source_config, metadata.duration_sec)
+                    if not candidates:
+                        raise RunnerError(f"sampling produced no frames for source {source['id']}")
+                    for ordinal, candidate in enumerate(candidates):
                         if abort.is_set():
                             raise RunnerError("sampling cancelled or heartbeat lease lost")
                         image = cv2.imread(str(candidate.path))
@@ -196,6 +235,11 @@ class SamplingRunner:
                         self.control.request("PUT", reservation["upload_path"], lease=lease, data=frame_bytes, media_type="image/jpeg")
                         frames.append({"id": f"frame_{source['ordinal']}_{ordinal}", "timestamp_seconds": candidate.timestamp_sec, "reasons": list(candidate.sampling_reasons), "width": int(image.shape[1]), "height": int(image.shape[0]), "artifact": {"artifact_id": reservation["id"], "sha256": checksum, "size_bytes": len(frame_bytes), "media_type": "image/jpeg"}})
                     manifest_sources.append({"dataset_source_id": source["id"], "source_sha256": _sha256(video), "size_bytes": video.stat().st_size, "duration_seconds": metadata.duration_sec, "frames": frames})
+                    remaining_frames -= len(frames)
+                    # Frames have already been checksum-uploaded; retain metadata only.
+                    # Deleting each source before downloading the next bounds temporary
+                    # storage to one source and its extracted candidates at a time.
+                    shutil.rmtree(source_dir)
                     _log_event(
                         "sampling_source_processed",
                         job_id=job_id,
@@ -223,6 +267,84 @@ class SamplingRunner:
                     job_id=job_id,
                     error_type=type(report_error).__name__,
                 )
+            raise
+        finally:
+            stop.set()
+            heartbeat.join(timeout=2)
+
+    def _run_evaluation_once(self) -> dict[str, Any]:
+        claim = self.control.request("POST", "/api/internal/v1/runner/evaluation-jobs/claim", json_body={"runner_id": f"{self.runner_id}-evaluation", "lease_seconds": self.lease_seconds}).get("data")
+        if claim is None:
+            _log_event("sampling_runner_idle", runner_id=self.runner_id)
+            return {"status": "idle"}
+        job, lease = claim["job"], claim["lease_token"]
+        job_id = str(job["id"])
+        _log_event("evaluation_job_claimed", job_id=job_id, attempt_count=job.get("attempt_count"))
+        stop, abort, cancelled = threading.Event(), threading.Event(), threading.Event()
+        heartbeat = threading.Thread(target=self._heartbeat, args=(job_id, lease, stop, abort, cancelled, "evaluation"), daemon=True)
+        heartbeat.start()
+        try:
+            plan = self.control.request("GET", f"/api/internal/v1/runner/evaluation-jobs/{job_id}/inputs", lease=lease)["data"]
+            script_candidates = [
+                Path("/app/scripts/diagnostics/evaluate-frame-objects.py"),
+                Path(__file__).resolve().parents[2] / "scripts" / "diagnostics" / "evaluate-frame-objects.py",
+            ]
+            script_path = next((path for path in script_candidates if path.is_file()), None)
+            if script_path is None:
+                raise RunnerError("managed object evaluation engine is not installed")
+            spec = importlib.util.spec_from_file_location("managed_object_evaluation_engine", script_path)
+            if spec is None or spec.loader is None:
+                raise RunnerError("managed object evaluation engine could not be loaded")
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = module
+            spec.loader.exec_module(module)
+            with tempfile.TemporaryDirectory(prefix=f"evaluation-{job_id}-") as directory:
+                root = Path(directory)
+                def download_input(item: dict[str, Any], filename: str) -> Path:
+                    if abort.is_set():
+                        raise RunnerError("evaluation cancelled or heartbeat lease lost")
+                    payload = self.control.download(item["download_path"], lease=lease)
+                    if len(payload) != int(item["size_bytes"]) or hashlib.sha256(payload).hexdigest() != item["sha256"]:
+                        raise RunnerError("evaluation input size or checksum does not match its registration")
+                    path = root / filename
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(payload)
+                    return path
+
+                model_path = download_input(plan["model"], "model.onnx")
+                truth_path = download_input(plan["ground_truth"], "ground-truth.json")
+                ground_truth = json.loads(truth_path.read_text(encoding="utf-8"))
+                records = []
+                for index, frame in enumerate(plan["frames"]):
+                    path = download_input(frame, f"frames/{index:04d}.image")
+                    records.append({"source_id": frame["source_id"], "frame_id": frame["frame_id"], "timestamp_sec": frame["timestamp_seconds"], "path": str(path), "sha256": frame["sha256"]})
+                if abort.is_set():
+                    raise RunnerError("evaluation cancelled or heartbeat lease lost")
+                thresholds = plan["configuration"]
+                metrics = module.evaluate_managed_ground_truth(
+                    model_path, records, ground_truth,
+                    float(thresholds["minimum_confidence"]),
+                    float(thresholds["nms_threshold"]),
+                    float(thresholds["minimum_iou"]),
+                )
+                report = {
+                    "schema_version": "managed-evaluation-report.v1",
+                    "evaluation_run_id": plan["evaluation_run_id"],
+                    "input_sha256": plan["input_sha256"],
+                    "implementation_version": plan["implementation_version"],
+                    "model_sha256": plan["model"]["sha256"],
+                    "ground_truth_sha256": plan["ground_truth"]["sha256"],
+                    "metrics": metrics,
+                }
+                result = self.control.request("POST", f"/api/internal/v1/runner/evaluation-jobs/{job_id}/complete", lease=lease, json_body=report)
+            _log_event("evaluation_job_succeeded", job_id=job_id, frame_count=metrics["frame_count"], report_sha256=result["data"].get("report_sha256"))
+            return {"status": "succeeded", "job_id": job_id, "evaluation_run_id": plan["evaluation_run_id"]}
+        except Exception as exc:
+            _log_event("evaluation_job_failed", job_id=job_id, error_type=type(exc).__name__)
+            try:
+                self.control.request("POST", f"/api/internal/v1/runner/evaluation-jobs/{job_id}/fail", lease=lease, json_body={"error_message": str(exc)[:2000], "requeue": not cancelled.is_set()})
+            except Exception as report_error:
+                _log_event("evaluation_failure_report_failed", job_id=job_id, error_type=type(report_error).__name__)
             raise
         finally:
             stop.set()

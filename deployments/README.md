@@ -127,6 +127,15 @@ control plane are deployed, and a production sampling run completed through
 frame-set finalization. Crash recovery, cancellation races, and Container resource
 sizing still require qualification.
 
+The sampler now caps a frame set at the template registry's 500-frame limit,
+distributes that budget across sources, and removes each source's downloaded video
+and extracted frame files after upload. This bounds temporary storage to one source
+at a time. The deployed `basic` Container provides 1 GiB memory and one quarter of
+a vCPU; this is a conservative initial size, not a load-tested capacity claim.
+Production peak memory, duration, cancellation timing, retry recovery, and
+concurrency still need measured qualification before raising the size or declaring
+the runner operationally qualified.
+
 ## Cloudflare project layout
 
 `workers/` is the single Cloudflare project root for all Worker deployments in

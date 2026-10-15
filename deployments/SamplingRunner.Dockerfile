@@ -14,6 +14,7 @@ RUN apt-get update \
 
 COPY backend/pyproject.toml backend/requirements.txt ./backend/
 COPY backend/video_semantic_extractor ./backend/video_semantic_extractor
+COPY scripts/diagnostics/evaluate-frame-objects.py ./scripts/diagnostics/evaluate-frame-objects.py
 
 RUN python -m pip install --upgrade pip \
     && python -m pip install ./backend

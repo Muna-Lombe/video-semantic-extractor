@@ -204,6 +204,16 @@ def score_observations(
     minimum_iou: float,
 ) -> tuple[int, int, int]:
     """Maximize one-to-one same-class matches at the requested IoU threshold."""
+    matches = _match_observations(expected, observed, minimum_iou)
+    return len(matches), len(observed) - len(matches), len(expected) - len(matches)
+
+
+def _match_observations(
+    expected: Sequence[ObjectLabel],
+    observed: Sequence[ObjectObservation],
+    minimum_iou: float,
+) -> list[tuple[int, int]]:
+    """Return optimal (prediction index, label index) pairs for diagnostic detail."""
     eligible_labels: dict[int, list[tuple[float, int]]] = {}
     for item_index, item in enumerate(observed):
         candidates = []
@@ -232,13 +242,8 @@ def score_observations(
     matched_observations = sum(
         claim_label(item_index, set()) for item_index in range(len(observed))
     )
-    true_positives = len(matched_observation_by_label)
-    assert true_positives == matched_observations
-    return (
-        true_positives,
-        len(observed) - true_positives,
-        len(expected) - true_positives,
-    )
+    assert len(matched_observation_by_label) == matched_observations
+    return sorted((observation_index, label_index) for label_index, observation_index in matched_observation_by_label.items())
 
 
 def load_ground_truth(
@@ -469,6 +474,142 @@ def evaluate_strategy(
         "object_recall": round(recall, 4) if recall is not None else None,
         "object_f1": round(f1, 4) if f1 is not None else None,
         "frames": frames,
+    }
+
+
+def evaluate_managed_ground_truth(
+    model_path: Path,
+    frame_records: Sequence[dict[str, object]],
+    ground_truth: dict[str, object],
+    minimum_confidence: float = 0.35,
+    nms_threshold: float = 0.6,
+    minimum_iou: float = 0.5,
+    detector: Callable[[np.ndarray], tuple[list[ObjectObservation], float]] | None = None,
+) -> dict[str, object]:
+    """Evaluate a frozen multi-source managed candidate without merging timestamps.
+
+    Each record must identify one registered frame and its local file. The ground-
+    truth artifact is the admitted managed candidate format: ``sources[].frames[]``.
+    Source/frame coverage is exact so missing evidence cannot silently improve a
+    score. This function performs no network or database access; the job runner is
+    responsible for downloading and checksum-verifying the pinned inputs first.
+    """
+    if not 0 <= minimum_confidence <= 1 or not 0 <= nms_threshold <= 1 or not 0 <= minimum_iou <= 1:
+        raise ValueError("evaluation thresholds must be between 0 and 1")
+    if not isinstance(ground_truth.get("sources"), list) or not ground_truth["sources"]:
+        raise ValueError("managed ground truth must contain sources")
+
+    labels_by_key: dict[tuple[str, str], list[ObjectLabel]] = {}
+    source_ids: list[str] = []
+    for source in ground_truth["sources"]:
+        if not isinstance(source, dict) or not isinstance(source.get("source"), str) or not isinstance(source.get("frames"), list):
+            raise ValueError("managed ground-truth source is malformed")
+        source_id = source["source"]
+        if source_id in source_ids:
+            raise ValueError("managed ground-truth source IDs must be unique")
+        source_ids.append(source_id)
+        for frame in source["frames"]:
+            if not isinstance(frame, dict) or not isinstance(frame.get("frame_id"), str) or not isinstance(frame.get("objects"), list):
+                raise ValueError("managed ground-truth frame is malformed")
+            key = (source_id, frame["frame_id"])
+            if key in labels_by_key:
+                raise ValueError("managed ground-truth frame IDs must be unique per source")
+            labels_by_key[key] = [
+                ObjectLabel(str(item["label"]), tuple(item["region"]))
+                for item in frame["objects"]
+            ]
+    if not labels_by_key:
+        raise ValueError("managed ground truth contains no frames")
+
+    by_key: dict[tuple[str, str], dict[str, object]] = {}
+    for record in frame_records:
+        source_id, frame_id = record.get("source_id"), record.get("frame_id")
+        if not isinstance(source_id, str) or not isinstance(frame_id, str):
+            raise ValueError("registered frame record requires source_id and frame_id")
+        key = (source_id, frame_id)
+        if key in by_key:
+            raise ValueError("registered frame IDs must be unique per source")
+        by_key[key] = record
+    if set(by_key) != set(labels_by_key):
+        missing = sorted(set(labels_by_key) - set(by_key))
+        extra = sorted(set(by_key) - set(labels_by_key))
+        raise ValueError(f"registered frame coverage differs from ground truth (missing={len(missing)}, extra={len(extra)})")
+
+    active_detector = detector or NanoDet(model_path, minimum_confidence, nms_threshold)
+    source_results: dict[str, dict[str, object]] = {}
+    all_frames: list[dict[str, object]] = []
+    class_counts: Counter[str] = Counter()
+    totals = Counter()
+    latencies: list[float] = []
+    for source_id in source_ids:
+        source_frames: list[dict[str, object]] = []
+        source_totals = Counter()
+        source_latencies: list[float] = []
+        for key, record in by_key.items():
+            if key[0] != source_id:
+                continue
+            image_path = Path(str(record["path"]))
+            image = cv2.imread(str(image_path), cv2.IMREAD_COLOR)
+            if image is None:
+                raise RuntimeError(f"could not decode registered frame {record.get('frame_id')}")
+            observations, latency_ms = active_detector(image)
+            expected = labels_by_key[key]
+            pairs = _match_observations(expected, observations, minimum_iou)
+            matched, unsupported, missed = len(pairs), len(observations) - len(pairs), len(expected) - len(pairs)
+            matched_predictions = {prediction_index for prediction_index, _ in pairs}
+            matched_labels = {label_index for _, label_index in pairs}
+            source_totals.update(true_positives=matched, false_positives=unsupported, false_negatives=missed)
+            latencies.append(latency_ms)
+            source_latencies.append(latency_ms)
+            class_counts.update(item.label for item in observations)
+            source_frames.append({
+                "frame_id": key[1],
+                "timestamp_sec": float(record["timestamp_sec"]),
+                "artifact_sha256": record.get("sha256"),
+                "inference_ms": round(latency_ms, 3),
+                "expected_objects": [asdict(item) for item in expected],
+                "score": {"true_positives": matched, "false_positives": unsupported, "false_negatives": missed},
+                "errors": {
+                    "false_positive_observations": [asdict(item) for index, item in enumerate(observations) if index not in matched_predictions],
+                    "false_negative_labels": [asdict(item) for index, item in enumerate(expected) if index not in matched_labels],
+                },
+                "observations": [asdict(item) for item in observations],
+            })
+        ordered = sorted(source_latencies)
+        percentile_index = max(0, int(np.ceil(len(ordered) * 0.95)) - 1)
+        tp, fp, fn = (source_totals[key] for key in ("true_positives", "false_positives", "false_negatives"))
+        precision = tp / (tp + fp) if tp + fp else None
+        recall = tp / (tp + fn) if tp + fn else None
+        source_results[source_id] = {
+            "frame_count": len(source_frames), "true_positives": tp, "false_positives": fp,
+            "false_negatives": fn, "object_precision": round(precision, 4) if precision is not None else None,
+            "object_recall": round(recall, 4) if recall is not None else None,
+            "mean_inference_ms": round(float(np.mean(source_latencies)), 3),
+            "p95_inference_ms": round(ordered[percentile_index], 3), "frames": source_frames,
+        }
+        totals.update(source_totals)
+        all_frames.extend(source_frames)
+
+    tp, fp, fn = (totals[key] for key in ("true_positives", "false_positives", "false_negatives"))
+    precision = tp / (tp + fp) if tp + fp else None
+    recall = tp / (tp + fn) if tp + fn else None
+    f1 = 2 * precision * recall / (precision + recall) if precision is not None and recall is not None and precision + recall else None
+    ordered = sorted(latencies)
+    percentile_index = max(0, int(np.ceil(len(ordered) * 0.95)) - 1)
+    return {
+        "engine": "opencv_dnn_nanodet_plus_1.5x_416",
+        "runtime": {"opencv": cv2.__version__, "python": platform.python_version()},
+        "model": {"sha256": file_sha256(model_path), "size_bytes": model_path.stat().st_size},
+        "configuration": {"minimum_confidence": minimum_confidence, "nms_threshold": nms_threshold, "minimum_iou": minimum_iou},
+        "frame_count": len(all_frames), "source_count": len(source_results),
+        "true_positives": tp, "false_positives": fp, "false_negatives": fn,
+        "object_precision": round(precision, 4) if precision is not None else None,
+        "object_recall": round(recall, 4) if recall is not None else None,
+        "object_f1": round(f1, 4) if f1 is not None else None,
+        "class_counts": dict(sorted(class_counts.items())),
+        "mean_inference_ms": round(float(np.mean(latencies)), 3),
+        "p95_inference_ms": round(ordered[percentile_index], 3),
+        "sources": source_results,
     }
 
 
