@@ -28,7 +28,7 @@ jobs:
       - run: node --check workers/control-plane/adjudication-web/theme.js && node --check workers/control-plane/adjudication-web/app.js && node --check workers/control-plane/adjudication-web/internals/app.js && node --check workers/control-plane/adjudication-web/internals/governance.js
       - run: npm install --prefix work/browser --no-save --package-lock=false playwright@1.64.1
       - run: work/browser/node_modules/.bin/playwright install --with-deps chromium
-      - run: node scripts/operations/smoke-test-adjudicator-ui.mjs
+      - run: node scripts/operations/smoke-test-adjudicator-ui.mjs && node scripts/operations/smoke-test-ui-layout.mjs
         env:
           PLAYWRIGHT_MODULE: ${{ github.workspace }}/work/browser/node_modules/playwright/index.mjs
       - working-directory: workers
