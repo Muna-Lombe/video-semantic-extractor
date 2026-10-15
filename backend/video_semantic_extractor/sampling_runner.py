@@ -255,7 +255,7 @@ class SamplingRunner:
                         checksum = hashlib.sha256(frame_bytes).hexdigest()
                         reservation = self.control.request("POST", f"/api/internal/v1/runner/sampling-jobs/{job_id}/artifacts", lease=lease, json_body={"sha256": checksum, "size_bytes": len(frame_bytes), "media_type": "image/jpeg"})["data"]
                         self.control.request("PUT", reservation["upload_path"], lease=lease, data=frame_bytes, media_type="image/jpeg")
-                        frames.append({"id": f"frame_{source['ordinal']}_{ordinal}", "timestamp_seconds": candidate.timestamp_sec, "reasons": list(candidate.sampling_reasons), "width": int(image.shape[1]), "height": int(image.shape[0]), "artifact": {"artifact_id": reservation["id"], "sha256": checksum, "size_bytes": len(frame_bytes), "media_type": "image/jpeg"}})
+                        frames.append({"id": f"frame_{job_id}_{source['ordinal']}_{ordinal}", "timestamp_seconds": candidate.timestamp_sec, "reasons": list(candidate.sampling_reasons), "width": int(image.shape[1]), "height": int(image.shape[0]), "artifact": {"artifact_id": reservation["id"], "sha256": checksum, "size_bytes": len(frame_bytes), "media_type": "image/jpeg"}})
                     manifest_sources.append({"dataset_source_id": source["id"], "source_sha256": _sha256(video), "size_bytes": video.stat().st_size, "duration_seconds": metadata.duration_sec, "frames": frames})
                     remaining_frames -= len(frames)
                     self._progress = {"stage": "uploading", "completed_sources": source_index + 1, "source_count": len(sources), "uploaded_frames": MAX_FRAME_SET_FRAMES - remaining_frames}

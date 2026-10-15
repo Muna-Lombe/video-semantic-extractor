@@ -53,9 +53,12 @@ def test_runner_uploads_frames_and_finalizes_manifest(monkeypatch) -> None:
         manifest = None
         uploaded = b""
 
+        def __init__(self, job_id="job_1"):
+            self.job_id = job_id
+
         def request(self, method, path, **kwargs):
             if path.endswith("/claim"):
-                return {"data": {"job": {"id": "job_1", "input": {"dataset_version_id": "dsv_1", "method": "hybrid", "scene_threshold": 0.3, "interval_seconds": 5, "max_frames": 10, "include_final_frame": True}}, "lease_token": "lease", "frame_set_id": "frameset_1"}}
+                return {"data": {"job": {"id": self.job_id, "input": {"dataset_version_id": "dsv_1", "method": "hybrid", "scene_threshold": 0.3, "interval_seconds": 5, "max_frames": 10, "include_final_frame": True}}, "lease_token": "lease", "frame_set_id": "frameset_1"}}
             if path.endswith("/sources"):
                 return {"data": {"sources": [{"id": "src_1", "url": "https://media.example/video.mp4", "ordinal": 0}]}}
             if path.endswith("/artifacts") and method == "POST":
@@ -92,6 +95,15 @@ def test_runner_uploads_frames_and_finalizes_manifest(monkeypatch) -> None:
     assert control.manifest["frame_count"] == 1
     assert control.manifest["sources"][0]["frames"][0]["artifact"]["artifact_id"] == "artifact_1"
     assert control.manifest["sources"][0]["frames"][0]["reasons"] == ["near_final"]
+
+    # Frame IDs are global primary keys: the same source ordinal in another
+    # sampling job must not collide with an already registered frame set.
+    second = FakeControl("job_2")
+    assert SamplingRunner(second).run_once()["status"] == "succeeded"
+    first_id = control.manifest["sources"][0]["frames"][0]["id"]
+    second_id = second.manifest["sources"][0]["frames"][0]["id"]
+    assert first_id != second_id
+    assert len(first_id) <= 100 and len(second_id) <= 100
 
 
 def test_source_frame_limit_preserves_a_global_budget_and_each_source() -> None:
