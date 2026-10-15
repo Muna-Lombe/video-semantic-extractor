@@ -1,0 +1,56 @@
+{
+  "started_at": "2026-10-15T14:57:01.980Z",
+  "checks": [
+    {
+      "name": "Retry hosted job after merged fix",
+      "status": "passed"
+    },
+    {
+      "name": "New hosted sampling finalizes",
+      "status": "failed",
+      "attempt_count": 3,
+      "error": "control plane rejected /api/internal/v1/runner/sampling-jobs/job_5a99019f353849a681279e83ee4b268f/finalize: runner request failed"
+    }
+  ],
+  "job_id": "job_5a99019f353849a681279e83ee4b268f",
+  "job": {
+    "id": "job_5a99019f353849a681279e83ee4b268f",
+    "type": "sampling",
+    "status": "failed",
+    "input": {
+      "dataset_version_id": "dsv_e610191f135d454e8a2a4e4c260b47f6",
+      "method": "hybrid",
+      "scene_threshold": 0.3,
+      "interval_seconds": 15,
+      "max_frames": 8,
+      "include_final_frame": true
+    },
+    "progress": {
+      "stage": "sampling",
+      "source_index": 0,
+      "source_count": 1
+    },
+    "output": null,
+    "error_message": "control plane rejected /api/internal/v1/runner/sampling-jobs/job_5a99019f353849a681279e83ee4b268f/finalize: runner request failed",
+    "created_at": "2026-10-15T14:09:21.532Z",
+    "started_at": "2026-10-15T14:09:28.268Z",
+    "completed_at": "2026-10-15T15:00:02.251Z",
+    "updated_at": "2026-10-15T15:00:02.251Z",
+    "attempt_count": 3,
+    "max_attempts": 3,
+    "lease_owner": null,
+    "lease_expires_at": null,
+    "heartbeat_at": "2026-10-15T14:59:11.248Z",
+    "cancellation_requested_at": null
+  },
+  "status": "failed",
+  "error": "New hosted sampling finalizes",
+  "finished_at": "2026-10-15T15:00:06.088Z",
+  "deployment_checks": {
+    "commit": "c6f6008",
+    "control_plane_build": "success",
+    "sampling_runner_build": "failure",
+    "sampling_runner_build_url": "https://dash.cloudflare.com/d1b9378e2318376153f529443af41b25/workers/services/view/video-semantic-extractor-sampling-runner/production/builds/90078ba7-71bf-4b9e-ac39-5af3c3c85a89",
+    "conclusion": "The rebuilt runner is not confirmed live; resolve its publication failure before retrying hosted acceptance."
+  }
+}

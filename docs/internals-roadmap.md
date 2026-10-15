@@ -43,6 +43,12 @@ new frame IDs by job and updates the sampler fingerprint; it still requires merg
 publication of the rebuilt runner and compatible control plane, and a hosted rerun.
 Existing frame IDs and evidence remain unchanged. No migration is required for the fix.
 
+PR #37 merged, but its Cloudflare sampling-runner build failed while the control-plane
+build passed. A hosted retry at 2026-10-15 14:57–15:00 UTC still failed finalization;
+the rebuilt runner is not confirmed live. See the
+[follow-up report](verification/2026-10-15-hosted-sampling-rerun.json). Resolve the
+runner publication failure before treating another hosted retry as a test of the fix.
+
 The /internals/ page requires a separate Cloudflare Access session. Admin API
 credentials work, but UI acceptance remains unverified. There is no approved hosted
 ground truth yet; actual independent review and approval remain prerequisites for

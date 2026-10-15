@@ -528,3 +528,22 @@ for the image's unprivileged runner user (UID 10001). Managed environments using
 TLS proxy can pass their public combined CA bundle as Docker build secret proxy_ca;
 it is mounted for pip and is not copied into image layers. Production load and
 fault qualification remain a separate release acceptance step.
+
+### Adjudicator browser checks
+
+The adjudicator and shared appearance controls have isolated browser regression
+checks. These serve local assets and mock assignment APIs; they do not submit human
+reviews or contact production. Run from the repository root:
+
+```sh
+npm install --prefix work/browser --no-save --package-lock=false playwright@1.64.1
+work/browser/node_modules/.bin/playwright install chromium
+PLAYWRIGHT_MODULE="$PWD/work/browser/node_modules/playwright/index.mjs" \
+  node scripts/operations/smoke-test-adjudicator-ui.mjs
+```
+
+Set CHROMIUM_PATH to use an existing Chromium executable. Results and screenshots
+are written under work/adjudicator/. CI runs these checks with bundled Chromium.
+Coverage includes light/dark/system appearance, persistence and unavailable storage,
+reviewer evidence, comparison overlays, drawing and editing boxes, dirty decisions,
+revision conflicts, completion, waiting states, and mobile layout.

@@ -510,6 +510,10 @@ async function handleControlPlaneRequest(request: Request, env: AdjudicationEnv)
     headers.set("cache-control", "public, max-age=3600");
     return new Response(asset.body, { status: asset.status, headers });
   }
+  if (method === "GET" && path === "/theme.js") {
+    const asset = await env.ASSETS.fetch(request);
+    return new Response(asset.body, { status: asset.status, headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-cache" } });
+  }
   if (method === "GET" && (path === "/internals" || path === "/internals/" || path === "/internals/app.js" || path === "/internals/governance.js" || path === "/internals/style.css")) {
     const assetPath = path === "/internals" ? "/internals/" : path;
     const response = await env.ASSETS.fetch(new Request(new URL(assetPath, url), request));
