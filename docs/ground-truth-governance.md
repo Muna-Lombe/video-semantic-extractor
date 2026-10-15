@@ -2,10 +2,10 @@
 # Ground-truth validation and approval
 
 This repository now implements recorded validation, diagnostic approval/rejection,
-supersession, and an evidence-checked eligibility gate. It is locally tested, not
-deployed or remotely verified. Apply control migration
-`0007_ground_truth_governance.sql` after migrations 0005/0006 before deploying the
-updated Worker and assets. The Internals Ground truth screen exposes the workflow.
+supersession, and an evidence-checked eligibility gate. The original slice is
+recorded as deployed. This branch adds same-origin session write enforcement,
+immutable policy guards, and configurable annotation restrictions. Apply pending
+control migrations through 0014 before publishing after merge. The Internals Ground truth screen exposes the workflow.
 
 ## Frozen diagnostic profile
 

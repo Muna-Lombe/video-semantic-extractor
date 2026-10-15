@@ -1,3 +1,4 @@
+import { loadGovernance } from "./governance.js";
 /** @type implementation @purpose Drive the internal control-plane workspace. */
 const $ = (id) => document.getElementById(id);
 const API = "/api/internal/v1";
@@ -85,11 +86,11 @@ function renderUsers() {
 }
 
 function showPage(name) {
-  const valid = ["overview", "pipelines", "datasets", "sampling", "frame-sets", "policies", "templates", "reviews", "ground-truth"];
+  const valid = ["overview", "pipelines", "datasets", "sampling", "frame-sets", "policies", "templates", "reviews", "ground-truth", "evaluations", "models", "releases", "operations"];
   if (!valid.includes(name)) name = "overview";
   document.querySelectorAll(".page").forEach((page) => { page.hidden = page.dataset.page !== name; });
   document.querySelectorAll("nav [data-route]").forEach((link) => link.classList.toggle("active", link.dataset.route === name));
-  $("page-title").textContent = { overview: "Overview", pipelines: "Pipelines", datasets: "Datasets", sampling: "Sampling jobs", "frame-sets": "Frame sets", policies: "Policies", templates: "Templates", reviews: "Review campaigns", "ground-truth": "Ground truth" }[name];
+  $("page-title").textContent = { evaluations: "Evaluations", models: "Models", releases: "Releases", operations: "Operations", overview: "Overview", pipelines: "Pipelines", datasets: "Datasets", sampling: "Sampling jobs", "frame-sets": "Frame sets", policies: "Policies", templates: "Templates", reviews: "Review campaigns", "ground-truth": "Ground truth" }[name];
   document.body.classList.remove("menu-open");
   $("menu-toggle").setAttribute("aria-expanded", "false");
 }
@@ -168,6 +169,16 @@ async function inspectRegistry(collection, id) {
     const payload = await api(`/${collection}/${encodeURIComponent(id)}${collection === "templates" ? "/artifact" : ""}`);
     const item = payload.data || payload;
     $("registry-detail").innerHTML = `<pre>${escapeHtml(collection === "policies" ? `${item.name} · ${item.version}\n\n${item.document}` : prettyJson(item))}</pre>`;
+    if (collection === "policies" && ["active", "deprecated"].includes(item.status)) {
+      const form = document.createElement("form");
+      form.innerHTML = `<label>Policy lifecycle<select name="action">${item.status === "active" ? '<option value="deprecate">Deprecate</option>' : ''}<option value="retire">Retire</option></select></label><label>Reason<textarea name="reason" maxlength="2000" required></textarea></label><p class="form-status" role="status"></p><button type="submit">Record transition</button>`;
+      form.onsubmit = async (event) => {
+        event.preventDefault(); const submit = form.querySelector("button"); submit.disabled = true;
+        try { const value = Object.fromEntries(new FormData(form)); await api(`/policies/${encodeURIComponent(id)}/${value.action}`, { method: "POST", headers: { "content-type": "application/json", "if-match": String(item.revision) }, body: JSON.stringify({ reason: value.reason }) }); $("registry-dialog").close(); await loadAll(); }
+        catch (error) { form.querySelector(".form-status").textContent = error.message; } finally { submit.disabled = false; }
+      };
+      $("registry-detail").append(form);
+    }
   } catch (error) { $("registry-detail").textContent = error.message; }
 }
 
@@ -521,6 +532,7 @@ async function loadAll() {
   renderOverview(results[0].status === "fulfilled" ? results[0].value : {});
   renderGroundTruth(); renderCampaigns(); renderPipelines(); renderRegistry(); renderRunnerPresence(); renderDatasets(); renderSampling(); renderFrameSets(); populateDatasetSelect();
   renderOverviewPipelines();
+  await loadGovernance({ api, apiResponse, escapeHtml, prettyJson, toast, refresh: loadAll, user: currentUser, engines: results[0].status === "fulfilled" ? results[0].value.engines : {} });
   const unavailable = results.filter((item) => item.status === "rejected").length;
   if (unavailable) toast(`${unavailable} control-plane resource${unavailable === 1 ? " is" : "s are"} not available yet.`);
 }
@@ -798,6 +810,10 @@ $("templates-table").addEventListener("click", (event) => {
 $("policy-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const data = { ...Object.fromEntries(new FormData(event.currentTarget)), annotation_schema_version: "object-annotations.v1" };
+  const rules = {};
+  for (const [id, key] of [["policy-labels", "allowed_labels"], ["policy-subsets", "allowed_subsets"]]) if ($(id).value.trim()) rules[key] = $(id).value.split(",").map((value) => value.trim()).filter(Boolean);
+  if ($("policy-object-limit").value) rules.max_objects_per_frame = Number($("policy-object-limit").value);
+  if (Object.keys(rules).length) data.annotation_rules = rules;
   if ($("policy-validation").value) data.validation_profile = { id: $("policy-validation").value, source_sha256: $("policy-profile-sources").value.split(/\r?\n/).map((value) => value.trim()).filter(Boolean) };
   submitForm(event.currentTarget, "/policies", data);
 });

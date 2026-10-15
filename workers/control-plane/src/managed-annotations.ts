@@ -6,6 +6,18 @@ const SUBSETS = new Set(["live", "composited", "screen"]);
 const object = (value: unknown): value is JsonRecord => value !== null && typeof value === "object" && !Array.isArray(value);
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
+/** Configurable restrictions within the versioned object annotation contract. */
+export interface AnnotationRules { allowed_labels?: string[]; allowed_subsets?: string[]; max_objects_per_frame?: number; }
+export function parseAnnotationRules(value: unknown): AnnotationRules {
+  if (!object(value) || Object.keys(value).some((key) => !["allowed_labels", "allowed_subsets", "max_objects_per_frame"].includes(key))) throw new Error("annotation_rules contains unsupported constraints");
+  for (const [field, allowed] of [["allowed_labels", CLASSES], ["allowed_subsets", SUBSETS]] as const) {
+    const supplied = value[field];
+    if (supplied !== undefined && (!Array.isArray(supplied) || !supplied.length || supplied.some((item: unknown) => typeof item !== "string" || !allowed.has(item)) || new Set(supplied).size !== supplied.length)) throw new Error(`${field} must be a non-empty unique subset of the supported taxonomy`);
+  }
+  if (value.max_objects_per_frame !== undefined && (!Number.isInteger(value.max_objects_per_frame) || value.max_objects_per_frame < 1 || value.max_objects_per_frame > 200)) throw new Error("max_objects_per_frame must be 1-200");
+  return { ...(value.allowed_labels ? { allowed_labels: [...value.allowed_labels].sort() } : {}), ...(value.allowed_subsets ? { allowed_subsets: [...value.allowed_subsets].sort() } : {}), ...(value.max_objects_per_frame ? { max_objects_per_frame: value.max_objects_per_frame } : {}) };
+}
+
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
   if (object(value)) return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}`;
@@ -21,11 +33,13 @@ function fixedFrame(frame: JsonRecord) {
   return identity;
 }
 
-export function validateFrameAnnotations(frame: JsonRecord, expected: JsonRecord, ids = new Set<string>()): void {
+export function validateFrameAnnotations(frame: JsonRecord, expected: JsonRecord, ids = new Set<string>(), rules: AnnotationRules = {}): void {
   if (!object(frame) || canonical(fixedFrame(frame)) !== canonical(fixedFrame(expected))) throw new Error("frame evidence identity cannot change");
   if (!Array.isArray(frame.objects) || frame.objects.length > 200 || !Array.isArray(frame.out_of_taxonomy) || frame.out_of_taxonomy.length > 200 || frame.out_of_taxonomy.some((entry: unknown) => typeof entry !== "string" || entry.length < 1 || entry.length > 1000)) throw new Error("objects and out_of_taxonomy must be valid annotation lists with at most 200 entries per frame");
+  if (frame.objects.length > (rules.max_objects_per_frame ?? 200)) throw new Error("objects exceed the pinned annotation rule limit");
   for (const annotation of frame.objects) {
     if (!object(annotation) || Object.keys(annotation).some((key) => !["id", "label", "subset", "region"].includes(key)) || typeof annotation.id !== "string" || !/^[a-zA-Z0-9._:-]{1,100}$/.test(annotation.id) || ids.has(annotation.id) || !CLASSES.has(annotation.label) || !SUBSETS.has(annotation.subset)) throw new Error("objects require unique IDs, COCO labels, and live/composited/screen subsets");
+    if ((rules.allowed_labels && !rules.allowed_labels.includes(annotation.label)) || (rules.allowed_subsets && !rules.allowed_subsets.includes(annotation.subset))) throw new Error("annotation is outside the pinned policy taxonomy");
     const box = annotation.region;
     if (!Array.isArray(box) || box.length !== 4 || box.some((coordinate: unknown) => typeof coordinate !== "number" || !Number.isFinite(coordinate)) || box[0] < 0 || box[1] < 0 || box[2] <= 0 || box[3] <= 0 || box[0] + box[2] > expected.width || box[1] + box[3] > expected.height) throw new Error("object regions must be positive source-pixel boxes within the frame");
     ids.add(annotation.id);
@@ -43,7 +57,7 @@ export function validateManagedSubmission(template: JsonRecord, candidate: JsonR
     if (!object(supplied) || supplied.source !== source.source || supplied.source_sha256 !== source.source_sha256 || !Array.isArray(supplied.frames) || supplied.frames.length !== source.frames.length || Object.keys(supplied).some((key) => !["source", "source_sha256", "frames"].includes(key))) throw new Error("source identity and coverage cannot change");
     source.frames.forEach((frame: JsonRecord, frameIndex: number) => {
       const submitted = supplied.frames[frameIndex];
-      validateFrameAnnotations(submitted, frame, ids);
+      validateFrameAnnotations(submitted, frame, ids, template.validation?.annotation_rules);
       result.sources[sourceIndex].frames[frameIndex].objects = clone(submitted.objects);
       result.sources[sourceIndex].frames[frameIndex].out_of_taxonomy = clone(submitted.out_of_taxonomy);
       frameKeys.add(`${source.source}/${frame.filename}`);

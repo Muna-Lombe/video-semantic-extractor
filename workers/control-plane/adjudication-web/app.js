@@ -33,7 +33,8 @@ function renderPolicy(policy) {
   $("assignment-policy").hidden = !policy;
   if (!policy) return;
   $("policy-heading").textContent = `${policy.name} · ${policy.version}`;
-  $("policy-instructions").textContent = policy.document;
+  const rules = policy.annotation_rules;
+  $("policy-instructions").textContent = policy.document + (rules ? `\n\nAllowed labels: ${rules.allowed_labels?.join(", ") || "all COCO labels"}. Allowed subsets: ${rules.allowed_subsets?.join(", ") || "live, composited, screen"}. Maximum objects per frame: ${rules.max_objects_per_frame || 200}.` : "");
 }
 async function showEvidence(element, source, filename) {
   const response = await fetch(assignmentFrameUrl(source, filename), { headers: { authorization: `Bearer ${token}` } });
@@ -75,12 +76,13 @@ async function loadReviewer() {
   renderPolicy(state.policy);
   $("reviewer").hidden = false;
   $("reviewer-role").textContent = identity.actor.role === "reviewer-a" ? "Reviewer A" : "Reviewer B";
-  $("object-label").replaceChildren(...COCO_CLASSES.map((label) => {
+  $("object-label").replaceChildren(...(state.policy?.annotation_rules?.allowed_labels || COCO_CLASSES).map((label) => {
     const option = document.createElement("option");
     option.value = label;
     option.textContent = label;
     return option;
   }));
+  $("object-subset").replaceChildren(...(state.policy?.annotation_rules?.allowed_subsets || ["live", "composited", "screen"]).map((subset) => { const option = document.createElement("option"); option.value = subset; option.textContent = subset; return option; }));
   const reviewed = new Set(state.annotations.review.reviewed_frames || []);
   const buttons = [];
   for (const source of state.annotations.sources) for (const frame of source.frames) {

@@ -505,3 +505,26 @@ It exits nonzero unless both the final fixture and reviewer provenance are ready
 use `--allow-incomplete` while preparing a draft report. Commit the generated JSON
 and Markdown only after the fixture is frozen and the investigation has been
 reviewed.
+
+## Managed evaluation reproduction and runner qualification
+
+`diagnostics/evaluate-managed-objects.py --plan exported-plan.json --inputs-dir
+downloaded-inputs --output reproduced-report.json` verifies exported artifacts and
+runs the hosted object engine locally. See ../docs/managed-evaluations.md for export
+paths and file layout. Source implementation hashes must match the pinned plan;
+use the corresponding source revision when reproducing an older run.
+
+`operations/verify-engine-versions.py` checks the control-plane engine fingerprints.
+Run with `--write` after intentional engine edits; CI fails if the fingerprints are
+stale. `operations/qualify-internals-runner.py --model /path/to/pinned/nanodet.onnx
+--output qualification.json` generates synthetic video and records real sampling,
+inference, cancellation, memory, storage, and latency measurements. It approves no
+corpus or release. The pinned model download/checksum is documented above.
+
+For a local Container check, build deployments/SamplingRunner.Dockerfile and run
+the qualification script inside the image with `--memory 1g --cpus 0.25`, mounting
+the model read-only and a writable result directory. Configure filesystem ownership
+for the image's unprivileged runner user (UID 10001). Managed environments using a
+TLS proxy can pass their public combined CA bundle as Docker build secret proxy_ca;
+it is mounted for pip and is not copied into image layers. Production load and
+fault qualification remain a separate release acceptance step.

@@ -113,35 +113,73 @@ def _extract_frame_candidates(
     output_dir: Path,
     select_expression: str,
     reason: SamplingReason,
+    *,
+    max_candidates: int | None = None,
+    max_output_bytes: int | None = None,
+    should_abort: Callable[[], bool] | None = None,
 ) -> list[FrameCandidate]:
     """Extract one class of candidates with zero-based microsecond timestamps."""
     output_dir.mkdir(parents=True, exist_ok=True)
     pattern = output_dir / "frame_%06d_%013d.jpg"
     # The second filename token is presentation time in microseconds.
     filter_expr = f"setpts=PTS-STARTPTS,select='{select_expression}',settb=AVTB"
-    _run(
-        [
-            "ffmpeg",
-            "-v",
-            "error",
-            "-y",
-            "-i",
-            str(input_path),
-            "-vf",
-            filter_expr,
-            "-fps_mode",
-            "vfr",
-            "-enc_time_base",
-            "filter",
-            "-frame_pts",
-            "1",
-            str(pattern),
-        ]
-    )
+    command = [
+        "ffmpeg",
+        "-v",
+        "error",
+        "-y",
+        "-i",
+        str(input_path),
+        "-vf",
+        filter_expr,
+        "-fps_mode",
+        "vfr",
+        "-enc_time_base",
+        "filter",
+        "-frame_pts",
+        "1",
+        *(["-frames:v", str(max_candidates + 1)] if max_candidates is not None else []),
+        str(pattern),
+    ]
+
+    def check_budget() -> None:
+        if should_abort and should_abort():
+            raise ExtractionError("sampling cancelled or job lease lost")
+        if max_output_bytes is not None:
+            used = sum(path.stat().st_size for path in output_dir.parent.rglob("*.jpg"))
+            if used > max_output_bytes:
+                raise ExtractionError("sampling candidate storage budget exceeded")
+
+    if max_output_bytes is None and should_abort is None:
+        _run(command)
+    else:
+        check_budget()
+        with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as process:
+            try:
+                while True:
+                    check_budget()
+                    try:
+                        _, stderr = process.communicate(timeout=0.1)
+                        if process.returncode:
+                            raise ExtractionError(stderr.strip())
+                        break
+                    except subprocess.TimeoutExpired:
+                        continue
+            except BaseException:
+                process.terminate()
+                try:
+                    process.communicate(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.communicate()
+                raise
+        check_budget()
     paths = sorted(
         output_dir.glob("frame_*.jpg"),
         key=lambda frame: int(frame.stem.rsplit("_", 1)[1]),
     )
+    if max_candidates is not None and len(paths) > max_candidates:
+        raise ExtractionError("sampling candidate frame budget exceeded")
     output: list[FrameCandidate] = []
     for frame in paths:
         timestamp_us = int(frame.stem.rsplit("_", 1)[1])

@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -15,8 +16,11 @@ RUN apt-get update \
 COPY backend/pyproject.toml backend/requirements.txt ./backend/
 COPY backend/video_semantic_extractor ./backend/video_semantic_extractor
 COPY scripts/diagnostics/evaluate-frame-objects.py ./scripts/diagnostics/evaluate-frame-objects.py
+COPY scripts/operations/qualify-internals-runner.py ./scripts/operations/qualify-internals-runner.py
 
-RUN python -m pip install --upgrade pip \
+RUN --mount=type=secret,id=proxy_ca \
+    if [ -f /run/secrets/proxy_ca ]; then export PIP_CERT=/run/secrets/proxy_ca; fi \
+    && python -m pip install --upgrade pip \
     && python -m pip install ./backend
 
 RUN useradd --create-home --uid 10001 runner \

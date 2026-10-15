@@ -24,6 +24,7 @@ from typing import Any
 FRAME_SET_MANIFEST_VERSION = "frame-set-manifest.v1"
 ANNOTATION_SCHEMA_VERSION = "object-annotations.v1"
 GENERATOR_VERSION = "object-template.v1"
+ANNOTATION_CLASSES = set("person|bicycle|car|motorcycle|airplane|bus|train|truck|boat|traffic light|fire hydrant|stop sign|parking meter|bench|bird|cat|dog|horse|sheep|cow|elephant|bear|zebra|giraffe|backpack|umbrella|handbag|tie|suitcase|frisbee|skis|snowboard|sports ball|kite|baseball bat|baseball glove|skateboard|surfboard|tennis racket|bottle|wine glass|cup|fork|knife|spoon|bowl|banana|apple|sandwich|orange|broccoli|carrot|hot dog|pizza|donut|cake|chair|couch|potted plant|bed|dining table|toilet|tv|laptop|mouse|remote|keyboard|cell phone|microwave|oven|toaster|sink|refrigerator|book|clock|vase|scissors|teddy bear|hair drier|toothbrush".split("|"))
 
 FRAME_MEDIA_TYPES = ("image/jpeg", "image/png", "image/webp")
 SAMPLING_REASONS = ("first", "scene_change", "interval", "near_final")
@@ -290,6 +291,25 @@ def _frame_evidence_errors(manifest: Mapping[str, Any], frames_dir: Path) -> lis
     return errors
 
 
+def normalize_annotation_rules(value: Any) -> dict[str, Any]:
+    """Normalize configurable restrictions within object-annotations.v1."""
+    if not isinstance(value, dict) or set(value) - {"allowed_labels", "allowed_subsets", "max_objects_per_frame"}:
+        raise ManagedManifestError("annotation_rules contains unsupported constraints")
+    result: dict[str, Any] = {}
+    for field, permitted in [("allowed_labels", ANNOTATION_CLASSES), ("allowed_subsets", {"live", "composited", "screen"})]:
+        if field in value:
+            items = value[field]
+            if not isinstance(items, list) or not items or any(not isinstance(item, str) or item not in permitted for item in items) or len(set(items)) != len(items):
+                raise ManagedManifestError(f"{field} must be a unique non-empty subset of the supported taxonomy")
+            result[field] = sorted(items)
+    if "max_objects_per_frame" in value:
+        limit = value["max_objects_per_frame"]
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 200:
+            raise ManagedManifestError("max_objects_per_frame must be 1-200")
+        result["max_objects_per_frame"] = limit
+    return result
+
+
 def initialize_managed_annotations(
     manifest: Mapping[str, Any],
     policy: Mapping[str, Any],
@@ -307,6 +327,7 @@ def initialize_managed_annotations(
     validation = validate_managed_manifest(manifest)
     checks = ["manifest_schema", "manifest_checksum", "policy_checksum", "source_membership", "frame_membership"]
     errors = list(validation.errors)
+    rules = normalize_annotation_rules(policy["annotation_rules"]) if "annotation_rules" in policy else None
     if not _checksum(manifest_sha256):
         errors.append("manifest_sha256 must be a lowercase SHA-256 digest")
     if not _checksum(policy.get("sha256")):
@@ -340,6 +361,7 @@ def initialize_managed_annotations(
             "frame_count": manifest["frame_count"],
             "source_count": manifest["source_count"],
             "checks": checks,
+            **({"annotation_rules": rules} if rules is not None else {}),
         },
         "review": {
             "independent_passes": 0,
@@ -389,12 +411,21 @@ def load_manifest(path: Path) -> dict[str, Any]:
     return payload
 
 
-def policy_definition_sha256(document: str) -> str:
+def policy_definition_sha256(document: str, *, validation_profile: dict[str, Any] | None = None, annotation_rules: dict[str, Any] | None = None) -> str:
     """Compute the policy definition checksum used by the hosted registry."""
+    definition: dict[str, Any] = {"annotation_schema_version": ANNOTATION_SCHEMA_VERSION, "document": document.strip()}
+    if validation_profile is not None:
+        if not isinstance(validation_profile, dict):
+            raise ManagedManifestError("validation_profile must be an object")
+        sources = validation_profile.get("source_sha256")
+        if set(validation_profile) != {"id", "source_sha256"} or validation_profile.get("id") != "coco-object-diagnostic.v1" or not isinstance(sources, list) or len(sources) != 5 or any(not _checksum(value) for value in sources) or len(set(sources)) != 5:
+            raise ManagedManifestError("validation_profile requires five distinct frozen source checksums")
+        definition["validation_profile"] = {"id": "coco-object-diagnostic.v1", "source_sha256": sorted(sources)}
+    if annotation_rules is not None:
+        definition["annotation_rules"] = normalize_annotation_rules(annotation_rules)
     return sha256_hex(
         json.dumps(
-            {"annotation_schema_version": ANNOTATION_SCHEMA_VERSION, "document": document.strip()},
-            sort_keys=True,
+            definition,
             separators=(",", ":"),
             ensure_ascii=False,
         )

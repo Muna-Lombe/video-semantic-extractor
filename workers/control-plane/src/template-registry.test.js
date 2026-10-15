@@ -2,10 +2,22 @@
 import { describe, expect, it } from "vitest";
 import { handleInternalsApi } from "./internals";
 import { sha256Hex } from "./artifact-pipeline";
-import { ANNOTATION_SCHEMA_VERSION } from "./template-registry";
+import { ANNOTATION_SCHEMA_VERSION, handleTemplateRegistry } from "./template-registry";
 import { environment, request, call, policy, frameSet, templateInput, policyInput } from "./registry-test-support";
 
 describe("managed policy and template registry", () => {
+  it("versions policy lifecycle decisions while freezing definitions and existing template instructions", async () => {
+    const env = environment(), registered = await policy(env); await frameSet(env);
+    const created = await call(env, "/templates", "POST", templateInput(registered.id));
+    const template = (await created.json()).data;
+    expect(() => env.CONTROL_DB.db.exec("UPDATE policy_versions SET definition_json = '{}' ")).toThrow(/immutable/);
+    const transition = (action, revision) => handleTemplateRegistry(new Request(`https://internal.test/api/internal/v1/policies/${registered.id}/${action}`, { method: "POST", headers: { "content-type": "application/json", "if-match": String(revision) }, body: JSON.stringify({ reason: "Replaced by a new policy version" }) }), env);
+    expect((await transition("deprecate", 0)).status).toBe(200);
+    expect((await transition("retire", 0)).status).toBe(412);
+    expect((await transition("retire", 1)).status).toBe(200);
+    expect((await call(env, `/templates/${template.id}/artifact`)).status).toBe(200);
+    expect((await call(env, "/templates", "POST", templateInput(registered.id))).status).toBe(409);
+  });
   it("registers immutable policy versions, paginates, and audits only real creations", async () => {
     const env = environment(), registered = await policy(env);
     expect(registered).toMatchObject({ status: "active", annotation_schema_version: ANNOTATION_SCHEMA_VERSION, document: policyInput.document });
@@ -75,8 +87,8 @@ describe("managed policy and template registry", () => {
     ["changed frame timestamp", (env) => env.CONTROL_DB.db.exec("UPDATE frame_set_frames SET timestamp_seconds = 1"), "evidence_mismatch"],
     ["changed sampling reasons", (env) => env.CONTROL_DB.db.exec("UPDATE frame_set_frames SET reasons_json = '[\"interval\"]'"), "evidence_mismatch"],
     ["changed manifest bytes", (env) => { env.INTERNAL_ARTIFACTS_BUCKET.objects.get("manifest.json").bytes[20] = 120; }, "manifest_verification_failed"],
-    ["changed policy definition", (env) => env.CONTROL_DB.db.exec("UPDATE policy_versions SET definition_json = '{}'"), "incompatible_policy"],
-    ["changed policy checksum", (env) => env.CONTROL_DB.db.exec("UPDATE policy_versions SET sha256 = 'wrong'"), "policy_verification_failed"],
+    ["changed policy definition", (env) => env.CONTROL_DB.db.exec("DROP TRIGGER immutable_policy_definition; UPDATE policy_versions SET definition_json = '{}'"), "incompatible_policy"],
+    ["changed policy checksum", (env) => env.CONTROL_DB.db.exec("DROP TRIGGER immutable_policy_definition; UPDATE policy_versions SET sha256 = 'wrong'"), "policy_verification_failed"],
   ])("rejects %s without registering a template", async (_label, damage, expectedCode) => {
     const env = environment(), registered = await policy(env);
     await frameSet(env); damage(env);

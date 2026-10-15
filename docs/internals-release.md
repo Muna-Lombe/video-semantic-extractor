@@ -1,60 +1,86 @@
-<!-- @type documentation @purpose Record verification and the deployment sequence for managed review and ground-truth governance. -->
-# Managed review and ground-truth release
+<!-- @type documentation @purpose Record build acceptance and the merge-time release sequence for Internals. -->
+# Internals release acceptance
 
-Prepared on 2026-10-13. This release adds immutable policy/template registration, managed independent
-review and adjudication campaigns, recorded diagnostic ground-truth validation and
-decisions, and separate role-scoped job tokens for each reviewer/adjudicator
-assignment. Existing legacy review routes remain available. Named-user identity
-code is present, but production remains in administrator-token compatibility mode
-until Cloudflare Email Sending is enabled for the selected sender domain. Managed
-evaluation runners remain future work.
+As of 2026-10-15, this branch completes the supported v1 implementation for roadmap
+phases 0–5, excluding email onboarding. The user requested build/testing only;
+deployment occurs on branch merge. This document does not claim the branch is live.
 
-## Verification and current delivery state
+## Changes to deploy
 
-- 111 Worker tests pass using actual SQLite migrations.
-- TypeScript checking, JavaScript syntax checks, and Git whitespace checks pass.
-- Wrangler 4.150.0 production dry-run bundles the Worker and seven asset files
-  successfully (249.46 KiB Worker upload, 50.37 KiB compressed).
-- Control migrations `0008_internal_identity.sql` and
-  `0009_campaign_assignment_tokens.sql` are applied; both D1 databases report no
-  pending migrations.
-- Worker version `210a108f-3e29-4dc5-b1f5-5fb41f64942d` is deployed.
-- `/health` returns `ok`; the Internals overview returns `401` without
-  administrator credentials. Cloudflare Access protects the Internals browser URL.
-- Email Sending onboarding for `katundu.org` is absent, so the deployment
-  deliberately retains administrator-token authentication.
+- Durable evaluations, verified reports/comparisons, bounded runner inputs and
+  intermediate sampling output, cancellation, queue fairness, and CLI reproduction.
+- Immutable licensed model registration; evidence-backed model/release decisions;
+  component/threshold pinning; revision-safe activation, supersession, and rollback.
+- Policy lifecycle/configurable restrictions, append-only audit, operational health,
+  and previewed, reference-safe orphan cleanup.
+- Evaluations, Models, Releases, and Operations screens, plus public static routing
+  for the new governance module. All private APIs remain authenticated.
 
-## Deployment sequence
+## Build evidence
 
-Use an authenticated Cloudflare environment authorized to update this Worker's D1
-databases, R2 bindings, Worker, and assets. From `workers/`:
+Final local verification: **135 Worker tests and 98 backend tests pass**. TypeScript,
+JavaScript syntax, Python static checks, engine fingerprint verification, and Git
+whitespace checks pass. The Worker dry-run bundle is 352.14 KiB (71.17 KiB gzip),
+and the runner image builds successfully.
+
+The local verification includes Worker tests against real SQLite migrations,
+TypeScript and browser JavaScript checks, backend tests with actual FFmpeg timing
+fixtures, a Wrangler dry-run bundle, successful local D1 migration application,
+a browser smoke test with real ONNX upload, and CLI inference reproduction.
+The checked-in [runner qualification report](verification/2026-10-15-runner-qualification.json)
+records the constrained synthetic Container workload. Test fixtures exercise
+review/ground-truth/evaluation/model/release/rollback, stale revisions, permissions,
+lease takeover/cancellation, checksums, and cleanup reference races.
+
+The GitHub workflow runs backend/Worker tests, TypeScript/JavaScript checks,
+Wrangler bundling, and the runner image build on pull requests and main updates.
+It does not deploy or approve real artifacts.
+
+## Deployment after merge
+
+From workers/ in the authenticated deployment environment:
 
 ```sh
-npm run migrate:control:remote
-npm run migrate:dataset:remote
+npm run migrate:remote
 npm run deploy:adjudication
+npm run deploy:sampling-runner
 ```
 
-Control migrations 0005–0009 have been applied in order. The dataset migration
-command reports no pending changes. Future schema changes must remain compatible
-with the deployed Worker until publication. Do not delete registered evidence or
-revert database tables during rollback.
+Apply all outstanding CONTROL_DB migrations, particularly 0012–0014, and pending
+DATASET_DB migrations before the new Worker. 0013 adds immutable model/release inputs,
+revision assertions, append-only audit, and a unique active release. 0014 adds
+cleanup tombstones and policy revisions. Migrations are additive/compatible with
+the previously deployed resource code. Publication and D1 migrations cannot be one
+transaction; a migration failure must stop publication. Do not roll back by dropping
+tables or deleting registered evidence.
 
-## Post-deployment checks
+Rebuild the sampling-runner image: an older Container does not implement all new
+evaluation, queue fairness, bounds, and cancellation behavior. Preserve RUNNER_TOKEN,
+private service/bucket bindings, and INTERNAL_AUTH_MODE=legacy. Email sender
+onboarding and switching authentication modes remain excluded.
 
-With the existing administrator authentication, load Internals and verify the
-Policies, Templates, Campaigns, and Ground truth lists. Confirm the legacy review
-interface still loads and unauthenticated requests cannot read private artifacts.
-Exercise a dedicated review fixture through template registration, reviewer
-submissions, comparison, adjudication, and recorded validation; check stale
-`If-Match` writes fail and revoked invitations cannot submit. Validate a deliberately
-inadequate candidate produces an immutable failing report and is ineligible.
+## Hosted acceptance
 
-Actual corpus approval requires the operator's explicit evidence review and all
-four attestations. Smoke testing does not establish independent human review,
-licensing permission, or approval. No real corpus has been approved by this release.
+Use dedicated licensed fixtures and retain deployment versions, resource IDs,
+input/report checksums, attempt histories, and measurements:
 
-See [template registry](template-registry.md),
-[managed campaigns](managed-review-campaigns.md), and
-[ground-truth governance](ground-truth-governance.md) for route contracts, limits,
-integrity checks, and remaining operational qualifications.
+1. Verify unauthenticated/incorrect-role requests cannot access private APIs,
+   artifacts, reports, decisions, or cleanup. Check browser pages load and static
+   modules are accessible while their resource APIs remain protected.
+2. Exercise dataset → sampling → registered template → independent human review →
+   adjudication → diagnostic validation. Human approval must be a real evidence
+   review with licensing and independence attestations, not an automated smoke step.
+3. Kill a runner after claim, wait for lease expiry, verify takeover and rejection
+   of the stale runner. Exercise retry exhaustion and cancellation during download,
+   FFmpeg, artifact upload, evaluation, and finalization. Check no winning artifact
+   is removed by a losing completion.
+4. Measure actual Cloudflare Container memory/storage/cold starts and representative
+   input extremes. Local resource measurements do not establish production sizing.
+5. Register and evaluate a compatible licensed model, make an explicit evidence-backed
+   decision, evaluate the exact release configuration, approve/activate, supersede,
+   and roll back to an explicitly selected still-eligible target.
+6. Preview cleanup before selecting any old orphan objects. Verify references,
+   active upload ownership, etags, tombstones, and audit entries remain correct.
+
+Identity-bound production acceptance stays gated on the separately excluded email
+onboarding. No real corpus, model, or production release is approved by these builds.

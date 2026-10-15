@@ -27,6 +27,10 @@
           <a href="#templates" data-route="templates"><span aria-hidden="true">▧</span> Templates</a>
           <a href="#reviews" data-route="reviews"><span aria-hidden="true">✓</span> Review campaigns</a>
           <a href="#ground-truth" data-route="ground-truth"><span aria-hidden="true">▣</span> Ground truth</a>
+          <a href="#evaluations" data-route="evaluations">Evaluations</a>
+          <a href="#models" data-route="models">Models</a>
+          <a href="#releases" data-route="releases">Releases</a>
+          <a href="#operations" data-route="operations">Operations</a>
         </nav>
         <div class="sidebar-section">
           <p>Focused workspaces</p>
@@ -159,6 +163,10 @@
               <div class="page-heading"><div><p class="eyebrow">Independent annotation</p><h2>Review campaigns</h2><p>Create assignments from registered templates and follow review and adjudication progress.</p></div><button type="button" data-dialog-open="campaign-create-dialog">Create campaign</button></div>
               <div class="panel table-panel"><div id="campaigns-table"></div></div>
             </section>
+<section class="page" data-page="evaluations" hidden><div class="page-heading"><div><h2>Evaluations</h2><p>Run reproducible diagnostics against approved ground truth and compare frozen results.</p></div><button type="button" data-refresh>Refresh</button></div><div id="evaluations-workspace"></div></section>
+<section class="page" data-page="models" hidden><div class="page-heading"><div><h2>Models</h2><p>Register model binaries with their license and provenance. Evaluate candidates before approval.</p></div><button type="button" data-refresh>Refresh</button></div><div id="models-workspace"></div></section>
+<section class="page" data-page="releases" hidden><div class="page-heading"><div><h2>Pipeline releases</h2><p>Pin components and thresholds, review evaluation evidence, and manage activation or rollback.</p></div><button type="button" data-refresh>Refresh</button></div><div id="releases-workspace"></div></section>
+<section class="page" data-page="operations" hidden><div class="page-heading"><div><h2>Operations</h2><p>Inspect job health and review storage cleanup candidates.</p></div><button type="button" data-refresh>Refresh</button></div><div id="operations-workspace"></div></section>
             <section class="page" data-page="ground-truth" hidden>
               <div class="page-heading"><div><p class="eyebrow">Diagnostic evaluation evidence</p><h2>Ground truth</h2><p>Validate adjudicated candidates and record approval, rejection, or an approved replacement.</p></div><button class="secondary" type="button" data-refresh>Refresh data</button></div>
               <div class="panel table-panel"><div id="ground-truth-table"></div></div>
@@ -217,6 +225,9 @@
         <label for="policy-name">Policy name</label><input id="policy-name" name="name" required maxlength="120">
         <label for="policy-version">Version</label><input id="policy-version" name="version" required maxlength="80" pattern="[a-zA-Z0-9._-]+" placeholder="2026-09-18">
         <label for="policy-document">Reviewer instructions</label><textarea id="policy-document" name="document" required rows="12" maxlength="48000"></textarea>
+        <label for="policy-labels">Allowed COCO labels <span>Optional, comma separated</span></label><input id="policy-labels" placeholder="chair, cup, laptop">
+        <label for="policy-subsets">Allowed subsets <span>Optional, comma separated</span></label><input id="policy-subsets" placeholder="live, composited, screen">
+        <label for="policy-object-limit">Maximum objects per frame <span>Optional</span></label><input id="policy-object-limit" type="number" min="1" max="200">
         <label for="policy-validation">Validation profile</label><select id="policy-validation"><option value="">Review only (no evaluation approval)</option><option value="coco-object-diagnostic.v1">COCO object diagnostic corpus</option></select>
         <div id="policy-profile-fields" hidden>
           <p class="field-help">This frozen profile requires five distinct sources, 50 non-person objects, five non-person classes, subset and scale coverage, and at most 60% of objects from one source. Rules cannot be relaxed within this profile.</p>

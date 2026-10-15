@@ -86,6 +86,9 @@ describe("hosted review worker", () => {
 
     const appScript = await worker.fetch(request("/internals/app.js"), env);
     expect(appScript.headers.get("cache-control")).toBe("no-store");
+    const governanceScript = await worker.fetch(request("/internals/governance.js"), env);
+    expect(governanceScript.status).toBe(200);
+    expect(governanceScript.headers.get("cache-control")).toBe("no-store");
 
     expect((await worker.fetch(request("/api/internal/v1/overview"), env)).status).toBe(401);
     expect((await worker.fetch(request("/api/internal/v1/overview", "GET", undefined, "incorrect-token"), env)).status).toBe(401);
@@ -96,7 +99,7 @@ describe("hosted review worker", () => {
     const response = await worker.fetch(request("/api/internal/v1/overview", "GET", undefined, "admin-secret"), env);
     expect(response.status).toBe(200);
     const overview = await response.json() as any;
-    expect(overview.maturity).toBe("foundation");
+    expect(overview.maturity).toBe("managed_workflows");
     expect(overview.control_plane).toEqual(expect.objectContaining({ binding: "CONTROL_DB", engine: "D1" }));
     expect(overview.invitation_experiences).toEqual(expect.objectContaining({ review: "/review/", adjudication: "/adjudicate/" }));
     expect(overview.areas).toContainEqual(expect.objectContaining({ id: "reviews", status: "available" }));
@@ -135,6 +138,11 @@ describe("hosted review worker", () => {
     expect(openapi.paths).toHaveProperty("/api/internal/v1/datasets");
     expect(openapi.paths).toHaveProperty("/api/internal/v1/sampling-jobs");
     expect(openapi.paths).toHaveProperty("/api/internal/v1/pipelines");
+    expect(openapi.paths).toHaveProperty("/api/internal/v1/models");
+    expect(openapi.paths).toHaveProperty("/api/internal/v1/releases/{id}/rollback");
+    expect(openapi.paths).toHaveProperty("/api/internal/v1/evaluations/{id}/report");
+    expect(openapi.paths).toHaveProperty("/api/internal/v1/operations/orphans");
+    expect(openapi.components.schemas).toHaveProperty("CreateModelVersion");
     expect(openapi.paths).toHaveProperty("/api/internal/v1/pipelines/{id}/resources/{resource_type}/{resource_id}");
     expect(openapi.paths).toHaveProperty("/api/internal/v1/runner/sampling-jobs/claim");
     expect(openapi.paths).toHaveProperty("/api/internal/v1/runner/dataset-versions/{id}/sources");

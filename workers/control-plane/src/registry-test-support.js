@@ -41,7 +41,12 @@ class MemoryBucket {
   objects = new Map();
   async put(key, content, options = {}) {
     const bytes = typeof content === "string" ? new TextEncoder().encode(content) : new Uint8Array(content);
-    this.objects.set(key, { bytes, size: bytes.byteLength, ...options });
+    this.objects.set(key, { key, etag: crypto.randomUUID(), uploaded: new Date(), bytes, size: bytes.byteLength, ...options });
+  }
+  async list({ limit = 100, cursor } = {}) {
+    const all = [...this.objects.values()].sort((a, b) => a.key.localeCompare(b.key));
+    const offset = cursor ? Number(cursor) : 0;
+    return { objects: all.slice(offset, offset + limit), truncated: all.length > offset + limit, cursor: String(offset + limit) };
   }
   async delete(key) { this.objects.delete(key); }
   async head(key) { return this.objects.get(key) ?? null; }

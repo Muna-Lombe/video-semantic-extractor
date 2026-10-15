@@ -3,10 +3,13 @@ import type { AdjudicationEnv } from "./types";
 import type { InternalActor } from "./internal-auth";
 import { getEligibleGroundTruth } from "./ground-truth";
 import { sha256Hex } from "./artifact-pipeline";
+import { evaluationInputArtifact, evaluationInputPlan } from "./job-lifecycle";
+import { verifiedArtifact, GovernanceError } from "./release-governance";
+import { EVALUATION_IMPLEMENTATION_VERSION } from "./engine-versions";
 
 type Row = Record<string, any>;
 const BASE = "/api/internal/v1/evaluations";
-const ENGINE_VERSION = "managed-object-evaluation.v1";
+const ENGINE_VERSION = EVALUATION_IMPLEMENTATION_VERSION;
 const MAX_BODY_BYTES = 16 * 1024;
 const resourceId = (value: unknown): value is string => typeof value === "string" && /^[a-z][a-z0-9_]{1,99}$/.test(value);
 const json = (value: unknown, status = 200) => Response.json(value, { status, headers: { "cache-control": "no-store" } });
@@ -45,6 +48,7 @@ function runRow(row: Row) {
     implementation_version: row.implementation_version,
     inputs: JSON.parse(row.configuration_json),
     output: row.output_json ? JSON.parse(row.output_json) : null,
+    revision: row.attempt_count,
     error_message: row.error_message,
     attempt_count: Number(row.attempt_count ?? 0),
     created_at: row.created_at,
@@ -63,6 +67,7 @@ export function compareEvaluationOutputs(baseline: Row, candidate: Row) {
   let left: Row, right: Row;
   try { left = JSON.parse(String(baseline.output_json)); right = JSON.parse(String(candidate.output_json)); }
   catch { fail("evaluation output is missing or invalid", 422); }
+  left = left.metrics ?? left; right = right.metrics ?? right;
   const metrics: Row = {};
   for (const key of comparableMetrics) {
     const a = left[key], b = right[key];
@@ -93,7 +98,7 @@ async function verifyModel(env: AdjudicationEnv, modelVersionId: string) {
     FROM model_versions mv JOIN models m ON m.id = mv.model_id JOIN artifacts a ON a.id = mv.artifact_id
     WHERE mv.id = ?`).bind(modelVersionId).first<Row>();
   if (!row) fail("model version not found", 404);
-  if (!["approved", "production"].includes(row.status)) fail("model version must be approved before evaluation", 409);
+  if (!["candidate", "validated", "approved", "production"].includes(row.status)) fail("model version must be an evaluable candidate or approved model", 409);
   if (row.task_type !== "object_detection") fail("managed evaluations currently support object_detection models only", 422);
   if (row.media_type !== "application/octet-stream" && row.media_type !== "application/onnx") fail("model artifact must be a registered ONNX binary", 422);
   const stored = await env.INTERNAL_ARTIFACTS_BUCKET.get(String(row.storage_key));
@@ -130,10 +135,11 @@ async function createRun(request: Request, env: AdjudicationEnv, actor: Internal
   if (value.pipeline_release_id !== undefined) {
     release = await env.CONTROL_DB.prepare("SELECT id, version, configuration_json, status FROM pipeline_releases WHERE id = ?").bind(value.pipeline_release_id).first<Row>();
     if (!release) fail("pipeline release not found", 404);
-    if (!["approved", "active"].includes(release.status)) fail("pipeline release must be approved before evaluation", 409);
+    if (!["candidate", "approved", "active"].includes(release.status)) fail("pipeline release must be a candidate or approved release", 409);
     let releaseConfig: Row;
     try { releaseConfig = JSON.parse(release.configuration_json); } catch { fail("pipeline release configuration is invalid", 422); }
     if (releaseConfig.model_version_id !== model.id) fail("pipeline release does not pin the selected model version", 409);
+    if (Object.entries(releaseConfig.thresholds ?? {}).some(([key, setting]) => (config[key] ?? ({ minimum_confidence: 0.35, nms_threshold: 0.6, minimum_iou: 0.5 } as Row)[key]) !== setting)) fail("evaluation configuration must match release thresholds", 409);
   }
   const pinned = {
     schema_version: "managed-evaluation-inputs.v1",
@@ -201,16 +207,30 @@ export async function handleEvaluations(request: Request, env: AdjudicationEnv, 
       if (!baseline || !candidate) fail("evaluation run not found", 404);
       const baselineInput = JSON.parse(baseline.configuration_json), candidateInput = JSON.parse(candidate.configuration_json);
       if (baseline.ground_truth_version_id !== candidate.ground_truth_version_id || baselineInput.configuration.minimum_confidence !== candidateInput.configuration.minimum_confidence || baselineInput.configuration.nms_threshold !== candidateInput.configuration.nms_threshold || baselineInput.configuration.minimum_iou !== candidateInput.configuration.minimum_iou) fail("runs must use the same ground truth and thresholds to compare", 409);
+      if (baseline.job_status !== "succeeded" || candidate.job_status !== "succeeded") fail("both evaluation runs must have succeeded", 409);
+      const reports = await Promise.all([verifiedArtifact(env, baseline.report_artifact_id), verifiedArtifact(env, candidate.report_artifact_id)]);
+      baseline.output_json = JSON.stringify(JSON.parse(new TextDecoder().decode(reports[0].bytes)).metrics);
+      candidate.output_json = JSON.stringify(JSON.parse(new TextDecoder().decode(reports[1].bytes)).metrics);
       return json({ data: compareEvaluationOutputs(baseline, candidate) });
     }
-    const match = path.match(/^\/api\/internal\/v1\/evaluations\/([a-z][a-z0-9_]{1,99})$/);
+    const match = path.match(/^\/api\/internal\/v1\/evaluations\/([a-z][a-z0-9_]{1,99})(?:\/(report|inputs)(?:\/artifacts\/([a-z][a-z0-9_]{1,99}))?)?$/);
     if (!match) fail("evaluation route not found", 404);
     if (request.method !== "GET") fail("method not allowed", 405);
     const row = await env.CONTROL_DB.prepare(`${RUN_SELECT} WHERE r.id = ?`).bind(match[1]).first<Row>();
     if (!row) fail("evaluation run not found", 404);
-    return json({ data: runRow(row) });
+    if (match[2] === "inputs") {
+      if (match[3]) return evaluationInputArtifact(env, row.job_id, match[3]);
+      return evaluationInputPlan(env, { ...row, evaluation_run_id: row.id, input_json: row.configuration_json }, `${BASE}/${row.id}/inputs/artifacts`);
+    }
+    if (match[2] === "report") {
+      if (row.job_status !== "succeeded" || !row.report_artifact_id) fail("evaluation report is not available", 409);
+      const artifact = await verifiedArtifact(env, row.report_artifact_id);
+      return new Response(artifact.bytes, { headers: { "content-type": "application/json", "cache-control": "no-store", etag: `"${artifact.row.sha256}"` } });
+    }
+    const attempts = await env.CONTROL_DB.prepare("SELECT attempt_number, status, worker_id, leased_at, finished_at, error_message FROM internal_job_attempts WHERE job_id = ? ORDER BY attempt_number").bind(row.job_id).all();
+    return json({ data: { ...runRow(row), attempts: attempts.results } });
   } catch (cause) {
-    if (cause instanceof EvaluationError) return json({ error: { code: "evaluation_request_failed", message: cause.message } }, cause.status);
+    if (cause instanceof EvaluationError || cause instanceof GovernanceError) return json({ error: { code: "evaluation_request_failed", message: cause.message } }, cause.status);
     console.error({ event: "evaluation_request_failed", error_name: cause instanceof Error ? cause.name : "UnknownError" });
     return json({ error: { code: "internal_error", message: "evaluation request failed" } }, 500);
   }

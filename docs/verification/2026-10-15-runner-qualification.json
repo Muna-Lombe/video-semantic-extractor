@@ -1,0 +1,21 @@
+{
+  "schema_version": "runner-qualification.v1",
+  "scope": "local synthetic workload; no production qualification or accuracy claim",
+  "model_sha256": "4b82da9944b88577175ee23a459dce2e26e6e4be573def65b1055dc2d9720186",
+  "frame_count": 13,
+  "source_dimensions": [
+    640,
+    360
+  ],
+  "wall_seconds": 17.486,
+  "peak_process_rss_kib": 126816,
+  "peak_child_rss_kib": 120008,
+  "temporary_bytes": 1333219,
+  "p95_inference_ms": 304.228,
+  "coverage_and_cancellation": "passed",
+  "cgroup": {
+    "memory.max": "1073741824",
+    "memory.peak": "123031552",
+    "cpu.max": "25000 100000"
+  }
+}

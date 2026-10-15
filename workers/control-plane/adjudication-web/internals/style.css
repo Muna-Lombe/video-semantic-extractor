@@ -154,6 +154,10 @@ dialog label { margin-top: 1rem; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
 .toast { position: fixed; z-index: 30; right: 1.25rem; bottom: 1.25rem; max-width: 380px; padding: .8rem 1rem; border-radius: .55rem; color: #fff; background: #173d34; box-shadow: 0 10px 35px rgba(0,0,0,.2); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+[id$="-workspace"] { display: grid; gap: 1rem; min-width: 0; }
+[id$="-workspace"] form.panel label { display: block; margin-top: .8rem; }
+[id$="-workspace"] pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 32rem; overflow: auto; }
+[data-cleanup-object] { width: auto; margin-right: .5rem; }
 @media (max-width: 1050px) { .metric-grid { grid-template-columns: repeat(2,1fr); } .pipeline { grid-template-columns: 1fr; } .pipeline li::after { display: none; } }
 @media (max-width: 760px) { .app-shell { display: block; } .sidebar { position: fixed; z-index: 10; width: 245px; transform: translateX(-100%); transition: transform .2s ease; } body.menu-open .sidebar { transform: none; } #menu-toggle { display: block; } main { padding: 1rem; } .login-card, .content-grid, .detail-metrics, .integrity-list { grid-template-columns: 1fr; } .runner-capacity { grid-template-columns: 1fr; } .runner-counts { text-align: left; } .evidence-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .source-list article { grid-template-columns: 1fr; } .topbar { padding: .75rem 1rem; } .connection { font-size: 0; } .connection span { display: block; } .hero, .page-heading { align-items: stretch; flex-direction: column; } }
 @media (max-width: 520px) { .metric-grid, .form-grid, .evidence-grid { grid-template-columns: 1fr; } .input-action { flex-direction: column; } .table-panel { overflow-x: auto; } table { min-width: 620px; } }

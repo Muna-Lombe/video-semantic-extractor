@@ -254,6 +254,7 @@ export async function resolveInternalActor(request: Request, env: AdjudicationEn
     return { kind: "legacy_admin" };
   }
   const user = await resolveInternalUser(request, env);
+  if (user && !safeMethod && !sameOriginWrite) return null;
   if (user) return { kind: "user", user };
   return null;
 }
@@ -264,6 +265,12 @@ export function canAccessInternals(actor: InternalActor, request: Request): bool
   const path = new URL(request.url).pathname.replace(/\/$/, "");
   const method = request.method.toUpperCase();
   if (path === "/api/internal/v1/overview") return roles.size > 0;
+  if (path.startsWith("/api/internal/v1/operations")) return roles.has("operator");
+  if (/^\/api\/internal\/v1\/(models|releases)(\/|$)/.test(path)) {
+    if (method === "GET") return ["operator", "researcher", "release_approver"].some((role) => roles.has(role as InternalRole));
+    if (/\/(approve|reject|activate|rollback|retire)$/.test(path)) return roles.has("release_approver");
+    return roles.has("researcher");
+  }
   if (path.startsWith(`${BASE}/users`)) return roles.has("owner");
   if (path === "/api/internal/v1/reviewers") return roles.has("review_coordinator");
   if (path.startsWith("/api/internal/v1/pipelines")) {
