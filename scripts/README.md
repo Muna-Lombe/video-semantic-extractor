@@ -547,3 +547,22 @@ are written under work/adjudicator/. CI runs these checks with bundled Chromium.
 Coverage includes light/dark/system appearance, persistence and unavailable storage,
 reviewer evidence, comparison overlays, drawing and editing boxes, dirty decisions,
 revision conflicts, completion, waiting states, and mobile layout.
+
+### Responsive layout checks
+
+Using the same Playwright installation, run the populated-layout stress suite:
+
+```sh
+PLAYWRIGHT_MODULE="$PWD/work/browser/node_modules/playwright/index.mjs" \
+  node scripts/operations/smoke-test-ui-layout.mjs
+```
+
+It serves local assets with isolated API fixtures and checks all 13 Internals pages,
+resource details, creation/decision dialogs, cleanup previews, and both assignment
+interfaces. The matrix covers light/dark themes, 320–1920 px widths, short-screen
+navigation, and 200% text. Long names, IDs, source URLs, errors, policy instructions,
+and annotation lists exercise wrapping and containment. Checks reject page overflow,
+clipped/unreachable table columns, unreadable column widths, inaccessible scroll
+regions, controls outside the viewport, and save bars overlapping editor fields.
+Results and selected screenshots are saved under work/ui-layout/. These are layout
+regressions, not hosted workflow or human-review acceptance tests.

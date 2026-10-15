@@ -180,3 +180,44 @@ dialog { color: var(--ink); background: var(--paper); }
 :root[data-theme="dark"] .secondary:hover { color: #fff; }
 :root[data-theme="dark"] .evidence-image { background: #14211b; }
 @media (max-width: 520px) { .appearance-control { font-size: 0; } .appearance-control select { font-size: .8rem; } }
+
+/* Keep intrinsic table/text widths inside their panels at every breakpoint. */
+body { overflow-wrap: anywhere; }
+.app-shell { grid-template-columns: 245px minmax(0, 1fr); }
+.app-shell *, dialog * { min-width: 0; }
+.sidebar { height: 100dvh; overflow-y: auto; overscroll-behavior: contain; }
+.sidebar > * { flex-shrink: 0; }
+.brand-mark, .connection span { flex-shrink: 0; }
+.topbar { flex-wrap: wrap; }
+.topbar > div:not(.connection) { flex: 1 1 12rem; }
+.appearance-control, .connection { max-width: 100%; }
+input, textarea, select, button { min-width: 0; max-width: 100%; }
+textarea { resize: vertical; }
+.content-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.detail-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.identity-form { grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr); }
+.source-list article { grid-template-columns: minmax(0, .7fr) minmax(0, 1fr) minmax(0, 1.5fr); }
+.panel-heading, .table-toolbar, .dialog-actions, .overview-pipeline { flex-wrap: wrap; }
+.overview-pipeline > span:first-child { flex: 1 1 12rem; }
+.badge { display: inline-block; max-width: 100%; }
+.table-scroll { position: relative; width: 100%; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+.table-scroll:focus-visible { outline: 3px solid #e79758; outline-offset: -3px; }
+.table-scroll table { min-width: 640px; }
+.attempt-table { overflow: visible; }
+.attempt-table table { min-width: 760px; }
+th, td { overflow-wrap: anywhere; }
+.table-scroll th, .table-scroll td { min-width: 8rem; }
+.dialog-heading { align-items: flex-start; }
+.dialog-heading > :first-child { flex: 1; }
+.dialog-heading > .icon-button { flex: 0 0 auto; }
+.dialog-heading h2 { font-size: clamp(1.1rem, 4vw, 1.5rem); line-height: 1.3; }
+dialog { max-height: calc(100dvh - 2rem); overflow: auto; }
+pre { max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; overflow: auto; }
+.toast { max-width: min(380px, calc(100vw - 2.5rem)); }
+@media (max-width: 1050px) { .runner-capacity { grid-template-columns: minmax(0, 1fr); } .runner-counts { text-align: left; } }
+@media (max-width: 760px) {
+  .content-grid, .detail-metrics, .integrity-list, .identity-form, .source-list article { grid-template-columns: minmax(0, 1fr); }
+  .identity-form button, .identity-form .form-status { grid-column: 1; }
+}
+@media (max-width: 520px) { .form-grid { grid-template-columns: minmax(0, 1fr); } }

@@ -846,6 +846,24 @@ $("sampling-form").addEventListener("submit", (event) => {
   submitForm(event.currentTarget, "/sampling-jobs", data);
 });
 
+// Tables retain their native semantics; only their scroll region can exceed the
+// available width. Observe dynamic detail panels as well as the main lists.
+function containTables() {
+  document.querySelectorAll("table").forEach((table) => {
+    if (table.parentElement.classList.contains("table-scroll")) return;
+    const region = document.createElement("div");
+    region.className = "table-scroll";
+    region.tabIndex = 0;
+    region.setAttribute("role", "region");
+    const heading = table.closest("dialog, .page, section")?.querySelector("h2, h3");
+    region.setAttribute("aria-label", `${heading?.textContent || "Data"} table; scroll horizontally for more columns`);
+    table.before(region);
+    region.append(table);
+  });
+}
+new MutationObserver(containTables).observe(document.body, { childList: true, subtree: true });
+containTables();
+
 showPage(location.hash.slice(1));
 setConnected(false);
 initialiseAuth().catch((error) => {
