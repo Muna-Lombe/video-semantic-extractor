@@ -27,6 +27,29 @@ build, not substitutes for measurements on deployed Cloudflare Containers.
 See [release acceptance](internals-release.md) and
 [operational decisions](internals-operations.md).
 
+## Hosted verification — 2026-10-15
+
+The first hosted smoke recorded **88 passing checks and one failure** in
+[the verification report](verification/2026-10-15-hosted-smoke.json). Remote migrations
+0013–0014 and both deployments are confirmed by the supplied build logs. Authenticated
+API reads, cancellation/retry, model binary integrity, governance rejection gates,
+existing frame evidence, template generation, campaign creation, and policy lifecycle
+checks passed.
+
+**Open blocker:** new sampling exhausted both attempts at finalization. The runner
+reused frame IDs such as frame_0_0, which already exist as global primary keys. A
+local regression reproduces the SQLite uniqueness failure. This follow-up namespaces
+new frame IDs by job and updates the sampler fingerprint; it still requires merge,
+publication of the rebuilt runner and compatible control plane, and a hosted rerun.
+Existing frame IDs and evidence remain unchanged. No migration is required for the fix.
+
+The /internals/ page requires a separate Cloudflare Access session. Admin API
+credentials work, but UI acceptance remains unverified. There is no approved hosted
+ground truth yet; actual independent review and approval remain prerequisites for
+hosted model evaluation and release promotion. The smoke campaign was cancelled
+without issuing invitations or submitting reviews; its policy was retired and the
+model remains an unapproved candidate. Crash/load acceptance below remains open.
+
 ## Phase 0 — Contracts and architecture
 
 - [x] Separate Product, Internals, and focused invitations; retain CLI support.

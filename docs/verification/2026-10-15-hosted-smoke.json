@@ -1,0 +1,807 @@
+{
+  "started_at": "2026-10-15T14:09:16.382Z",
+  "origin": "https://video-semantic-extractor.lombemuna.workers.dev",
+  "checks": [
+    {
+      "name": "Read overview",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Read datasets",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Read sampling-jobs",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Read frame-sets",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Read policies",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Read templates",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Read review-campaigns",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Read ground-truth",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Read evaluations",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Read models",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Read releases",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Read operations",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Read operations/orphans",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Read runners",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Deny unauthenticated",
+      "status": "passed",
+      "http_status": 401
+    },
+    {
+      "name": "Deny incorrect credential",
+      "status": "passed",
+      "http_status": 401
+    },
+    {
+      "name": "Create isolated dataset",
+      "status": "passed",
+      "http_status": 201
+    },
+    {
+      "name": "Schedule sampling",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Sampling idempotency",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Idempotency returns same job",
+      "status": "passed"
+    },
+    {
+      "name": "Reject changed idempotency inputs",
+      "status": "passed",
+      "http_status": 409,
+      "error": {
+        "code": "idempotency_conflict",
+        "message": "idempotency_key is already associated with a different sampling request"
+      }
+    },
+    {
+      "name": "Schedule cancellation fixture",
+      "status": "passed",
+      "http_status": 202
+    },
+    {
+      "name": "Cancel fixture",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Repeat cancellation",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Retry cancelled fixture",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Cancel retried fixture",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Register restricted policy",
+      "status": "passed",
+      "http_status": 201
+    },
+    {
+      "name": "Policy idempotency",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Same policy version returned",
+      "status": "passed"
+    },
+    {
+      "name": "Reject policy mutation",
+      "status": "passed",
+      "http_status": 409,
+      "error": {
+        "code": "immutable_version_conflict",
+        "message": "this policy version already has a different definition; register a new version"
+      }
+    },
+    {
+      "name": "Register pinned ONNX candidate",
+      "status": "passed",
+      "http_status": 201
+    },
+    {
+      "name": "Model registration checksum",
+      "status": "passed"
+    },
+    {
+      "name": "Retrieve private model binary",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Model binary integrity",
+      "status": "passed",
+      "sha256": "4b82da9944b88577175ee23a459dce2e26e6e4be573def65b1055dc2d9720186",
+      "size_bytes": 3800954
+    },
+    {
+      "name": "Require model revision",
+      "status": "passed",
+      "http_status": 428,
+      "error": {
+        "code": "governance_failed",
+        "message": "If-Match revision is required"
+      }
+    },
+    {
+      "name": "Reject stale model revision",
+      "status": "passed",
+      "http_status": 412,
+      "error": {
+        "code": "governance_failed",
+        "message": "resource changed; reload before deciding"
+      }
+    },
+    {
+      "name": "Reject approval without evaluation",
+      "status": "passed",
+      "http_status": 409,
+      "error": {
+        "code": "governance_failed",
+        "message": "a successful evaluation for this model is required"
+      }
+    },
+    {
+      "name": "Reject release for unapproved model",
+      "status": "passed",
+      "http_status": 409,
+      "error": {
+        "code": "governance_failed",
+        "message": "release requires an approved model"
+      }
+    },
+    {
+      "name": "Reject evaluation without approved ground truth",
+      "status": "passed",
+      "http_status": 404,
+      "error": {
+        "code": "evaluation_request_failed",
+        "message": "ground-truth candidate not found"
+      }
+    },
+    {
+      "name": "Hosted sampling succeeds",
+      "status": "failed",
+      "job_id": "job_5a99019f353849a681279e83ee4b268f",
+      "attempt_count": 2,
+      "error": "control plane rejected /api/internal/v1/runner/sampling-jobs/job_5a99019f353849a681279e83ee4b268f/finalize: runner request failed"
+    },
+    {
+      "name": "Attempts exhausted to terminal failure",
+      "status": "passed",
+      "job_id": "job_5a99019f353849a681279e83ee4b268f"
+    },
+    {
+      "name": "Cancellation fixture remains cancelled",
+      "status": "passed"
+    },
+    {
+      "name": "Read existing ready frame set",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Retrieve existing manifest",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Existing manifest checksum",
+      "status": "passed",
+      "frame_count": 28,
+      "sha256": "89432e644e28f9e2061904eec14919e710c598cfd9c5119f354eb6444956e8a5"
+    },
+    {
+      "name": "Existing frame integrity frame_0_0",
+      "status": "passed",
+      "sha256": "ef30eb9a0abcbe27f622c23385b87a5f43e4f037ffee3355d39103456c0f5154",
+      "size_bytes": 33190
+    },
+    {
+      "name": "Existing frame integrity frame_0_1",
+      "status": "passed",
+      "sha256": "d0d675aced873f2063d6bb26d3192149a20e8f970997215d0fc78070e4a2218b",
+      "size_bytes": 41433
+    },
+    {
+      "name": "Existing frame integrity frame_0_2",
+      "status": "passed",
+      "sha256": "5f7aefbf53f2ef9529cf2f67e9c31b31ea8794c8db06c1ce3bad30ca5efa8a61",
+      "size_bytes": 39598
+    },
+    {
+      "name": "Existing frame integrity frame_0_3",
+      "status": "passed",
+      "sha256": "642924b8d401fc878f0075f758e958659fad4200980efcb3a28ec205cc55417e",
+      "size_bytes": 39048
+    },
+    {
+      "name": "Existing frame integrity frame_0_4",
+      "status": "passed",
+      "sha256": "6490cbb7351580735b9113fcc202013308222215eb948a5fad12c6bc9e7694b9",
+      "size_bytes": 34115
+    },
+    {
+      "name": "Existing frame integrity frame_0_5",
+      "status": "passed",
+      "sha256": "158d420325b5e950b0a49f16693623498cca1e7531d494faa646aa76ecf191f3",
+      "size_bytes": 35298
+    },
+    {
+      "name": "Existing frame integrity frame_0_6",
+      "status": "passed",
+      "sha256": "7f605a76909e615bfe40d772004698089a98441c889f2990902588fb719fcb40",
+      "size_bytes": 42406
+    },
+    {
+      "name": "Existing frame integrity frame_0_7",
+      "status": "passed",
+      "sha256": "5f4e82be399de8418200fd95489137e4737641efde57ce945df43517b489ebfd",
+      "size_bytes": 32802
+    },
+    {
+      "name": "Existing frame integrity frame_0_8",
+      "status": "passed",
+      "sha256": "79003a0fe78c221d6a6481701a782b63ac7a2d77fa2f99eacc05a042e4cbfd56",
+      "size_bytes": 27275
+    },
+    {
+      "name": "Existing frame integrity frame_0_9",
+      "status": "passed",
+      "sha256": "faadb8a8284c2325acb9b79d2a937e4eaa4d1d8324297ed1cae5db8eb95e6639",
+      "size_bytes": 24744
+    },
+    {
+      "name": "Existing frame integrity frame_0_10",
+      "status": "passed",
+      "sha256": "a82c77fc5834babebf0e5a590c308d264e200558de77d06390eb47d73aae78ce",
+      "size_bytes": 26455
+    },
+    {
+      "name": "Existing frame integrity frame_0_11",
+      "status": "passed",
+      "sha256": "3f99c99911c046e834eba7914ab02f6a6ed1932eba8bbf750f4d4732ca12c110",
+      "size_bytes": 38047
+    },
+    {
+      "name": "Existing frame integrity frame_0_12",
+      "status": "passed",
+      "sha256": "845ea021f8df4bf256bde75401787042cb3b7a8a9553a6b18e5bdffcc20d869c",
+      "size_bytes": 43839
+    },
+    {
+      "name": "Existing frame integrity frame_0_13",
+      "status": "passed",
+      "sha256": "2b958637d1279a8cb477f007cb16c4c587efff3d1b534905d8b79cd518ab5ad6",
+      "size_bytes": 36697
+    },
+    {
+      "name": "Existing frame integrity frame_0_14",
+      "status": "passed",
+      "sha256": "75a65aa647a74fd26d525f274c9124fb3e9e1ca33b70e5488cbe882efc80fce8",
+      "size_bytes": 35346
+    },
+    {
+      "name": "Existing frame integrity frame_0_15",
+      "status": "passed",
+      "sha256": "722a2c9266e9c7f54c9bd7dc0e8b2bc4e7ecb0437b14b25d4dcb6bb55859b757",
+      "size_bytes": 47810
+    },
+    {
+      "name": "Existing frame integrity frame_0_16",
+      "status": "passed",
+      "sha256": "8027df18186a5a8dc93c30bb2e3eb41ca9052a267d213c3a888a0483dc154a3a",
+      "size_bytes": 23025
+    },
+    {
+      "name": "Existing frame integrity frame_0_17",
+      "status": "passed",
+      "sha256": "8e6aaa07c690cb4c5ad157bab425f781d693c779ce399dd8902b56b96bf1124e",
+      "size_bytes": 26203
+    },
+    {
+      "name": "Existing frame integrity frame_0_18",
+      "status": "passed",
+      "sha256": "5c5b7847a0d5c731f782077f12404f3361d81043b981f908c68b538cbd9033f8",
+      "size_bytes": 36315
+    },
+    {
+      "name": "Existing frame integrity frame_0_19",
+      "status": "passed",
+      "sha256": "4267504b01c336f095fdeda97b4fb264ba15cffd767c97571ae143c6d2abfefa",
+      "size_bytes": 40224
+    },
+    {
+      "name": "Existing frame integrity frame_0_20",
+      "status": "passed",
+      "sha256": "9dda7cc10c0f23c0b52f6587347159f9723470168711f9e87defe9ee0cd94877",
+      "size_bytes": 15921
+    },
+    {
+      "name": "Existing frame integrity frame_0_21",
+      "status": "passed",
+      "sha256": "2d8b7a31dd0514cb2116c4b4818a99331a13d1a22f25d984ac92a871c9df214c",
+      "size_bytes": 30133
+    },
+    {
+      "name": "Existing frame integrity frame_0_22",
+      "status": "passed",
+      "sha256": "89eb38bbb00936335afa25b2c9006abe453bd3d0ba2ac4bc6a09f77551e5193d",
+      "size_bytes": 21946
+    },
+    {
+      "name": "Existing frame integrity frame_0_23",
+      "status": "passed",
+      "sha256": "df1a065e87b4353ee72409625538ec08d8fdfa982265bbfc88759991d88e2251",
+      "size_bytes": 30025
+    },
+    {
+      "name": "Existing frame integrity frame_0_24",
+      "status": "passed",
+      "sha256": "71a4b7d82f6d4f5dd393eb60e38d3978d49721233d70c6a7ad35c1e3cbd4c4be",
+      "size_bytes": 27738
+    },
+    {
+      "name": "Existing frame integrity frame_0_25",
+      "status": "passed",
+      "sha256": "14c1bd881ae748d98fed7ae44260131a0e569389880d46e305ffe3e03fa5069d",
+      "size_bytes": 29768
+    },
+    {
+      "name": "Existing frame integrity frame_0_26",
+      "status": "passed",
+      "sha256": "204c2153bbbfcb1738edfb263c56961f2eb4bc92e46a9b22411272bbb396db04",
+      "size_bytes": 33722
+    },
+    {
+      "name": "Existing frame integrity frame_0_27",
+      "status": "passed",
+      "sha256": "24445db24911f17e58dd0e392ad94d7fd6125014c38921abc9fbbabb4b06224b",
+      "size_bytes": 35404
+    },
+    {
+      "name": "Generate test template from existing frame set",
+      "status": "passed",
+      "http_status": 201
+    },
+    {
+      "name": "Retrieve test template artifact",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Template checksum and frozen policy",
+      "status": "passed",
+      "sha256": "c62d90d668f355392d789998a51f7f00c4f0cd79fa5528f00fa5265c25862f44"
+    },
+    {
+      "name": "Template retains annotation restrictions",
+      "status": "passed"
+    },
+    {
+      "name": "Create campaign without invitations",
+      "status": "passed",
+      "http_status": 201
+    },
+    {
+      "name": "Independent reviews remain pending",
+      "status": "passed",
+      "assignment_count": 3
+    },
+    {
+      "name": "Deprecate test policy",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Reject stale policy revision",
+      "status": "passed",
+      "http_status": 412,
+      "error": {
+        "code": "stale_revision",
+        "message": "policy changed; reload"
+      }
+    },
+    {
+      "name": "Retire test policy",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Retired policy preserves template",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Retired policy cannot generate template",
+      "status": "passed",
+      "http_status": 409,
+      "error": {
+        "code": "invalid_state",
+        "message": "generation requires a ready frame set and an active policy version"
+      }
+    },
+    {
+      "name": "Cancel test campaign without submitting reviews",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Read unchanged test candidate",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Model remains unapproved candidate",
+      "status": "passed"
+    },
+    {
+      "name": "Final operational health",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "Final orphan preview without deletion",
+      "status": "passed",
+      "http_status": 200
+    }
+  ],
+  "resources": {
+    "dataset_id": "ds_7c35be62a88f4c788c769e80a8c761ce",
+    "dataset_version_id": "dsv_e610191f135d454e8a2a4e4c260b47f6",
+    "job_id": "job_5a99019f353849a681279e83ee4b268f",
+    "cancelled_job_id": "job_257cf8ca37a9498ca13edbc7e97fc1b8",
+    "policy_version_id": "pv_73339cf989442a753adbe8455cfad231",
+    "model_version_id": "mv_b0216dc377ce41919c64d25bb2fe0932",
+    "existing_frame_set_verified": "frameset_00302a3980fd41eea96697a379d02e58",
+    "template_id": "tpl_9578f12540308a38636152071b1f005c",
+    "campaign_id": "campaign_e8acd55f833f4e09a366ee727f94a0cd"
+  },
+  "limitations": [
+    "New hosted sampling fails at finalization: runner emits globally reused frame IDs; reproduced SQLite unique-key collision with existing legacy IDs.",
+    "Existing frame-set evidence and newly generated test template were verified; this is not a successful new sampling run.",
+    "No approved ground truth exists. Actual independent human review is required before real evaluation and release promotion.",
+    "UI requires a separate Cloudflare Access session; the supplied admin credential authorizes the APIs.",
+    "No real model/release approval, activation, rollback, crash injection, or load qualification performed."
+  ],
+  "test_id": "hosted-smoke-2026-10-15T14-09-21-037Z",
+  "sampling_job": {
+    "id": "job_5a99019f353849a681279e83ee4b268f",
+    "type": "sampling",
+    "status": "failed",
+    "input": {
+      "dataset_version_id": "dsv_e610191f135d454e8a2a4e4c260b47f6",
+      "method": "hybrid",
+      "scene_threshold": 0.3,
+      "interval_seconds": 15,
+      "max_frames": 8,
+      "include_final_frame": true
+    },
+    "progress": {
+      "stage": "uploading",
+      "completed_sources": 1,
+      "source_count": 1,
+      "uploaded_frames": 8
+    },
+    "output": null,
+    "error_message": "control plane rejected /api/internal/v1/runner/sampling-jobs/job_5a99019f353849a681279e83ee4b268f/finalize: runner request failed",
+    "created_at": "2026-10-15T14:09:21.532Z",
+    "started_at": "2026-10-15T14:09:28.268Z",
+    "completed_at": "2026-10-15T14:13:11.034Z",
+    "updated_at": "2026-10-15T14:13:11.034Z",
+    "attempt_count": 2,
+    "max_attempts": 2,
+    "lease_owner": null,
+    "lease_expires_at": null,
+    "heartbeat_at": "2026-10-15T14:13:09.875Z",
+    "cancellation_requested_at": null
+  },
+  "status": "partial_failure",
+  "finished_at": "2026-10-15T14:15:48.190Z",
+  "attempts": [
+    {
+      "attempt_number": 2,
+      "status": "failed",
+      "worker_id": "cloudflare-sampling-runner",
+      "leased_at": "2026-10-15T14:11:28.844Z",
+      "lease_expires_at": "2026-10-15T14:18:09.875Z",
+      "heartbeat_at": "2026-10-15T14:13:09.875Z",
+      "started_at": "2026-10-15T14:11:28.844Z",
+      "finished_at": "2026-10-15T14:13:11.034Z",
+      "error_message": "control plane rejected /api/internal/v1/runner/sampling-jobs/job_5a99019f353849a681279e83ee4b268f/finalize: runner request failed",
+      "output_json": null
+    },
+    {
+      "attempt_number": 1,
+      "status": "failed",
+      "worker_id": "cloudflare-sampling-runner",
+      "leased_at": "2026-10-15T14:09:28.268Z",
+      "lease_expires_at": "2026-10-15T14:16:09.285Z",
+      "heartbeat_at": "2026-10-15T14:11:09.285Z",
+      "started_at": "2026-10-15T14:09:28.268Z",
+      "finished_at": "2026-10-15T14:11:21.600Z",
+      "error_message": "control plane rejected /api/internal/v1/runner/sampling-jobs/job_5a99019f353849a681279e83ee4b268f/finalize: runner request failed",
+      "output_json": null
+    }
+  ],
+  "evidence": [
+    {
+      "frame_id": "frame_0_0",
+      "sha256": "ef30eb9a0abcbe27f622c23385b87a5f43e4f037ffee3355d39103456c0f5154",
+      "size_bytes": 33190
+    },
+    {
+      "frame_id": "frame_0_1",
+      "sha256": "d0d675aced873f2063d6bb26d3192149a20e8f970997215d0fc78070e4a2218b",
+      "size_bytes": 41433
+    },
+    {
+      "frame_id": "frame_0_2",
+      "sha256": "5f7aefbf53f2ef9529cf2f67e9c31b31ea8794c8db06c1ce3bad30ca5efa8a61",
+      "size_bytes": 39598
+    },
+    {
+      "frame_id": "frame_0_3",
+      "sha256": "642924b8d401fc878f0075f758e958659fad4200980efcb3a28ec205cc55417e",
+      "size_bytes": 39048
+    },
+    {
+      "frame_id": "frame_0_4",
+      "sha256": "6490cbb7351580735b9113fcc202013308222215eb948a5fad12c6bc9e7694b9",
+      "size_bytes": 34115
+    },
+    {
+      "frame_id": "frame_0_5",
+      "sha256": "158d420325b5e950b0a49f16693623498cca1e7531d494faa646aa76ecf191f3",
+      "size_bytes": 35298
+    },
+    {
+      "frame_id": "frame_0_6",
+      "sha256": "7f605a76909e615bfe40d772004698089a98441c889f2990902588fb719fcb40",
+      "size_bytes": 42406
+    },
+    {
+      "frame_id": "frame_0_7",
+      "sha256": "5f4e82be399de8418200fd95489137e4737641efde57ce945df43517b489ebfd",
+      "size_bytes": 32802
+    },
+    {
+      "frame_id": "frame_0_8",
+      "sha256": "79003a0fe78c221d6a6481701a782b63ac7a2d77fa2f99eacc05a042e4cbfd56",
+      "size_bytes": 27275
+    },
+    {
+      "frame_id": "frame_0_9",
+      "sha256": "faadb8a8284c2325acb9b79d2a937e4eaa4d1d8324297ed1cae5db8eb95e6639",
+      "size_bytes": 24744
+    },
+    {
+      "frame_id": "frame_0_10",
+      "sha256": "a82c77fc5834babebf0e5a590c308d264e200558de77d06390eb47d73aae78ce",
+      "size_bytes": 26455
+    },
+    {
+      "frame_id": "frame_0_11",
+      "sha256": "3f99c99911c046e834eba7914ab02f6a6ed1932eba8bbf750f4d4732ca12c110",
+      "size_bytes": 38047
+    },
+    {
+      "frame_id": "frame_0_12",
+      "sha256": "845ea021f8df4bf256bde75401787042cb3b7a8a9553a6b18e5bdffcc20d869c",
+      "size_bytes": 43839
+    },
+    {
+      "frame_id": "frame_0_13",
+      "sha256": "2b958637d1279a8cb477f007cb16c4c587efff3d1b534905d8b79cd518ab5ad6",
+      "size_bytes": 36697
+    },
+    {
+      "frame_id": "frame_0_14",
+      "sha256": "75a65aa647a74fd26d525f274c9124fb3e9e1ca33b70e5488cbe882efc80fce8",
+      "size_bytes": 35346
+    },
+    {
+      "frame_id": "frame_0_15",
+      "sha256": "722a2c9266e9c7f54c9bd7dc0e8b2bc4e7ecb0437b14b25d4dcb6bb55859b757",
+      "size_bytes": 47810
+    },
+    {
+      "frame_id": "frame_0_16",
+      "sha256": "8027df18186a5a8dc93c30bb2e3eb41ca9052a267d213c3a888a0483dc154a3a",
+      "size_bytes": 23025
+    },
+    {
+      "frame_id": "frame_0_17",
+      "sha256": "8e6aaa07c690cb4c5ad157bab425f781d693c779ce399dd8902b56b96bf1124e",
+      "size_bytes": 26203
+    },
+    {
+      "frame_id": "frame_0_18",
+      "sha256": "5c5b7847a0d5c731f782077f12404f3361d81043b981f908c68b538cbd9033f8",
+      "size_bytes": 36315
+    },
+    {
+      "frame_id": "frame_0_19",
+      "sha256": "4267504b01c336f095fdeda97b4fb264ba15cffd767c97571ae143c6d2abfefa",
+      "size_bytes": 40224
+    },
+    {
+      "frame_id": "frame_0_20",
+      "sha256": "9dda7cc10c0f23c0b52f6587347159f9723470168711f9e87defe9ee0cd94877",
+      "size_bytes": 15921
+    },
+    {
+      "frame_id": "frame_0_21",
+      "sha256": "2d8b7a31dd0514cb2116c4b4818a99331a13d1a22f25d984ac92a871c9df214c",
+      "size_bytes": 30133
+    },
+    {
+      "frame_id": "frame_0_22",
+      "sha256": "89eb38bbb00936335afa25b2c9006abe453bd3d0ba2ac4bc6a09f77551e5193d",
+      "size_bytes": 21946
+    },
+    {
+      "frame_id": "frame_0_23",
+      "sha256": "df1a065e87b4353ee72409625538ec08d8fdfa982265bbfc88759991d88e2251",
+      "size_bytes": 30025
+    },
+    {
+      "frame_id": "frame_0_24",
+      "sha256": "71a4b7d82f6d4f5dd393eb60e38d3978d49721233d70c6a7ad35c1e3cbd4c4be",
+      "size_bytes": 27738
+    },
+    {
+      "frame_id": "frame_0_25",
+      "sha256": "14c1bd881ae748d98fed7ae44260131a0e569389880d46e305ffe3e03fa5069d",
+      "size_bytes": 29768
+    },
+    {
+      "frame_id": "frame_0_26",
+      "sha256": "204c2153bbbfcb1738edfb263c56961f2eb4bc92e46a9b22411272bbb396db04",
+      "size_bytes": 33722
+    },
+    {
+      "frame_id": "frame_0_27",
+      "sha256": "24445db24911f17e58dd0e392ad94d7fd6125014c38921abc9fbbabb4b06224b",
+      "size_bytes": 35404
+    }
+  ],
+  "operations": {
+    "jobs": [
+      {
+        "job_type": "sampling",
+        "status": "cancelled",
+        "count": 8
+      },
+      {
+        "job_type": "sampling",
+        "status": "failed",
+        "count": 2
+      },
+      {
+        "job_type": "sampling",
+        "status": "succeeded",
+        "count": 1
+      }
+    ],
+    "expired_leases": [],
+    "artifacts": [
+      {
+        "kind": "frame_image",
+        "count": 28,
+        "size_bytes": 928527
+      },
+      {
+        "kind": "frame_manifest",
+        "count": 1,
+        "size_bytes": 8723
+      },
+      {
+        "kind": "model",
+        "count": 1,
+        "size_bytes": 3800954
+      },
+      {
+        "kind": "template",
+        "count": 2,
+        "size_bytes": 20517
+      }
+    ]
+  },
+  "orphan_preview_count": 0,
+  "ui": {
+    "status": "blocked",
+    "redirect_origin": "https://moorhouse.cloudflareaccess.com",
+    "reason": "Cloudflare Access login requires a separate authenticated session."
+  },
+  "deployment": {
+    "control_plane_version": "17d0f1e0-f9ac-4923-af9e-31fe6d71ead9",
+    "runner_version": "a918dca8-3615-4ce2-bdec-5a8d51f88864",
+    "runner_image_sha256": "153bfc8cfee516df89cbac17b6e7d0e130403c1cb57a7bc75e0a1556d24dfca8",
+    "migrations_confirmed": [
+      "0013",
+      "0014"
+    ],
+    "source": "User-supplied successful deployment logs"
+  },
+  "local_fix": {
+    "description": "Namespace sampling frame IDs by job ID and regenerate the sampler implementation fingerprint.",
+    "validation": {
+      "worker_tests_passed": 136,
+      "backend_tests_passed": 98,
+      "typescript": "passed",
+      "python_static_checks": "passed",
+      "engine_fingerprints": "passed",
+      "worker_dry_run": {
+        "status": "passed",
+        "bundle_kib": 352.14,
+        "gzip_kib": 71.17
+      }
+    },
+    "deployment_status": "Not deployed; merge-time publication and hosted rerun required."
+  }
+}
