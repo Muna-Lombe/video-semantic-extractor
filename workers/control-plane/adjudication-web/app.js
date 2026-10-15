@@ -22,7 +22,7 @@ function consumeInvitation() {
 async function api(path, options = {}) {
   const response = await fetch(path, { ...options, headers: { ...options.headers, authorization: `Bearer ${token}` } });
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error?.message || result.error || "Request failed");
+  if (!response.ok) { const error = new Error(result.error?.message || result.error || "Request failed"); error.status = response.status; throw error; }
   return result;
 }
 const frameKey = (source, frame) => `${source.source}/${frame.filename}`;
@@ -35,15 +35,6 @@ function renderPolicy(policy) {
   $("policy-heading").textContent = `${policy.name} · ${policy.version}`;
   const rules = policy.annotation_rules;
   $("policy-instructions").textContent = policy.document + (rules ? `\n\nAllowed labels: ${rules.allowed_labels?.join(", ") || "all COCO labels"}. Allowed subsets: ${rules.allowed_subsets?.join(", ") || "live, composited, screen"}. Maximum objects per frame: ${rules.max_objects_per_frame || 200}.` : "");
-}
-async function showEvidence(element, source, filename) {
-  const response = await fetch(assignmentFrameUrl(source, filename), { headers: { authorization: `Bearer ${token}` } });
-  if (!response.ok) throw new Error("Could not load frame evidence");
-  const previous = element.dataset.objectUrl;
-  if (previous) URL.revokeObjectURL(previous);
-  const objectUrl = URL.createObjectURL(await response.blob());
-  element.dataset.objectUrl = objectUrl;
-  element.src = objectUrl;
 }
 
 async function login() {
@@ -403,39 +394,351 @@ $("out-of-taxonomy").addEventListener("input", () => {
   if (selected && state?.annotations) currentReviewFrame().out_of_taxonomy = $("out-of-taxonomy").value.split("\n").map((value) => value.trim()).filter(Boolean);
 });
 
-async function loadAdjudication() {
-  state = await api(identity.links.state);
-  renderPolicy(state.policy);
-  $("adjudicator").hidden = false;
-  const grouped = new Map();
-  for (const item of state.comparison.disagreements) if (item.source && item.filename) grouped.set(`${item.source}/${item.filename}`, item);
-  const resolved = new Set(state.merged.review.adjudication_log.map((item) => `${item.source}/${item.filename}`));
-  $("disagreement-frames").replaceChildren(...[...grouped.values()].map((item) => {
-    const button = document.createElement("button");
-    button.className = `frame ${resolved.has(`${item.source}/${item.filename}`) ? "resolved" : ""}`;
-    button.textContent = `${item.source}/${item.filename}`;
-    button.onclick = () => selectAdjudicationFrame(item);
+let adjudicationItems = [];
+let decisionDraft, decisionMode = "edited";
+let adjudicationDirty = false, rawDecisionDirty = false, adjudicationBusy = false, adjudicationNeedsReload = false;
+let adjudicationImage, adjudicationImageUrl, evidenceRequest;
+let decisionDrawing = false, decisionDrawingStart;
+const cloneDecision = (value) => structuredClone(value);
+const adjudicationKey = (item) => `${item.source}/${item.filename}`;
+const resolvedDecisions = () => new Map((state?.merged?.review?.adjudication_log || []).map((item) => [adjudicationKey(item), item]));
+const remainingDecisions = () => adjudicationItems.filter((item) => !resolvedDecisions().has(adjudicationKey(item)));
+const decisionEditable = () => Boolean(selected && state?.assignment.status !== "complete" && !adjudicationBusy);
+function resolutionMessage(message, error = false) {
+  $("resolution-status").textContent = message;
+  $("resolution-status").classList.toggle("error", error);
+}
+function updateAdjudicationControls() {
+  const complete = state?.assignment.status === "complete", editable = decisionEditable();
+  const pending = remainingDecisions().length;
+  $("complete-adjudication").disabled = !state?.merged || complete || adjudicationBusy || pending > 0 || adjudicationDirty || adjudicationNeedsReload;
+  $("confirm-complete").disabled = $("complete-adjudication").disabled;
+  $("save-resolution").disabled = !editable || !adjudicationImage || adjudicationNeedsReload;
+  ["use-a", "use-b"].forEach((id) => { $(id).disabled = !editable || !adjudicationImage; });
+  $("add-decision-object").disabled = !editable || rawDecisionDirty || !adjudicationImage;
+  $("draw-decision-box").disabled = !editable || rawDecisionDirty || !adjudicationImage;
+  $("decision-taxonomy").disabled = !editable || rawDecisionDirty;
+  $("merged").disabled = !editable;
+  $("apply-decision-json").disabled = !editable || !rawDecisionDirty;
+  $("decision-objects").querySelectorAll("input, select, button").forEach((input) => { input.disabled = !editable || rawDecisionDirty; });
+  $("reload-adjudication").disabled = adjudicationBusy;
+  $("refresh-adjudication").disabled = adjudicationBusy;
+  $("download-result").hidden = !complete || !state?.result_url;
+  const index = adjudicationItems.findIndex((item) => selected && adjudicationKey(item) === adjudicationKey(selected));
+  $("previous-frame").disabled = adjudicationBusy || index <= 0;
+  $("next-frame").disabled = adjudicationBusy || index < 0 || index >= adjudicationItems.length - 1;
+  $("next-unresolved").disabled = adjudicationBusy || !remainingDecisions().some((item) => !selected || adjudicationKey(item) !== adjudicationKey(selected));
+  $("decision-state").textContent = complete ? "Read only" : adjudicationDirty ? "Unsaved" : selected && resolvedDecisions().has(adjudicationKey(selected)) ? "Saved" : "Needs decision";
+  $("decision-origin").textContent = { reviewer_a: "Based on reviewer A", reviewer_b: "Based on reviewer B", edited: "Custom decision", ambiguous: "Recorded as ambiguous" }[decisionMode] || "Custom decision";
+}
+function renderAdjudicationSidebar() {
+  const resolved = resolvedDecisions(), filter = $("disagreement-filter").value, query = $("disagreement-search").value.trim().toLowerCase();
+  const visible = adjudicationItems.filter((item) => {
+    const saved = resolved.has(adjudicationKey(item));
+    return (filter === "all" || (filter === "resolved" ? saved : !saved)) && adjudicationKey(item).toLowerCase().includes(query);
+  });
+  $("disagreement-frames").replaceChildren(...visible.map((item) => {
+    const saved = resolved.has(adjudicationKey(item)), button = document.createElement("button");
+    button.type = "button"; button.className = `frame${saved ? " resolved" : ""}`;
+    button.title = adjudicationKey(item);
+    button.setAttribute("aria-current", String(Boolean(selected && adjudicationKey(item) === adjudicationKey(selected))));
+    button.disabled = adjudicationBusy;
+    const title = document.createElement("strong"), detail = document.createElement("small");
+    title.textContent = item.filename; detail.textContent = `${saved ? "Resolved" : "Needs decision"} · ${item.source}`;
+    button.append(title, detail); button.onclick = () => selectAdjudicationFrame(item);
     return button;
   }));
-  $("adjudication-status").textContent = state.assignment.status === "complete" ? `Complete — ${state.result_url}` : `${resolved.size}/${grouped.size} disagreement frames resolved`;
-  $("complete-adjudication").disabled = state.assignment.status === "complete";
-  ["use-a", "use-b", "save-resolution"].forEach((id) => { $(id).disabled = state.assignment.status === "complete"; });
+  $("disagreement-count").textContent = `${visible.length} shown · ${adjudicationItems.length} total`;
+  $("no-matching-frames").hidden = visible.length > 0 || adjudicationItems.length === 0;
 }
-function selectAdjudicationFrame(item) {
-  selected = item;
-  $("adjudication-title").textContent = `${item.source}/${item.filename}`;
-  showEvidence($("adjudication-image"), item.source, item.filename).catch((error) => alert(error.message));
-  $("left").textContent = JSON.stringify(frameOf(state.reviewer_a, item.source, item.filename), null, 2);
-  $("right").textContent = JSON.stringify(frameOf(state.reviewer_b, item.source, item.filename), null, 2);
-  $("merged").value = JSON.stringify(frameOf(state.merged, item.source, item.filename), null, 2);
+async function loadAdjudication(preferred = selected, advance = false) {
+  document.querySelector(".skip-link").href = "#adjudication-content";
+  let loaded;
+  try { loaded = await api(identity.links.state); }
+  catch (error) {
+    if (error.status !== 409 || !error.message.includes("both independent reviewer passes")) throw error;
+    state = undefined; selected = null; adjudicationItems = [];
+    $("adjudicator").hidden = false; $("adjudication-frame").hidden = true; $("adjudication-empty").hidden = false;
+    $("adjudication-empty").querySelector("h2").textContent = "Waiting for both reviewer passes";
+    $("adjudication-empty").querySelector("p").textContent = "You can compare and resolve annotations once both independent reviews are complete. Refresh this assignment to check again.";
+    $("adjudication-status").textContent = "The reviewers are still working. No adjudication decisions are available yet.";
+    $("adjudication-progress").textContent = "Waiting for reviews";
+    $("adjudication-progress-bar").value = 0;
+    renderAdjudicationSidebar(); updateAdjudicationControls(); return;
+  }
+  state = loaded; adjudicationNeedsReload = false;
+  $("adjudication-empty").querySelector("h2").textContent = "No disagreements to resolve";
+  $("adjudication-empty").querySelector("p").textContent = "Both reviewers agree on every frame. You can complete adjudication after checking the instructions.";
+  renderPolicy(state.policy);
+  $("reviewer").hidden = true; $("adjudicator").hidden = false;
+  const grouped = new Map();
+  for (const item of state.comparison.disagreements) {
+    if (!item.source || !item.filename) continue;
+    const key = adjudicationKey(item);
+    if (!grouped.has(key)) grouped.set(key, { ...item, types: new Set() });
+    grouped.get(key).types.add(item.type);
+  }
+  adjudicationItems = [...grouped.values()];
+  const pending = remainingDecisions(), complete = state.assignment.status === "complete";
+  $("adjudication-progress").textContent = `${adjudicationItems.length - pending.length} of ${adjudicationItems.length} resolved`;
+  $("adjudication-progress-bar").max = adjudicationItems.length || 1;
+  $("adjudication-progress-bar").value = adjudicationItems.length ? adjudicationItems.length - pending.length : 1;
+  $("adjudication-status").textContent = complete ? "Adjudication complete. Your decisions have been saved." : pending.length ? `${pending.length} disagreement frame${pending.length === 1 ? " needs" : "s need"} a decision before you can complete adjudication.` : "All decisions are saved. Review them or complete adjudication.";
+  $("adjudication-status").classList.remove("error");
+  $("adjudication-empty").hidden = adjudicationItems.length > 0;
+  $("adjudication-frame").hidden = !adjudicationItems.length;
+  let target = preferred && adjudicationItems.find((item) => adjudicationKey(item) === adjudicationKey(preferred));
+  if (advance && target) {
+    const index = adjudicationItems.indexOf(target);
+    target = [...adjudicationItems.slice(index + 1), ...adjudicationItems.slice(0, index)].find((item) => !resolvedDecisions().has(adjudicationKey(item))) || target;
+  }
+  target ||= pending[0] || adjudicationItems[0];
+  adjudicationDirty = false; rawDecisionDirty = false;
+  if (target) selectAdjudicationFrame(target, true);
+  else { selected = null; renderAdjudicationSidebar(); updateAdjudicationControls(); }
 }
-async function resolve(frame, resolution) {
-  if (!selected) throw new Error("Select a disagreement frame first");
-  const path = `${identity.links.state}/frames/${encodeURIComponent(selected.source)}/${encodeURIComponent(selected.filename)}`;
-  await api(path, { method: "PUT", headers: mutationHeaders(), body: JSON.stringify({ frame, resolution }) });
-  selected = null;
-  await loadAdjudication();
+function selectAdjudicationFrame(item, force = false) {
+  if (adjudicationBusy && !force) return;
+  if (!force && adjudicationDirty && !confirm("Discard the unsaved decision for this frame?")) return;
+  setDecisionDrawing(false);
+  selected = item; adjudicationDirty = false; rawDecisionDirty = false;
+  decisionDraft = cloneDecision(frameOf(state.merged, item.source, item.filename));
+  decisionMode = resolvedDecisions().get(adjudicationKey(item))?.resolution || "edited";
+  $("adjudication-title").textContent = item.filename; $("adjudication-title").title = adjudicationKey(item);
+  $("adjudication-position").textContent = `Frame ${adjudicationItems.indexOf(item) + 1} of ${adjudicationItems.length}`;
+  const reasons = { left_unmatched: "Objects differ in reviewer A", right_unmatched: "Objects differ in reviewer B", out_of_taxonomy: "Out-of-taxonomy concepts differ", frame_coverage: "Frame coverage differs" };
+  $("disagreement-summary").textContent = [...item.types].map((type) => reasons[type] || "Review annotations differ").join(" · ");
+  $("advanced-decision").open = false;
+  renderComparisonObjects("left", frameOf(state.reviewer_a, item.source, item.filename));
+  renderComparisonObjects("right", frameOf(state.reviewer_b, item.source, item.filename));
+  renderDecisionEditor(); renderAdjudicationSidebar();
+  resolutionMessage(resolvedDecisions().has(adjudicationKey(item)) ? "Saved decision loaded. You can revise it before completing." : "Choose a reviewer’s annotations or edit your decision, then save.");
+  loadAdjudicationEvidence(item).catch((error) => {
+    if (error.name === "AbortError" || adjudicationKey(selected) !== adjudicationKey(item)) return;
+    $("adjudication-evidence-status").textContent = error.message;
+    $("adjudication-evidence-status").classList.add("error");
+  });
 }
+function renderComparisonObjects(id, frame) {
+  $(id + "-count").textContent = `${frame.objects.length} object${frame.objects.length === 1 ? "" : "s"}`;
+  const entries = frame.objects.map((object, index) => {
+    const row = document.createElement("p"), detail = document.createElement("small");
+    row.textContent = `${index + 1}. ${object.label}`;
+    detail.textContent = `${object.subset} · x ${object.region[0]}, y ${object.region[1]}, w ${object.region[2]}, h ${object.region[3]}`;
+    row.append(detail); return row;
+  });
+  const audit = document.createElement("p");
+  audit.textContent = frame.out_of_taxonomy.length ? `Out of taxonomy: ${frame.out_of_taxonomy.join(", ")}` : "No out-of-taxonomy concepts.";
+  if (!entries.length) { const empty = document.createElement("p"); empty.textContent = "No objects annotated."; entries.push(empty); }
+  $(id).replaceChildren(...entries, audit);
+}
+async function loadAdjudicationEvidence(item) {
+  evidenceRequest?.abort(); evidenceRequest = new AbortController();
+  adjudicationImage = undefined;
+  if (adjudicationImageUrl) { URL.revokeObjectURL(adjudicationImageUrl); adjudicationImageUrl = undefined; }
+  ["left-canvas", "right-canvas", "decision-canvas"].forEach((id) => { $(id).width = 0; $(id).height = 0; });
+  $("adjudication-evidence-status").textContent = "Loading evidence…";
+  $("adjudication-evidence-status").classList.remove("error");
+  updateAdjudicationControls();
+  const response = await fetch(assignmentFrameUrl(item.source, item.filename), { headers: { authorization: `Bearer ${token}` }, signal: evidenceRequest.signal });
+  if (!response.ok) throw new Error("Evidence could not be loaded. Use Reload saved decisions to retry.");
+  const url = URL.createObjectURL(await response.blob()), image = new Image(); image.src = url;
+  try {
+    await image.decode();
+    if (adjudicationKey(selected) !== adjudicationKey(item)) { URL.revokeObjectURL(url); return; }
+    if (image.naturalWidth !== decisionDraft.width || image.naturalHeight !== decisionDraft.height) throw new Error("Evidence dimensions do not match this frame.");
+    adjudicationImageUrl = url; adjudicationImage = image;
+    $("adjudication-evidence-status").textContent = `${image.naturalWidth} × ${image.naturalHeight} source pixels`;
+    drawAdjudicationCanvases(); updateAdjudicationControls();
+  } catch (error) { URL.revokeObjectURL(url); throw error; }
+}
+function drawAdjudicationCanvases() {
+  if (!adjudicationImage || !selected) return;
+  for (const [id, frame, color] of [["left-canvas", frameOf(state.reviewer_a, selected.source, selected.filename), "#ffcc66"], ["right-canvas", frameOf(state.reviewer_b, selected.source, selected.filename), "#67d7ff"], ["decision-canvas", decisionDraft, "#85efb0"]]) {
+    const canvas = $(id); canvas.width = adjudicationImage.naturalWidth; canvas.height = adjudicationImage.naturalHeight;
+    const context = canvas.getContext("2d"); context.drawImage(adjudicationImage, 0, 0);
+    if (!$("show-regions").checked) continue;
+    const font = Math.max(14, canvas.width / Math.max(160, canvas.clientWidth) * 12); context.font = `600 ${font}px system-ui`; context.lineWidth = Math.max(2, canvas.width / 300);
+    frame.objects.forEach((object, index) => {
+      if (!object.region.every(Number.isFinite)) return;
+      const [x, y, width, height] = object.region; context.strokeStyle = color; context.strokeRect(x, y, width, height);
+      const label = `${index + 1}. ${object.label}`, labelY = Math.max(font + 5, y);
+      const labelWidth = Math.min(canvas.width, context.measureText(label).width + 10), labelX = Math.max(0, Math.min(x, canvas.width - labelWidth));
+      context.fillStyle = "#101914e8"; context.fillRect(labelX, labelY - font - 5, labelWidth, font + 8);
+      context.fillStyle = color; context.fillText(label, labelX + 5, labelY);
+    });
+  }
+}
+function syncDecisionJson() { $("merged").value = JSON.stringify({ objects: decisionDraft.objects, out_of_taxonomy: decisionDraft.out_of_taxonomy }, null, 2); rawDecisionDirty = false; }
+function changedDecision() {
+  adjudicationDirty = true; decisionMode = "edited"; syncDecisionJson(); updateAdjudicationControls(); drawAdjudicationCanvases();
+  resolutionMessage("Unsaved changes. Save this decision before moving on.");
+}
+function renderDecisionEditor() {
+  const rules = state.policy?.annotation_rules || {};
+  $("decision-objects").replaceChildren(...decisionDraft.objects.map((object, index) => {
+    const row = document.createElement("div"); row.className = "decision-object";
+    const fields = document.createElement("div"); fields.className = "object-fields";
+    for (const [field, values] of [["label", rules.allowed_labels || COCO_CLASSES], ["subset", rules.allowed_subsets || ["live", "composited", "screen"]]]) {
+      const label = document.createElement("label"), select = document.createElement("select");
+      label.textContent = field === "label" ? `Object ${index + 1} label` : "Subset";
+      for (const value of values) { const option = document.createElement("option"); option.value = value; option.textContent = value; select.append(option); }
+      select.value = object[field]; select.onchange = () => { object[field] = select.value; changedDecision(); };
+      label.append(select); fields.append(label);
+    }
+    const coordinates = document.createElement("div"); coordinates.className = "coordinates";
+    ["X", "Y", "Width", "Height"].forEach((name, coordinate) => {
+      const label = document.createElement("label"), input = document.createElement("input");
+      label.textContent = name; input.type = "number"; input.min = coordinate < 2 ? "0" : "0.01"; input.step = "any";
+      input.value = object.region[coordinate]; input.setAttribute("aria-label", `Object ${index + 1} ${name}`);
+      input.oninput = () => { object.region[coordinate] = input.value === "" ? NaN : Number(input.value); changedDecision(); };
+      label.append(input); coordinates.append(label);
+    });
+    const remove = document.createElement("button"); remove.type = "button"; remove.className = "secondary"; remove.textContent = "Remove object";
+    remove.setAttribute("aria-label", `Remove object ${index + 1}`);
+    remove.onclick = () => { decisionDraft.objects.splice(index, 1); changedDecision(); renderDecisionEditor(); };
+    row.append(fields, coordinates, remove); return row;
+  }));
+  if (!decisionDraft.objects.length) { const text = document.createElement("p"); text.className = "hint"; text.textContent = "No objects in this decision. Check the evidence before saving an empty frame."; $("decision-objects").append(text); }
+  $("decision-taxonomy").value = decisionDraft.out_of_taxonomy.join("\n");
+  syncDecisionJson(); updateAdjudicationControls(); drawAdjudicationCanvases();
+}
+function validateDecision(frame) {
+  const rules = state.policy?.annotation_rules || {}, labels = rules.allowed_labels || COCO_CLASSES, subsets = rules.allowed_subsets || ["live", "composited", "screen"];
+  if (!Array.isArray(frame.objects) || frame.objects.length > (rules.max_objects_per_frame || 200)) throw new Error(`Use at most ${rules.max_objects_per_frame || 200} objects for this frame.`);
+  const ids = new Set();
+  for (const source of state.merged.sources) for (const other of source.frames) {
+    if (source.source === selected.source && other.filename === selected.filename) continue;
+    other.objects.forEach((object) => ids.add(object.id));
+  }
+  for (const object of frame.objects) {
+    if (!object || Object.keys(object).some((key) => !["id", "label", "subset", "region"].includes(key)) || typeof object.id !== "string" || !/^[a-zA-Z0-9._:-]{1,100}$/.test(object.id) || ids.has(object.id)) throw new Error("Every object needs a unique ID; check for duplicates in the decision.");
+    ids.add(object.id);
+    if (!labels.includes(object.label) || !subsets.includes(object.subset)) throw new Error("Use the labels and subsets allowed by the instructions.");
+    const box = object.region;
+    if (!Array.isArray(box) || box.length !== 4 || !box.every(Number.isFinite) || box[0] < 0 || box[1] < 0 || box[2] <= 0 || box[3] <= 0 || box[0] + box[2] > frame.width || box[1] + box[3] > frame.height) throw new Error("Object boxes must have a positive size and stay within the source image.");
+  }
+  if (!Array.isArray(frame.out_of_taxonomy) || frame.out_of_taxonomy.length > 200 || frame.out_of_taxonomy.some((entry) => typeof entry !== "string" || !entry.trim() || entry.length > 1000)) throw new Error("Use up to 200 out-of-taxonomy concepts, one non-empty concept per line (1,000 characters each).");
+}
+function applyDecisionJson() {
+  let value;
+  try { value = JSON.parse($("merged").value); } catch { throw new Error("Annotation JSON is invalid. Fix its syntax or choose a reviewer to replace the draft."); }
+  if (!value || Array.isArray(value) || Object.keys(value).some((key) => !["objects", "out_of_taxonomy"].includes(key))) throw new Error("Annotation JSON accepts only objects and out_of_taxonomy. Frame identity cannot change.");
+  const draft = { ...decisionDraft, objects: value.objects, out_of_taxonomy: value.out_of_taxonomy };
+  validateDecision(draft); decisionDraft = draft; changedDecision(); renderDecisionEditor();
+}
+function chooseReviewer(side) {
+  if (!decisionEditable() || !adjudicationImage) return;
+  if (adjudicationDirty && !confirm("Replace the unsaved decision with this reviewer’s annotations?")) return;
+  setDecisionDrawing(false);
+  decisionDraft = cloneDecision(frameOf(state[side === "a" ? "reviewer_a" : "reviewer_b"], selected.source, selected.filename));
+  decisionMode = side === "a" ? "reviewer_a" : "reviewer_b"; adjudicationDirty = true;
+  renderDecisionEditor(); resolutionMessage(`Reviewer ${side.toUpperCase()} copied to your draft. Save to record this decision.`);
+}
+async function saveAdjudicationDecision() {
+  if (!decisionEditable() || !adjudicationImage || adjudicationNeedsReload) return;
+  let saved = false;
+  try {
+    if (rawDecisionDirty) applyDecisionJson();
+    validateDecision(decisionDraft);
+    adjudicationBusy = true; updateAdjudicationControls(); renderAdjudicationSidebar(); resolutionMessage("Saving decision…");
+    const current = { ...selected };
+    const result = await api(`${identity.links.state}/frames/${encodeURIComponent(current.source)}/${encodeURIComponent(current.filename)}`, { method: "PUT", headers: mutationHeaders(), body: JSON.stringify({ frame: decisionDraft, resolution: decisionMode }) });
+    state.revision = result.revision; adjudicationDirty = false; saved = true;
+    await loadAdjudication(current, true);
+    $("adjudication-title").focus();
+    resolutionMessage(remainingDecisions().length ? "Decision saved. The next unresolved frame is ready." : "All disagreement frames have saved decisions. You can complete adjudication.");
+  } catch (error) {
+    if (saved || error.status === 412) adjudicationNeedsReload = true;
+    resolutionMessage(saved ? "Decision saved, but the latest state could not be loaded. Reload saved decisions before continuing." : `${error.message}${error.status === 412 ? " Reload saved decisions before trying again." : ""}`, true);
+  } finally { adjudicationBusy = false; updateAdjudicationControls(); renderAdjudicationSidebar(); }
+}
+$("disagreement-filter").onchange = renderAdjudicationSidebar;
+$("disagreement-search").oninput = renderAdjudicationSidebar;
+$("show-regions").onchange = drawAdjudicationCanvases;
+addEventListener("resize", () => requestAnimationFrame(drawAdjudicationCanvases));
+$("previous-frame").onclick = () => { const index = adjudicationItems.indexOf(selected); if (index > 0) selectAdjudicationFrame(adjudicationItems[index - 1]); };
+$("next-frame").onclick = () => { const index = adjudicationItems.indexOf(selected); if (index >= 0 && index < adjudicationItems.length - 1) selectAdjudicationFrame(adjudicationItems[index + 1]); };
+$("next-unresolved").onclick = () => {
+  const index = adjudicationItems.indexOf(selected);
+  const next = [...adjudicationItems.slice(index + 1), ...adjudicationItems.slice(0, index)].find((item) => !resolvedDecisions().has(adjudicationKey(item)));
+  if (next) selectAdjudicationFrame(next);
+};
+$("use-a").onclick = () => chooseReviewer("a");
+$("use-b").onclick = () => chooseReviewer("b");
+function addDecisionObject(region) {
+  if (!decisionEditable() || rawDecisionDirty || !adjudicationImage) return;
+  const rules = state.policy?.annotation_rules || {};
+  if (decisionDraft.objects.length >= (rules.max_objects_per_frame || 200)) { resolutionMessage("This frame has reached the object limit in the instructions.", true); return; }
+  decisionDraft.objects.push({ id: `decision-${crypto.randomUUID()}`, label: (rules.allowed_labels || COCO_CLASSES)[0], subset: (rules.allowed_subsets || ["live"])[0], region });
+  changedDecision(); renderDecisionEditor();
+}
+function setDecisionDrawing(enabled) {
+  decisionDrawing = enabled; decisionDrawingStart = undefined;
+  $("draw-decision-box").setAttribute("aria-pressed", String(enabled));
+  $("draw-decision-box").textContent = enabled ? "Cancel drawing" : "Draw object box";
+  $("decision-canvas").classList.toggle("drawing", enabled);
+}
+$("draw-decision-box").onclick = () => {
+  setDecisionDrawing(!decisionDrawing);
+  resolutionMessage(decisionDrawing ? "Drag on your decision image to add an object, then choose its label and subset." : "Drawing cancelled.");
+  drawAdjudicationCanvases();
+};
+const decisionCanvas = $("decision-canvas");
+function decisionPoint(event) {
+  const bounds = decisionCanvas.getBoundingClientRect();
+  return [Math.max(0, Math.min(decisionCanvas.width, Math.round((event.clientX - bounds.left) * decisionCanvas.width / bounds.width))), Math.max(0, Math.min(decisionCanvas.height, Math.round((event.clientY - bounds.top) * decisionCanvas.height / bounds.height)))];
+}
+decisionCanvas.addEventListener("pointerdown", (event) => {
+  if (!decisionDrawing || !decisionEditable() || !adjudicationImage || rawDecisionDirty) return;
+  decisionDrawingStart = decisionPoint(event); decisionCanvas.setPointerCapture(event.pointerId);
+});
+decisionCanvas.addEventListener("pointermove", (event) => {
+  if (!decisionDrawingStart) return;
+  const point = decisionPoint(event), context = decisionCanvas.getContext("2d"); drawAdjudicationCanvases();
+  context.strokeStyle = "#ffe08a"; context.setLineDash([8, 5]);
+  context.strokeRect(decisionDrawingStart[0], decisionDrawingStart[1], point[0] - decisionDrawingStart[0], point[1] - decisionDrawingStart[1]); context.setLineDash([]);
+});
+decisionCanvas.addEventListener("pointerup", (event) => {
+  if (!decisionDrawingStart) return;
+  const start = decisionDrawingStart, end = decisionPoint(event); setDecisionDrawing(false);
+  const region = [Math.min(start[0], end[0]), Math.min(start[1], end[1]), Math.abs(end[0] - start[0]), Math.abs(end[1] - start[1])];
+  if (region[2] < 4 || region[3] < 4) { resolutionMessage("Drag a box at least 4 source pixels wide and high.", true); drawAdjudicationCanvases(); return; }
+  addDecisionObject(region);
+});
+decisionCanvas.addEventListener("pointercancel", () => { setDecisionDrawing(false); drawAdjudicationCanvases(); });
+$("add-decision-object").onclick = () => addDecisionObject([0, 0, Math.min(100, decisionDraft.width), Math.min(100, decisionDraft.height)]);
+$("decision-taxonomy").oninput = () => { decisionDraft.out_of_taxonomy = $("decision-taxonomy").value.split("\n").map((value) => value.trim()).filter(Boolean); changedDecision(); };
+$("merged").oninput = () => { rawDecisionDirty = true; adjudicationDirty = true; updateAdjudicationControls(); resolutionMessage("Apply the annotation JSON to update the draft and its preview."); };
+$("apply-decision-json").onclick = () => { try { applyDecisionJson(); } catch (error) { resolutionMessage(error.message, true); } };
+$("save-resolution").onclick = saveAdjudicationDecision;
+$("refresh-adjudication").onclick = $("reload-adjudication").onclick = async () => {
+  if (adjudicationBusy || (adjudicationDirty && !confirm("Discard unsaved changes and reload the saved decisions?"))) return;
+  adjudicationBusy = true; updateAdjudicationControls();
+  try { await loadAdjudication(); } catch (error) { resolutionMessage(error.message, true); $("adjudication-status").textContent = error.message; $("adjudication-status").classList.add("error"); }
+  finally { adjudicationBusy = false; updateAdjudicationControls(); renderAdjudicationSidebar(); }
+};
+$("complete-adjudication").onclick = () => { if (!$("complete-adjudication").disabled) $("complete-dialog").showModal(); };
+$("confirm-complete").onclick = async () => {
+  if ($("confirm-complete").disabled) return;
+  adjudicationBusy = true; updateAdjudicationControls();
+  try {
+    const result = await api(`${identity.links.state}/complete`, { method: "POST", headers: mutationHeaders(), body: "{}" });
+    state.revision = result.revision; state.assignment.status = "complete"; state.result_url = result.result_url;
+    $("complete-dialog").close(); await loadAdjudication();
+  } catch (error) {
+    $("complete-dialog").close(); $("adjudication-status").textContent = error.message; $("adjudication-status").classList.add("error");
+  } finally { adjudicationBusy = false; updateAdjudicationControls(); renderAdjudicationSidebar(); }
+};
+$("download-result").onclick = async () => {
+  try {
+    const response = await fetch(state.result_url, { headers: { authorization: `Bearer ${token}` } });
+    if (!response.ok) throw new Error("The result could not be downloaded. Try again.");
+    const url = URL.createObjectURL(await response.blob()), link = document.createElement("a");
+    link.href = url; link.download = "adjudicated-annotations.json"; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch (error) { $("adjudication-status").textContent = error.message; }
+};
+addEventListener("beforeunload", (event) => { if (adjudicationDirty) { event.preventDefault(); event.returnValue = ""; } });
 
 $("open").onclick = () => login().catch((error) => { $("login-status").textContent = error.message; });
 $("assigned-login-form").onsubmit = async (event) => {
@@ -466,10 +769,6 @@ $("complete-review").onclick = async () => {
   try { await saveReview(false); await api(`${identity.links.state}/complete`, { method: "POST", headers: mutationHeaders(), body: "{}" }); await loadReviewer(); }
   catch (error) { alert(error.message); }
 };
-$("use-a").onclick = () => selected && resolve(frameOf(state.reviewer_a, selected.source, selected.filename), "reviewer_a").catch((error) => alert(error.message));
-$("use-b").onclick = () => selected && resolve(frameOf(state.reviewer_b, selected.source, selected.filename), "reviewer_b").catch((error) => alert(error.message));
-$("save-resolution").onclick = () => { try { resolve(JSON.parse($("merged").value), "edited").catch((error) => alert(error.message)); } catch { alert("Merged decision must be valid JSON"); } };
-$("complete-adjudication").onclick = async () => { try { await api(`${identity.links.state}/complete`, { method: "POST", headers: mutationHeaders(), body: "{}" }); await loadAdjudication(); } catch (error) { alert(error.message); } };
 
 consumeInvitation();
 $("token").value = token;

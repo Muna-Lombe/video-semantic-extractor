@@ -84,6 +84,11 @@ describe("hosted review worker", () => {
     expect(markup).toContain("Internals workspace");
     expect(page.headers.get("cache-control")).toBe("no-store");
 
+    const themeScript = await worker.fetch(request("/theme.js"), env);
+    expect(themeScript.status).toBe(200);
+    expect(themeScript.headers.get("content-type")).toContain("javascript");
+    expect(themeScript.headers.get("cache-control")).toBe("no-cache");
+
     const appScript = await worker.fetch(request("/internals/app.js"), env);
     expect(appScript.headers.get("cache-control")).toBe("no-store");
     const governanceScript = await worker.fetch(request("/internals/governance.js"), env);

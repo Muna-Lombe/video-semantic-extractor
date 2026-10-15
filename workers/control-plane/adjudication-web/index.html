@@ -5,9 +5,12 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Video annotation review</title>
+    <script src="/theme.js"></script>
     <link rel="stylesheet" href="/style.css">
   </head>
   <body>
+    <div class="utility-bar"><span>Video Semantic · Annotation workspace</span><label class="appearance-control">Appearance<select data-appearance aria-label="Appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></div>
+    <a class="skip-link" href="#assignment-content">Skip to assignment</a>
     <section id="login" class="card narrow">
       <p class="eyebrow">Secure annotation workspace</p>
       <h1>Open assignment</h1>
@@ -40,7 +43,7 @@
         <button id="save-review">Save</button>
         <button id="complete-review">Complete pass</button>
       </header>
-      <main>
+      <main id="assignment-content">
         <aside class="frame-sidebar"><h2>Frames</h2><div id="review-frames"></div></aside>
         <section class="workspace">
           <h2 id="review-title" title="">Select a frame</h2>
@@ -86,23 +89,71 @@
     </div>
 
     <div id="adjudicator" hidden>
-      <header>
-        <div><p class="eyebrow">Independent resolution</p><h1>Adjudicator</h1></div>
-        <button id="complete-adjudication">Complete adjudication</button>
-        <span id="adjudication-status" class="status"></span>
+      <header class="adjudication-header">
+        <div><p class="eyebrow">Independent resolution</p><h1>Adjudicate reviews</h1><p class="hint">Compare both passes, then save one decision for each disagreement.</p></div>
+        <div class="completion-controls">
+          <button id="refresh-adjudication" class="secondary">Refresh assignment</button>
+          <span id="adjudication-progress"></span>
+          <progress id="adjudication-progress-bar" aria-label="Disagreement resolution progress" max="1" value="0"></progress>
+          <button id="complete-adjudication" disabled>Complete adjudication</button>
+          <button id="download-result" class="secondary" hidden>Download result</button>
+        </div>
       </header>
-      <main>
-        <aside><h2>Disagreement frames</h2><div id="disagreement-frames"></div></aside>
-        <section class="workspace">
-          <h2 id="adjudication-title">Select a frame</h2>
-          <img id="adjudication-image" alt="Source evidence">
-          <div class="columns">
-            <article><h3>Reviewer A</h3><pre id="left"></pre><button id="use-a">Use A</button></article>
-            <article><h3>Reviewer B</h3><pre id="right"></pre><button id="use-b">Use B</button></article>
-            <article><h3>Merged decision</h3><textarea id="merged" aria-label="Merged frame JSON"></textarea><button id="save-resolution">Save edited decision</button></article>
+      <p id="adjudication-status" class="workspace-status" role="status" aria-live="polite"></p>
+      <main class="adjudication-layout" id="adjudication-content" tabindex="-1">
+        <aside class="frame-sidebar adjudication-sidebar" aria-label="Disagreement navigation">
+          <h2>Disagreements</h2>
+          <label for="disagreement-filter">Show frames</label>
+          <select id="disagreement-filter"><option value="all">All disagreements</option><option value="pending">Needs a decision</option><option value="resolved">Resolved</option></select>
+          <label for="disagreement-search">Find a frame</label>
+          <input id="disagreement-search" type="search" placeholder="Source or filename">
+          <p id="disagreement-count" class="hint"></p>
+          <div id="disagreement-frames"></div>
+          <p id="no-matching-frames" class="hint" hidden>No frames match this filter.</p>
+        </aside>
+        <section class="workspace adjudication-workspace">
+          <div id="adjudication-empty" class="empty-state" hidden><h2>No disagreements to resolve</h2><p>Both reviewers agree on every frame. You can complete adjudication after checking the instructions.</p></div>
+          <div id="adjudication-frame" hidden>
+            <div class="frame-heading">
+              <div><p id="adjudication-position" class="eyebrow"></p><h2 id="adjudication-title" tabindex="-1"></h2><p id="disagreement-summary" class="hint"></p></div>
+              <div class="frame-navigation"><button id="previous-frame" class="secondary" aria-label="Previous disagreement">Previous</button><button id="next-frame" class="secondary" aria-label="Next disagreement">Next</button><button id="next-unresolved" class="secondary">Next unresolved</button></div>
+            </div>
+            <div class="comparison-toolbar"><label><input id="show-regions" type="checkbox" checked> Show object boxes and labels</label><span id="adjudication-evidence-status" class="hint" role="status"></span></div>
+            <div class="comparison-grid">
+              <article class="comparison-panel">
+                <div class="panel-heading"><h3>Reviewer A</h3><span id="left-count" class="pill"></span></div>
+                <div class="evidence-canvas"><canvas id="left-canvas" aria-label="Reviewer A object regions"></canvas></div>
+                <div id="left" class="comparison-objects"></div>
+                <button id="use-a" class="secondary" disabled>Use reviewer A</button>
+              </article>
+              <article class="comparison-panel">
+                <div class="panel-heading"><h3>Reviewer B</h3><span id="right-count" class="pill"></span></div>
+                <div class="evidence-canvas"><canvas id="right-canvas" aria-label="Reviewer B object regions"></canvas></div>
+                <div id="right" class="comparison-objects"></div>
+                <button id="use-b" class="secondary" disabled>Use reviewer B</button>
+              </article>
+              <article class="comparison-panel decision-panel">
+                <div class="panel-heading"><h3>Your decision</h3><span id="decision-state" class="pill"></span></div>
+                <div class="evidence-canvas"><canvas id="decision-canvas" aria-label="Your decision object regions"></canvas></div>
+                <p id="decision-origin" class="hint"></p>
+                <div id="decision-objects" class="decision-objects"></div>
+                <div class="decision-drawing-actions"><button id="draw-decision-box" type="button" aria-pressed="false">Draw object box</button><button id="add-decision-object" class="secondary" type="button">Add with coordinates</button></div>
+                <label for="decision-taxonomy">Out-of-taxonomy concepts</label>
+                <textarea id="decision-taxonomy" rows="3" placeholder="One visible concept per line"></textarea>
+                <details id="advanced-decision"><summary>Advanced annotation JSON</summary><p class="hint">Edit objects and out_of_taxonomy only. Frame identity stays fixed.</p><textarea id="merged" aria-label="Decision annotation JSON" spellcheck="false"></textarea><button id="apply-decision-json" class="secondary" type="button">Apply JSON to draft</button></details>
+              </article>
+            </div>
+            <div class="decision-actions">
+              <p id="resolution-status" class="status" role="status" aria-live="polite"></p>
+              <button id="reload-adjudication" class="secondary">Reload saved decisions</button>
+              <button id="save-resolution" disabled>Save decision &amp; next</button>
+            </div>
           </div>
         </section>
       </main>
+      <dialog id="complete-dialog" aria-labelledby="complete-title">
+        <form method="dialog"><h2 id="complete-title">Complete adjudication?</h2><p>All disagreement frames have saved decisions. Completing freezes this result and ends editing for this assignment.</p><div class="dialog-actions"><button value="cancel" class="secondary">Keep reviewing</button><button id="confirm-complete" type="button">Complete adjudication</button></div></form>
+      </dialog>
     </div>
     <script type="module" src="/app.js"></script>
   </body>
