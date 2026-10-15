@@ -2,8 +2,10 @@
 # Registered policies and templates
 
 The repository now implements policy registration and template generation with
-Internals screens. This slice is locally tested, not yet deployed or verified
-remotely. Apply control migration `0005_template_registry.sql` before deployment.
+Internals screens. The original registry is recorded as deployed. This branch adds
+revision-safe deprecation/retirement, configurable annotation restrictions, immutable
+definition guards, and per-attempt template storage. Apply pending migrations
+through 0014 when deploying after merge.
 
 ## Policy registration
 
@@ -30,7 +32,8 @@ administrator token cannot establish a named human actor.
 `GET /policies` lists versions and `GET /policies/<version-id>` includes instructions
 (all paths use the `/api/internal/v1` prefix). Bodies are limited to 64 KiB, names
 to 120 characters, versions to 80 safe characters, and instructions to 48,000
-characters. Lifecycle editing and configurable schema registration remain planned.
+characters. Lifecycle transitions and configurable restrictions within the supported
+object-annotations.v1 contract are implemented; see below.
 
 The optional fixed [`diagnostic validation profile`](ground-truth-governance.md)
 adds frozen corpus digests to a new policy version and its definition checksum.
@@ -100,3 +103,20 @@ creation by `template_id`, scoped private evidence, and pinned policy instructio
 This slice is locally tested; migration/deployment are pending. The legacy API
 still accepts embedded JSON and frame URLs. Registering a template alone does not
 create a campaign or grant access to frames.
+
+## Configurable rules and policy lifecycle
+
+Registration optionally accepts annotation_rules with allowed_labels (a unique
+non-empty subset of COCO labels), allowed_subsets (a unique non-empty subset of
+live/composited/screen), and max_objects_per_frame (1–200). Restrictions are frozen
+in the policy checksum and template validation metadata. Hosted review, adjudication,
+and ground-truth validation enforce them. Focused reviewer choices follow the
+registered taxonomy. The annotation geometry remains object-annotations.v1; new
+task shapes require a new supported engine contract.
+
+POST /policies/{id}/deprecate or /retire requires If-Match with the policy revision
+and a reason. Deprecated/retired policies cannot create new templates or campaigns;
+existing campaigns retain their pinned instructions. Policy definitions cannot be
+updated in place. CLI initialization accepts --annotation-rules with the exported
+rules JSON to retain hosted/local parity. Include --validation-profile with the
+exported profile JSON when verifying a profiled policy document checksum.

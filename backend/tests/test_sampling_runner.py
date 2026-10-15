@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from video_semantic_extractor.pipeline import FrameCandidate
-from video_semantic_extractor.sampling_runner import RunnerError, SamplingRunner, _log_event, _source_frame_limit, create_runner_app
+from video_semantic_extractor.sampling_runner import ControlPlaneClient, RunnerError, SamplingRunner, _log_event, _source_frame_limit, create_runner_app
 
 
 class StubRunner:
@@ -18,6 +18,15 @@ class StubRunner:
     def run_once(self) -> dict[str, str]:
         self.calls += 1
         return {"status": "idle"}
+
+
+def test_evaluation_download_is_bounded_and_closes_the_response(monkeypatch) -> None:
+    closed = []
+    response = SimpleNamespace(ok=True, iter_content=lambda **_: iter([b"abc", b"def"]), close=lambda: closed.append(True))
+    monkeypatch.setattr("video_semantic_extractor.sampling_runner.requests.get", lambda *args, **kwargs: response)
+    with pytest.raises(RunnerError, match="bounded download"):
+        ControlPlaneClient().download("/input", lease="lease", maximum_bytes=5)
+    assert closed == [True]
 
 
 def test_runner_events_are_written_as_json_to_stdout(capsys) -> None:
@@ -62,14 +71,14 @@ def test_runner_uploads_frames_and_finalizes_manifest(monkeypatch) -> None:
     def fake_download(_url: str, destination: Path, _max_bytes: int, _timeout: int) -> None:
         destination.write_bytes(b"video")
 
-    def fake_candidates(_video: Path, output: Path, _config, _duration):
+    def fake_candidates(_video: Path, output: Path, _config, _duration, _should_abort=None):
         output.mkdir(parents=True)
         frame = output / "frame.jpg"
         frame.write_bytes(b"jpeg")
         return [FrameCandidate(frame, 1.25, ("near_final",))]
 
     monkeypatch.setattr("video_semantic_extractor.sampling_runner.download_video", fake_download)
-    monkeypatch.setattr("video_semantic_extractor.sampling_runner.probe_video", lambda _path: SimpleNamespace(duration_sec=10.0))
+    monkeypatch.setattr("video_semantic_extractor.sampling_runner.probe_video", lambda _path: SimpleNamespace(duration_sec=10.0, width=320, height=180))
     monkeypatch.setattr("video_semantic_extractor.sampling_runner._candidates", fake_candidates)
     monkeypatch.setattr("video_semantic_extractor.sampling_runner.cv2.imread", lambda _path: np.zeros((360, 640, 3)))
     control = FakeControl()

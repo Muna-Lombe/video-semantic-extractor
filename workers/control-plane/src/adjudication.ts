@@ -3,6 +3,7 @@ import { compareReviews, type JsonRecord } from "./review-comparison";
 import { handleInternalsApi } from "./internals";
 import { handleAdminJobAction, handleRunnerApi } from "./job-lifecycle";
 import type { AdjudicationEnv } from "./types";
+import { EVALUATION_IMPLEMENTATION_VERSION, SAMPLING_IMPLEMENTATION_VERSION } from "./engine-versions";
 import { handleManagedCampaigns } from "./managed-campaigns";
 import { canAccessInternals, handleIdentityApi, resolveInternalActor, type InternalUser } from "./internal-auth";
 
@@ -106,29 +107,30 @@ const INTERNAL_AREAS = [
   { id: "policies", label: "Policies", status: "available", summary: "Administrator-registered immutable policy versions pin object annotation instructions and schema compatibility." },
   { id: "templates", label: "Templates", status: "available", summary: "Verified frame sets and active policies generate registered prediction-blind templates consumed by managed campaigns through template IDs." },
   { id: "reviews", label: "Review campaigns", status: "available", summary: "Template-referenced campaigns use D1-isolated assignments, pinned policy instructions, and private evidence; the legacy review service remains available." },
-  { id: "ground-truth", label: "Ground truth", status: "available", summary: "Candidates have checksum-bound validation reports, diagnostic approval/rejection, approved replacements, and evidence-checked eligibility. Named user authentication remains planned." },
+  { id: "ground-truth", label: "Ground truth", status: "available", summary: "Candidates have checksum-bound validation reports, diagnostic approval/rejection, approved replacements, and evidence-checked eligibility. Named sessions and role checks are implemented; email delivery awaits sender onboarding." },
   { id: "pipelines", label: "Pipelines", status: "available", summary: "Validated resource links group datasets, sampling jobs, frame sets, templates, campaigns, evaluations, and registered versions; progress is derived from linked states." },
-  { id: "evaluations", label: "Evaluations", status: "legacy_cli", summary: "Diagnostic CLIs remain available; durable evaluation runs are not implemented yet." },
-  { id: "models", label: "Models", status: "planned", summary: "Model registration and lifecycle governance are not implemented yet." },
-  { id: "releases", label: "Pipeline releases", status: "planned", summary: "Pipeline promotion, activation, and rollback are not implemented yet." },
+  { id: "evaluations", label: "Evaluations", status: "available", summary: "Queue reproducible evaluations, inspect private reports and per-frame errors, and compare frozen inputs. CLI reproduction remains available." },
+  { id: "models", label: "Models", status: "available", summary: "Register checksum-bound ONNX candidates with license and provenance; approve or reject against evaluation evidence." },
+  { id: "releases", label: "Pipeline releases", status: "available", summary: "Pin components and acceptance thresholds, approve against matching evidence, and activate or roll back approved releases." },
 ] as const;
 function internalOverview() {
   return {
     name: "Video Semantic Extractor Internals",
-    maturity: "foundation",
-    notice: "This workspace is an incremental control-plane foundation, not a complete model-development platform.",
-    authentication: "Temporary administrator bearer token; user identities and RBAC are planned.",
+    engines: { sampler: SAMPLING_IMPLEMENTATION_VERSION, evaluator: EVALUATION_IMPLEMENTATION_VERSION },
+    maturity: "managed_workflows",
+    notice: "Dataset preparation, independent review, diagnostic evaluation, and release governance.",
+    authentication: "Administrator-token compatibility; verified named sessions and role checks are supported when email delivery is available.",
     control_plane: {
       binding: "CONTROL_DB",
       engine: "D1",
-      status: "schema_foundation",
+      status: "transactional",
       databases: {
         control: { binding: "CONTROL_DB", name: "video-semantic-extractor" },
         datasets: { binding: "DATASET_DB", name: "video-semantic-extractor-dataset" },
       },
     },
     invitation_experiences: { review: "/review/", adjudication: "/adjudicate/", status: "preserved" },
-    areas: INTERNAL_AREAS,
+    areas: [...INTERNAL_AREAS, { id: "operations", label: "Operations", status: "available", summary: "Inspect job health, storage usage, audit events, and eligible orphan cleanup." }],
   };
 }
 function apiDescription(origin: string) {
@@ -154,6 +156,18 @@ function apiDescription(origin: string) {
       { method: "GET", path: "/api/v1/admin/reviews", auth: "administrator", output: "ReviewSummary[]; never includes invitation secrets" },
       { method: "POST", path: "/api/v1/admin/reviews/{id}/assignments/{role}/revoke", auth: "administrator", input: "empty JSON object", output: "RevocationResult" },
       { method: "GET", path: "/api/v1/reviews/{id}/result", auth: "administrator or matching adjudicator", output: "Completed merged annotation" },
+      { method: "GET", path: "/api/internal/v1/evaluations", auth: "Internals role", output: "Durable evaluation records" },
+      { method: "POST", path: "/api/internal/v1/evaluations", auth: "Internals role", output: "Queue frozen evaluation inputs" },
+      { method: "GET", path: "/api/internal/v1/evaluations/compare", auth: "Internals role", output: "Compare successful runs" },
+      { method: "GET", path: "/api/internal/v1/evaluations/{id}/report", auth: "Internals role", output: "Private immutable report" },
+      { method: "GET", path: "/api/internal/v1/evaluations/{id}/inputs", auth: "Internals role", output: "Reproduction plan and private input links" },
+      { method: "GET", path: "/api/internal/v1/models", auth: "Internals role", output: "Immutable model versions" },
+      { method: "POST", path: "/api/internal/v1/models", auth: "Internals role", output: "Register licensed ONNX candidate" },
+      { method: "GET", path: "/api/internal/v1/releases", auth: "Internals role", output: "Governed pipeline releases" },
+      { method: "POST", path: "/api/internal/v1/releases", auth: "Internals role", output: "Create pinned candidate" },
+      { method: "GET", path: "/api/internal/v1/operations", auth: "Internals role", output: "Operational metrics and audit events" },
+      { method: "GET", path: "/api/internal/v1/operations/orphans", auth: "Internals role", output: "Read-only cleanup preview" },
+      { method: "POST", path: "/api/internal/v1/operations/orphans", auth: "Internals role", output: "Audited cleanup of selected old unregistered objects" },
       { method: "GET", path: "/api/internal/v1/overview", auth: "administrator", output: "Internals capability and implementation status" },
       { method: "GET", path: "/api/internal/v1/pipelines", auth: "administrator", output: "Paginated pipeline lineage and derived progress" },
       { method: "POST", path: "/api/internal/v1/pipelines", auth: "administrator", input: "CreatePipeline", output: "Pipeline with validated resource links" },
@@ -197,12 +211,55 @@ function apiDescription(origin: string) {
     ],
   };
 }
+function governedOpenApiPaths(): JsonRecord {
+  const paths: JsonRecord = {};
+  const add = (path: string, methods: string[], schema?: string, revision = false) => {
+    const parameters: JsonRecord[] = [...path.matchAll(/\{([^}]+)\}/g)].map((match) => ({ in: "path", name: match[1], required: true, schema: { type: "string" } }));
+    if (revision) parameters.push({ in: "header", name: "If-Match", required: true, schema: { type: "string", pattern: "^[0-9]+$" } });
+    paths[`/api/internal/v1/${path}`] = Object.fromEntries(methods.map((method) => [method, {
+      summary: `${method.toUpperCase()} ${path}`, security: [{ bearerAuth: [] }], parameters,
+      ...(method === "post" && schema ? { requestBody: { required: true, content: { "application/json": { schema: { $ref: `#/components/schemas/${schema}` } } } } } : {}),
+      responses: { "200": { description: "Resource, report, or decision" }, "201": { description: "Registered candidate" }, "202": { description: "Queued evaluation" }, "401": { description: "Authentication required" }, "403": { description: "Role denied" }, "409": { description: "State, lineage, or evidence conflict" }, "412": { description: "Stale revision" }, "422": { description: "Input or evidence integrity failure" }, "428": { description: "Revision required" } },
+    }]));
+  };
+  for (const [collection, schema] of [["models", "CreateModelVersion"], ["releases", "CreatePipelineRelease"], ["evaluations", "CreateEvaluationRun"]]) {
+    add(collection, ["get", "post"], schema); add(`${collection}/{id}`, ["get"]);
+  }
+  for (const action of ["approve", "reject", "retire"]) add(`models/{id}/${action}`, ["post"], "GovernanceDecision", true);
+  for (const action of ["approve", "reject", "activate", "rollback"]) add(`releases/{id}/${action}`, ["post"], "GovernanceDecision", true);
+  for (const action of ["cancel", "retry"]) add(`evaluations/{id}/${action}`, ["post"]);
+  for (const suffix of ["report", "inputs", "inputs/artifacts/{artifact_id}"]) add(`evaluations/{id}/${suffix}`, ["get"]);
+  add("evaluations/compare", ["get"]);
+  paths["/api/internal/v1/evaluations/compare"].get.parameters = ["baseline_id", "candidate_id"].map((name) => ({ in: "query", name, required: true, schema: { type: "string" } })); add("models/{id}/artifact", ["get"]);
+  add("operations", ["get"]); add("operations/orphans", ["get", "post"], "OrphanCleanup");
+  for (const action of ["deprecate", "retire"]) add(`policies/{id}/${action}`, ["post"], "GovernanceDecision", true);
+  add("runner/evaluation-jobs/claim", ["post"]);
+  for (const action of ["heartbeat", "inputs", "artifacts/{artifact_id}", "complete", "fail"]) {
+    const path = `runner/evaluation-jobs/{id}/${action}`;
+    add(path, action === "inputs" || action.startsWith("artifacts") ? ["get"] : ["post"]);
+    for (const operation of Object.values(paths[`/api/internal/v1/${path}`]) as JsonRecord[]) operation.parameters.push({ in: "header", name: "X-Job-Lease-Token", required: true, schema: { type: "string" } });
+  }
+  return paths;
+}
+function governedSchemas(): JsonRecord {
+  const string = { type: "string", minLength: 1, maxLength: 2000 };
+  const thresholds = { type: "object", additionalProperties: false, properties: Object.fromEntries(["minimum_confidence", "nms_threshold", "minimum_iou"].map((key) => [key, { type: "number", minimum: 0, maximum: 1 }])) };
+  return {
+    CreateModelVersion: { type: "object", additionalProperties: false, required: ["name", "version", "license", "provenance", "configuration", "model_base64"], properties: { name: { ...string, maxLength: 120 }, version: { ...string, maxLength: 80 }, license: { ...string, maxLength: 1000 }, provenance: { type: "object", required: ["source", "implementation_version"], properties: { source: string, implementation_version: { ...string, maxLength: 200 } } }, configuration: { type: "object", additionalProperties: false, required: ["architecture"], properties: { architecture: { const: "nanodet-plus-1.5x-416" } } }, model_base64: { type: "string", contentEncoding: "base64", description: "ONNX binary, at most 16 MiB decoded" } } },
+    CreateEvaluationRun: { type: "object", additionalProperties: false, required: ["ground_truth_version_id", "model_version_id"], properties: { ground_truth_version_id: string, model_version_id: string, pipeline_release_id: string, configuration: thresholds, idempotency_key: { type: "string", pattern: "^[A-Za-z0-9._:-]{1,200}$" } } },
+    CreatePipelineRelease: { type: "object", additionalProperties: false, required: ["version", "model_version_id", "components", "thresholds", "acceptance"], properties: { version: { ...string, maxLength: 80 }, model_version_id: string, components: { type: "object", additionalProperties: false, required: ["sampler", "annotation_schema", "evaluator"], properties: { sampler: { const: SAMPLING_IMPLEMENTATION_VERSION }, annotation_schema: { const: "object-annotations.v1" }, evaluator: { const: EVALUATION_IMPLEMENTATION_VERSION } } }, thresholds: { ...thresholds, required: ["minimum_confidence", "nms_threshold", "minimum_iou"] }, acceptance: { type: "object", additionalProperties: false, required: ["minimum_f1", "maximum_p95_inference_ms"], properties: { minimum_f1: { type: "number", minimum: 0, maximum: 1 }, maximum_p95_inference_ms: { type: "number", exclusiveMinimum: 0 } } } } },
+    AnnotationRules: { type: "object", additionalProperties: false, properties: { allowed_labels: { type: "array", minItems: 1, maxItems: 80, uniqueItems: true, items: { type: "string" }, description: "Subset of COCO labels" }, allowed_subsets: { type: "array", minItems: 1, maxItems: 3, uniqueItems: true, items: { enum: ["live", "composited", "screen"] } }, max_objects_per_frame: { type: "integer", minimum: 1, maximum: 200 } } },
+    GovernanceDecision: { type: "object", additionalProperties: false, required: ["reason"], properties: { reason: string, evaluation_run_id: string, target_release_id: string } },
+    OrphanCleanup: { type: "object", required: ["objects", "reason"], properties: { reason: string, objects: { type: "array", minItems: 1, maxItems: 100, items: { type: "object", required: ["key", "etag"], properties: { key: string, etag: string } } } } },
+  };
+}
 function openApi(origin: string): JsonRecord {
   return {
     openapi: "3.1.0",
     info: { title: "Video annotation review API", version: "1.0.0" },
     servers: [{ url: origin }],
     paths: {
+      ...governedOpenApiPaths(),
       "/api/v1": { get: { summary: "Discover API operations", responses: { "200": { description: "Endpoint catalog" } } } },
       "/api/v1/me": { get: { summary: "Inspect the current assignment", security: [{ bearerAuth: [] }], responses: { "200": { description: "Assignment links" } } } },
       "/api/v1/assignments/{id}": {
@@ -291,11 +348,12 @@ function openApi(origin: string): JsonRecord {
     components: {
       securitySchemes: { bearerAuth: { type: "http", scheme: "bearer" } },
       schemas: {
+        ...governedSchemas(),
         GroundTruthDecision: { type: "object", additionalProperties: false, required: ["actor_reference", "reason"], properties: { actor_reference: { type: "string", minLength: 1, maxLength: 200 }, reason: { type: "string", minLength: 1, maxLength: 2000 } } },
         GroundTruthApproval: { type: "object", additionalProperties: false, required: ["actor_reference", "reason", "scope", "attestations"], properties: { actor_reference: { type: "string", minLength: 1, maxLength: 200 }, reason: { type: "string", minLength: 1, maxLength: 2000 }, scope: { const: "diagnostic" }, attestations: { type: "object", additionalProperties: false, required: ["policy_reviewed", "independent_humans_confirmed", "predictions_unseen_confirmed", "licensing_scope_confirmed"], properties: { policy_reviewed: { const: true }, independent_humans_confirmed: { const: true }, predictions_unseen_confirmed: { const: true }, licensing_scope_confirmed: { const: true } } } } },
         GroundTruthReplacement: { type: "object", additionalProperties: false, required: ["actor_reference", "reason", "replacement_id"], properties: { actor_reference: { type: "string", minLength: 1, maxLength: 200 }, reason: { type: "string", minLength: 1, maxLength: 2000 }, replacement_id: { type: "string", pattern: "^gt_[a-f0-9]{32}$" } } },
         CreateCampaign: { type: "object", additionalProperties: false, required: ["name", "template_id"], properties: { name: { type: "string", minLength: 1, maxLength: 120 }, template_id: { type: "string", pattern: "^tpl_[a-f0-9]{32}$" }, expires_in_hours: { type: "integer", minimum: 1, maximum: 720, default: 168 }, idempotency_key: { type: "string", minLength: 1, maxLength: 200 } } },
-        RegisterPolicy: { type: "object", additionalProperties: false, required: ["name", "version", "annotation_schema_version", "document"], properties: { name: { type: "string", minLength: 1, maxLength: 120 }, version: { type: "string", pattern: "^[a-zA-Z0-9._-]{1,80}$" }, annotation_schema_version: { const: "object-annotations.v1" }, document: { type: "string", minLength: 1, maxLength: 48000 }, validation_profile: { type: "object", additionalProperties: false, required: ["id", "source_sha256"], properties: { id: { const: "coco-object-diagnostic.v1" }, source_sha256: { type: "array", minItems: 5, maxItems: 5, uniqueItems: true, items: { type: "string", pattern: "^[a-f0-9]{64}$" } } } } } },
+        RegisterPolicy: { type: "object", additionalProperties: false, required: ["name", "version", "annotation_schema_version", "document"], properties: { name: { type: "string", minLength: 1, maxLength: 120 }, version: { type: "string", pattern: "^[a-zA-Z0-9._-]{1,80}$" }, annotation_schema_version: { const: "object-annotations.v1" }, document: { type: "string", minLength: 1, maxLength: 48000 }, annotation_rules: { $ref: "#/components/schemas/AnnotationRules" }, validation_profile: { type: "object", additionalProperties: false, required: ["id", "source_sha256"], properties: { id: { const: "coco-object-diagnostic.v1" }, source_sha256: { type: "array", minItems: 5, maxItems: 5, uniqueItems: true, items: { type: "string", pattern: "^[a-f0-9]{64}$" } } } } } },
         GenerateTemplate: { type: "object", additionalProperties: false, required: ["frame_set_id", "policy_version_id", "annotation_schema_version"], properties: { frame_set_id: { type: "string" }, policy_version_id: { type: "string" }, annotation_schema_version: { const: "object-annotations.v1" } } },
         CreateReview: { type: "object", required: ["id", "template", "frame_urls"], properties: { id: { type: "string", pattern: ID_PATTERN.source }, template: { type: "object" }, frame_urls: { type: "object", additionalProperties: { type: "string", format: "uri" } }, expires_in_hours: { type: "integer", minimum: 1, maximum: 720, default: 168 } } },
         PipelineResource: { type: "object", additionalProperties: false, required: ["resource_type", "resource_id"], properties: { resource_type: { enum: ["dataset", "dataset_version", "sampling_job", "frame_set", "template", "review_campaign", "evaluation_run", "model_version", "pipeline_release"] }, resource_id: { type: "string", minLength: 1, maxLength: 128 } } },
@@ -452,7 +510,7 @@ async function handleControlPlaneRequest(request: Request, env: AdjudicationEnv)
     headers.set("cache-control", "public, max-age=3600");
     return new Response(asset.body, { status: asset.status, headers });
   }
-  if (method === "GET" && (path === "/internals" || path === "/internals/" || path === "/internals/app.js" || path === "/internals/style.css")) {
+  if (method === "GET" && (path === "/internals" || path === "/internals/" || path === "/internals/app.js" || path === "/internals/governance.js" || path === "/internals/style.css")) {
     const assetPath = path === "/internals" ? "/internals/" : path;
     const response = await env.ASSETS.fetch(new Request(new URL(assetPath, url), request));
     const headers = new Headers(response.headers);

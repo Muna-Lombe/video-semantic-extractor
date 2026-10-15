@@ -134,7 +134,7 @@ bind a pending managed review assignment to a verified user with the matching
 reviewer/adjudicator role; that assignment then requires both the user's session
 and the scoped job token. Unbound invitations remain token-compatible. Named
 release-approver decisions persist the authenticated user ID; the administrator
-token remains an owner override. Managed evaluations remain open. See `../docs/ground-truth-governance.md`,
+token remains an owner override. Managed evaluations and model/release governance are implemented on this branch; deployment is deferred to merge. See `../docs/ground-truth-governance.md`,
 `../docs/managed-review-campaigns.md`, and
 `../docs/internals-architecture.md` and `../docs/internals-roadmap.md`.
 
@@ -335,3 +335,16 @@ R2 is object storage rather than a transactional database. Each reviewer has a
 single-writer assignment, and only one adjudicator should edit a review at a time.
 For multi-writer operation, move mutable state to Durable Objects or another store
 with compare-and-swap semantics.
+
+## Evaluation and governance release
+
+Apply pending migrations through 0014 and publish both control-plane assets and
+the rebuilt sampling-runner after merge. New APIs and screens cover Evaluations,
+Models, Releases, and Operations. See ../docs/managed-evaluations.md,
+../docs/model-release-governance.md, ../docs/internals-operations.md, and
+../docs/internals-release.md for exact contracts and release acceptance.
+
+Run `python scripts/operations/verify-engine-versions.py` from the repository root
+before builds. If an engine source changes, update the checked-in implementation
+constants with `--write` and review the new hashes. Runs and releases pin those
+source identities; an older Container must not execute a newly pinned implementation.

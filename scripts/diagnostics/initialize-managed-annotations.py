@@ -27,6 +27,8 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--manifest-sha256")
     parser.add_argument("--policy-document", type=Path)
+    parser.add_argument("--annotation-rules", type=Path, help="Optional frozen policy annotation_rules JSON")
+    parser.add_argument("--validation-profile", type=Path, help="Optional frozen policy validation_profile JSON")
     parser.add_argument("--validate-only", action="store_true")
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
@@ -36,15 +38,19 @@ def main() -> None:
         digest = sha256_hex(args.manifest.read_bytes())
         if args.manifest_sha256 and args.manifest_sha256 != digest:
             parser.error("manifest checksum does not match --manifest-sha256")
+        rules = json.loads(args.annotation_rules.read_text(encoding="utf-8")) if args.annotation_rules else None
+        profile = json.loads(args.validation_profile.read_text(encoding="utf-8")) if args.validation_profile else None
         if args.policy_document:
             document = args.policy_document.read_text(encoding="utf-8")
-            if policy_definition_sha256(document) != args.policy_sha256:
+            if policy_definition_sha256(document, validation_profile=profile, annotation_rules=rules) != args.policy_sha256:
                 parser.error("policy document checksum does not match --policy-sha256")
         policy = {
             "id": args.policy_version_id,
             "version": args.policy_version,
             "sha256": args.policy_sha256,
         }
+        if args.annotation_rules:
+            policy["annotation_rules"] = rules
         template = initialize_managed_annotations(manifest, policy, digest, args.frames_dir)
         if args.validate_only:
             print(f"Validated {template['validation']['frame_count']} frames")

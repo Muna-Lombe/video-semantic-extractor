@@ -298,7 +298,7 @@ class NanoDet:
     def __init__(self, model_path: Path, confidence: float, nms_threshold: float):
         self.confidence = confidence
         self.nms_threshold = nms_threshold
-        self.net = cv2.dnn.readNet(str(model_path))
+        self.net = cv2.dnn.readNetFromONNX(str(model_path))
         self.net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
         self.net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
         self.projection = np.arange(self.regression_max + 1)
@@ -485,6 +485,7 @@ def evaluate_managed_ground_truth(
     nms_threshold: float = 0.6,
     minimum_iou: float = 0.5,
     detector: Callable[[np.ndarray], tuple[list[ObjectObservation], float]] | None = None,
+    should_abort: Callable[[], bool] | None = None,
 ) -> dict[str, object]:
     """Evaluate a frozen multi-source managed candidate without merging timestamps.
 
@@ -548,11 +549,16 @@ def evaluate_managed_ground_truth(
         for key, record in by_key.items():
             if key[0] != source_id:
                 continue
+            if should_abort and should_abort():
+                raise RuntimeError("evaluation cancelled or job lease lost")
             image_path = Path(str(record["path"]))
             image = cv2.imread(str(image_path), cv2.IMREAD_COLOR)
             if image is None:
                 raise RuntimeError(f"could not decode registered frame {record.get('frame_id')}")
             observations, latency_ms = active_detector(image)
+            allowed_labels = ground_truth.get("validation", {}).get("annotation_rules", {}).get("allowed_labels")
+            if allowed_labels:
+                observations = [item for item in observations if item.label in allowed_labels]
             expected = labels_by_key[key]
             pairs = _match_observations(expected, observations, minimum_iou)
             matched, unsupported, missed = len(pairs), len(observations) - len(pairs), len(expected) - len(pairs)
@@ -593,7 +599,7 @@ def evaluate_managed_ground_truth(
     tp, fp, fn = (totals[key] for key in ("true_positives", "false_positives", "false_negatives"))
     precision = tp / (tp + fp) if tp + fp else None
     recall = tp / (tp + fn) if tp + fn else None
-    f1 = 2 * precision * recall / (precision + recall) if precision is not None and recall is not None and precision + recall else None
+    f1 = 2 * tp / (2 * tp + fp + fn) if 2 * tp + fp + fn else None
     ordered = sorted(latencies)
     percentile_index = max(0, int(np.ceil(len(ordered) * 0.95)) - 1)
     return {

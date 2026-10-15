@@ -1,0 +1,31 @@
+name: Internals build and tests
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg tesseract-ocr
+      - run: python -m pip install -e './backend[dev]'
+      - run: python scripts/operations/verify-engine-versions.py
+      - run: python -m pytest backend/tests -q
+      - run: pnpm --dir workers install --frozen-lockfile
+      - run: pnpm --dir workers test && pnpm --dir workers typecheck
+      - run: node --check workers/control-plane/adjudication-web/app.js && node --check workers/control-plane/adjudication-web/internals/app.js && node --check workers/control-plane/adjudication-web/internals/governance.js
+      - working-directory: workers
+        run: pnpm dlx wrangler@4.150.0 deploy --dry-run --outdir ../work/worker-build
+      - run: docker build -f deployments/SamplingRunner.Dockerfile -t vse-runner-test .

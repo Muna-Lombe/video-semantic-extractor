@@ -121,6 +121,7 @@ def test_managed_evaluation_keeps_sources_distinct_and_scores_frozen_frames(tmp_
     """Source-local timestamps must not collide in managed multi-source reports."""
     frames = []
     sources = []
+    (tmp_path / "model.onnx").write_bytes(b"mock detector model identity")
     for source_id in ("src_a", "src_b"):
         frame_id = f"frame_{source_id}"
         path = tmp_path / f"{frame_id}.jpg"
@@ -150,4 +151,16 @@ def test_managed_evaluation_requires_exact_frozen_frame_coverage(tmp_path: Path)
             [],
             {"sources": [{"source": "src_a", "frames": [{"frame_id": "frame_a", "objects": []}]}]},
             detector=lambda _image: ([], 1.0),
+        )
+
+
+def test_managed_evaluation_stops_before_inference_after_cancellation(tmp_path: Path) -> None:
+    """A lost lease must stop inference between frames, not after the whole corpus."""
+    with pytest.raises(RuntimeError, match="cancelled"):
+        objects.evaluate_managed_ground_truth(
+            tmp_path / "model.onnx",
+            [{"source_id": "src_a", "frame_id": "frame_a", "timestamp_sec": 0, "path": "unused"}],
+            {"sources": [{"source": "src_a", "frames": [{"frame_id": "frame_a", "objects": []}]}]},
+            detector=lambda _image: pytest.fail("cancelled inference must not run"),
+            should_abort=lambda: True,
         )

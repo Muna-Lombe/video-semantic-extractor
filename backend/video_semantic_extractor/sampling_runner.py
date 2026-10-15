@@ -16,7 +16,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, Callable
 
 import cv2
 import requests
@@ -111,16 +111,24 @@ class ControlPlaneClient:
             raise RunnerError(f"control plane rejected {path}: {message}")
         return payload
 
-    def download(self, path: str, *, lease: str) -> bytes:
+    def download(self, path: str, *, lease: str, maximum_bytes: int = 16 * 1024 * 1024) -> bytes:
         """Fetch one lease-authorized immutable evaluation input as bytes."""
         try:
-            response = requests.get(f"{self.base_url}{path}", headers={"x-job-lease-token": lease}, timeout=self.timeout)
+            response = requests.get(f"{self.base_url}{path}", headers={"x-job-lease-token": lease}, timeout=self.timeout, stream=True)
         except requests.RequestException as exc:
             _log_event("evaluation_input_download_failed", error_type=type(exc).__name__)
             raise
-        if not response.ok:
-            raise RunnerError(f"control plane rejected evaluation input download (HTTP {response.status_code})")
-        return response.content
+        try:
+            if not response.ok:
+                raise RunnerError(f"control plane rejected evaluation input download (HTTP {response.status_code})")
+            payload = bytearray()
+            for chunk in response.iter_content(chunk_size=64 * 1024):
+                if len(payload) + len(chunk) > maximum_bytes:
+                    raise RunnerError("evaluation input exceeds the bounded download size")
+                payload.extend(chunk)
+            return bytes(payload)
+        finally:
+            response.close()
 
 
 def _sha256(path: Path) -> str:
@@ -131,16 +139,17 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _candidates(input_path: Path, output_dir: Path, config: dict[str, Any], duration: float) -> list[FrameCandidate]:
+def _candidates(input_path: Path, output_dir: Path, config: dict[str, Any], duration: float, should_abort: Callable[[], bool] | None = None) -> list[FrameCandidate]:
     method = config["method"]
+    bounds = {"max_candidates": _setting_int("RUNNER_MAX_CANDIDATE_FRAMES", 2000), "max_output_bytes": _setting_int("RUNNER_MAX_CANDIDATE_BYTES", 512 * 1024 * 1024), "should_abort": should_abort}
     candidates: list[FrameCandidate] = []
     if method in {"scene", "hybrid"}:
-        candidates.extend(_extract_frame_candidates(input_path, output_dir / "scene", f"eq(n,0)+gt(scene,{config['scene_threshold']})", "scene_change"))
+        candidates.extend(_extract_frame_candidates(input_path, output_dir / "scene", f"eq(n,0)+gt(scene,{config['scene_threshold']})", "scene_change", **bounds))
     if method in {"interval", "hybrid"}:
-        candidates.extend(_extract_frame_candidates(input_path, output_dir / "interval", f"eq(n,0)+gte(t-prev_selected_t,{config['interval_seconds']})", "interval"))
+        candidates.extend(_extract_frame_candidates(input_path, output_dir / "interval", f"eq(n,0)+gte(t-prev_selected_t,{config['interval_seconds']})", "interval", **bounds))
     if config.get("include_final_frame", True):
         interval = float(config.get("interval_seconds", 5.0))
-        tail = _extract_frame_candidates(input_path, output_dir / "near-final", f"gte(t,{max(0.0, duration - min(0.5, interval / 2))})", "near_final")
+        tail = _extract_frame_candidates(input_path, output_dir / "near-final", f"gte(t,{max(0.0, duration - min(0.5, interval / 2))})", "near_final", **bounds)
         if tail:
             candidate = tail[-1]
             reasons = candidate.sampling_reasons
@@ -157,11 +166,13 @@ class SamplingRunner:
         self.control = control or ControlPlaneClient(timeout=_setting_int("RUNNER_REQUEST_TIMEOUT_SEC", 120))
         self.runner_id = os.getenv("RUNNER_ID", "cloudflare-sampling-runner")
         self.lease_seconds = _setting_int("RUNNER_LEASE_SECONDS", 300)
+        self._prefer_evaluation = False
+        self._progress: dict[str, Any] = {}
 
     def _heartbeat(self, job_id: str, lease: str, stop: threading.Event, abort: threading.Event, cancelled: threading.Event, job_type: str = "sampling") -> None:
         while not stop.wait(max(10, self.lease_seconds // 3)):
             try:
-                result = self.control.request("POST", f"/api/internal/v1/runner/{job_type}-jobs/{job_id}/heartbeat", lease=lease, json_body={"lease_seconds": self.lease_seconds})
+                result = self.control.request("POST", f"/api/internal/v1/runner/{job_type}-jobs/{job_id}/heartbeat", lease=lease, json_body={"lease_seconds": self.lease_seconds, "progress": dict(self._progress)})
                 if result["data"].get("cancellation_requested"):
                     _log_event("sampling_job_cancellation_requested", job_id=job_id)
                     cancelled.set()
@@ -173,11 +184,19 @@ class SamplingRunner:
                 return
 
     def run_once(self) -> dict[str, Any]:
+        # Both queues make progress even while sampling work is continuously queued.
+        if self._prefer_evaluation:
+            self._prefer_evaluation = False
+            result = self._run_evaluation_once()
+            if result["status"] != "idle":
+                return result
         claim = self.control.request("POST", "/api/internal/v1/runner/sampling-jobs/claim", json_body={"runner_id": self.runner_id, "lease_seconds": self.lease_seconds}).get("data")
         if claim is None:
             return self._run_evaluation_once()
+        self._prefer_evaluation = True
         job, lease = claim["job"], claim["lease_token"]
         job_id, config = job["id"], job["input"]
+        self._progress = {"stage": "resolving_sources", "completed_sources": 0}
         _log_event(
             "sampling_job_claimed",
             runner_id=self.runner_id,
@@ -212,7 +231,10 @@ class SamplingRunner:
                         size_bytes=video.stat().st_size,
                         duration_ms=round((time.monotonic() - download_started_at) * 1000),
                     )
+                    self._progress = {"stage": "sampling", "source_index": source_index, "source_count": len(sources)}
                     metadata = probe_video(video)
+                    if metadata.duration_sec > _setting_int("RUNNER_MAX_DURATION_SECONDS", 900) or metadata.width * metadata.height > _setting_int("RUNNER_MAX_FRAME_PIXELS", 3840 * 2160):
+                        raise RunnerError("source exceeds the runner duration or pixel budget")
                     frames = []
                     source_limit = _source_frame_limit(
                         int(config.get("max_frames", 250)),
@@ -220,7 +242,7 @@ class SamplingRunner:
                         len(sources) - source_index,
                     )
                     source_config = {**config, "max_frames": source_limit}
-                    candidates = _candidates(video, source_dir / "frames", source_config, metadata.duration_sec)
+                    candidates = _candidates(video, source_dir / "frames", source_config, metadata.duration_sec, abort.is_set)
                     if not candidates:
                         raise RunnerError(f"sampling produced no frames for source {source['id']}")
                     for ordinal, candidate in enumerate(candidates):
@@ -236,6 +258,7 @@ class SamplingRunner:
                         frames.append({"id": f"frame_{source['ordinal']}_{ordinal}", "timestamp_seconds": candidate.timestamp_sec, "reasons": list(candidate.sampling_reasons), "width": int(image.shape[1]), "height": int(image.shape[0]), "artifact": {"artifact_id": reservation["id"], "sha256": checksum, "size_bytes": len(frame_bytes), "media_type": "image/jpeg"}})
                     manifest_sources.append({"dataset_source_id": source["id"], "source_sha256": _sha256(video), "size_bytes": video.stat().st_size, "duration_seconds": metadata.duration_sec, "frames": frames})
                     remaining_frames -= len(frames)
+                    self._progress = {"stage": "uploading", "completed_sources": source_index + 1, "source_count": len(sources), "uploaded_frames": MAX_FRAME_SET_FRAMES - remaining_frames}
                     # Frames have already been checksum-uploaded; retain metadata only.
                     # Deleting each source before downloading the next bounds temporary
                     # storage to one source and its extracted candidates at a time.
@@ -247,7 +270,9 @@ class SamplingRunner:
                         frame_count=len(frames),
                     )
             configuration_sha = hashlib.sha256(json.dumps(config, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-            manifest = {"schema_version": "frame-set-manifest.v1", "frame_set_id": claim["frame_set_id"], "sampling_job_id": job_id, "dataset_version_id": config["dataset_version_id"], "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), "engine": {"name": "video-semantic-extractor", "version": "1.0.0", "configuration_sha256": configuration_sha}, "source_count": len(manifest_sources), "frame_count": sum(len(source["frames"]) for source in manifest_sources), "sources": manifest_sources}
+            package = Path(__file__).resolve().parent
+            implementation_sha = hashlib.sha256(b"pipeline.py\0" + (package / "pipeline.py").read_bytes() + b"sampling_runner.py\0" + (package / "sampling_runner.py").read_bytes()).hexdigest()
+            manifest = {"schema_version": "frame-set-manifest.v1", "frame_set_id": claim["frame_set_id"], "sampling_job_id": job_id, "dataset_version_id": config["dataset_version_id"], "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), "engine": {"name": "video-semantic-extractor", "version": f"1.0.0@sha256:{implementation_sha}", "configuration_sha256": configuration_sha}, "source_count": len(manifest_sources), "frame_count": sum(len(source["frames"]) for source in manifest_sources), "sources": manifest_sources}
             result = self.control.request("POST", f"/api/internal/v1/runner/sampling-jobs/{job_id}/finalize", lease=lease, json_body={"manifest": manifest})
             _log_event(
                 "sampling_job_succeeded",
@@ -273,18 +298,25 @@ class SamplingRunner:
             heartbeat.join(timeout=2)
 
     def _run_evaluation_once(self) -> dict[str, Any]:
+        started_at = time.monotonic()
         claim = self.control.request("POST", "/api/internal/v1/runner/evaluation-jobs/claim", json_body={"runner_id": f"{self.runner_id}-evaluation", "lease_seconds": self.lease_seconds}).get("data")
         if claim is None:
             _log_event("sampling_runner_idle", runner_id=self.runner_id)
             return {"status": "idle"}
         job, lease = claim["job"], claim["lease_token"]
         job_id = str(job["id"])
+        self._progress = {"stage": "resolving_evaluation_inputs"}
         _log_event("evaluation_job_claimed", job_id=job_id, attempt_count=job.get("attempt_count"))
         stop, abort, cancelled = threading.Event(), threading.Event(), threading.Event()
         heartbeat = threading.Thread(target=self._heartbeat, args=(job_id, lease, stop, abort, cancelled, "evaluation"), daemon=True)
         heartbeat.start()
         try:
             plan = self.control.request("GET", f"/api/internal/v1/runner/evaluation-jobs/{job_id}/inputs", lease=lease)["data"]
+            total_bytes = sum(int(item["size_bytes"]) for item in [plan["model"], plan["ground_truth"], *plan["frames"]])
+            if total_bytes > _setting_int("RUNNER_MAX_EVALUATION_BYTES", 512 * 1024 * 1024):
+                raise RunnerError("evaluation input set exceeds the runner storage budget")
+            if any(int(frame["width"]) * int(frame["height"]) > _setting_int("RUNNER_MAX_FRAME_PIXELS", 3840 * 2160) for frame in plan["frames"]):
+                raise RunnerError("evaluation frame exceeds the runner pixel budget")
             script_candidates = [
                 Path("/app/scripts/diagnostics/evaluate-frame-objects.py"),
                 Path(__file__).resolve().parents[2] / "scripts" / "diagnostics" / "evaluate-frame-objects.py",
@@ -292,6 +324,9 @@ class SamplingRunner:
             script_path = next((path for path in script_candidates if path.is_file()), None)
             if script_path is None:
                 raise RunnerError("managed object evaluation engine is not installed")
+            implementation = "managed-object-evaluation.v1@sha256:" + hashlib.sha256(script_path.read_bytes()).hexdigest()
+            if plan["implementation_version"] != implementation:
+                raise RunnerError("runner engine source does not match the frozen evaluation implementation")
             spec = importlib.util.spec_from_file_location("managed_object_evaluation_engine", script_path)
             if spec is None or spec.loader is None:
                 raise RunnerError("managed object evaluation engine could not be loaded")
@@ -321,11 +356,13 @@ class SamplingRunner:
                 if abort.is_set():
                     raise RunnerError("evaluation cancelled or heartbeat lease lost")
                 thresholds = plan["configuration"]
+                self._progress = {"stage": "inference", "frame_count": len(records)}
                 metrics = module.evaluate_managed_ground_truth(
                     model_path, records, ground_truth,
                     float(thresholds["minimum_confidence"]),
                     float(thresholds["nms_threshold"]),
                     float(thresholds["minimum_iou"]),
+                    should_abort=abort.is_set,
                 )
                 report = {
                     "schema_version": "managed-evaluation-report.v1",
@@ -335,6 +372,10 @@ class SamplingRunner:
                     "model_sha256": plan["model"]["sha256"],
                     "ground_truth_sha256": plan["ground_truth"]["sha256"],
                     "metrics": metrics,
+                    "logs": [
+                        {"event": "evaluation.claimed", "attempt": job.get("attempt_count")},
+                        {"event": "evaluation.completed", "duration_ms": round((time.monotonic() - started_at) * 1000), "frame_count": len(records)},
+                    ],
                 }
                 result = self.control.request("POST", f"/api/internal/v1/runner/evaluation-jobs/{job_id}/complete", lease=lease, json_body=report)
             _log_event("evaluation_job_succeeded", job_id=job_id, frame_count=metrics["frame_count"], report_sha256=result["data"].get("report_sha256"))

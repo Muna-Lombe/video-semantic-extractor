@@ -219,11 +219,10 @@ and validation report are immutable artifacts. Template lifecycle states are
 
 The repository now implements bounded synchronous generation and an initial policy
 registry, with the validation report embedded in the immutable template artifact.
-This slice is locally tested; migration/deployment remain pending. It supports the
+The original registry is deployed; this branch adds policy lifecycle and configurable restrictions, with deployment deferred to merge. It supports the
 fixed `object-annotations.v1` contract, up to 500 frames, and active immutable policy
 definitions in D1. See [`template registry`](template-registry.md) for exact checks
-and the hosted/CLI compatibility boundary. Broader lifecycle governance remains
-planned.
+and the hosted/CLI compatibility boundary. Policy lifecycle and versioned restrictions are implemented.
 
 The review API ultimately accepts a `template_id`, not an embedded arbitrary JSON
 document and manually assembled frame URL map. During migration, the current raw
@@ -232,7 +231,7 @@ existing schema and exact-frame-set validation.
 
 Managed campaigns now implement the reference-based path with isolated D1
 assignments, revision-guarded writes, pinned instructions, private evidence, and
-immutable adjudicated candidates. Locally tested; migration/deployment pending.
+immutable adjudicated candidates. The core managed campaign slice is recorded as deployed; new policy restrictions are build-tested on this branch.
 See [`managed review campaigns`](managed-review-campaigns.md).
 
 ### Review and ground-truth pipeline
@@ -261,13 +260,11 @@ report, checksums, and approval history.
 The locally tested repository now implements bounded diagnostic validation and
 explicit administrator approval/rejection with declared accountable references,
 immutable reports/decisions, compatible approved replacements, and evidence-checked
-eligibility. Named-user authentication and release-approver RBAC remain planned;
-this is diagnostic scope only. See [`ground-truth governance`](ground-truth-governance.md).
+eligibility. Named sessions and release-approver RBAC are implemented; email delivery remains excluded and production retains administrator-token compatibility. This is diagnostic scope only. See [`ground-truth governance`](ground-truth-governance.md).
 
 ### Evaluation pipeline
 
-Current diagnostics become durable evaluation jobs rather than synchronous page
-actions. An evaluation pins:
+The branch implements durable evaluation jobs, verified reports, comparisons, and CLI reproduction. Deployment is deferred to merge. See [managed evaluations](managed-evaluations.md). An evaluation pins:
 
 - ground-truth or frame-set version;
 - model version or pipeline candidate;
@@ -275,7 +272,7 @@ actions. An evaluation pins:
 - implementation and runtime versions;
 - dataset split, when applicable.
 
-Evaluation job states are `draft`, `queued`, `running`, `succeeded`, `failed`, and
+Evaluation job states are `queued`, `running`, `succeeded`, `failed`, and
 `cancelled`. Outputs include aggregate and per-category metrics, per-frame errors,
 logs, warnings, checksums, and reproducibility metadata. Retries create auditable
 attempts and never overwrite successful artifacts.
@@ -293,13 +290,12 @@ states are `registered`, `candidate`, `validated`, `approved`, `production`,
 `retired`, and `rejected`.
 
 A pipeline release pins every production-relevant component and configuration,
-including sampling behavior, transcription/OCR/object models, preprocessing,
-thresholds, and output schema. Suggested states are `draft`, `candidate`,
+including the supported sampling, annotation, and object-evaluation components,
+model binary identity, inference thresholds, and acceptance gates. Implemented states are `draft`, `candidate`,
 `approved`, `active`, `superseded`, and `rolled_back`.
 
 Only an authorized release approver can activate or roll back a release. Promotion
-records the evaluation evidence and audit event. Product resolves an active,
-approved release; it never consumes a draft model or evaluation artifact directly.
+records the evaluation evidence and audit event. See [model/release governance](model-release-governance.md). Product integration with the active registry remains a separate future project; these Internals changes do not replace the Product execution path.
 
 ## Durable job contract
 
@@ -469,44 +465,27 @@ available.
 
 ## Delivery plan and current work
 
-Progress values are planning estimates, not measured completion claims.
+Roadmap phases 0–5 are implemented for the supported v1 contracts and build-tested
+on this branch. Email onboarding is excluded; deployment and hosted operational
+qualification occur after merge. See [the roadmap](internals-roadmap.md),
+[operational decisions](internals-operations.md), and [release acceptance](internals-release.md)
+for the exact completion boundary and evidence. Historical percentage estimates
+have been removed because they did not reflect the implemented slices.
 
-| Phase | Scope | Status | Estimate |
-| --- | --- | --- | ---: |
-| 0. Architecture | Product/Internals boundary, resources, storage, security, migration | In progress; runner topology selected | 90% |
-| 1. Control-plane foundation | D1 schema, migrations, identities/RBAC, jobs, artifacts, audit log | In progress; sampling production happy path verified; runner operational qualification remains | 80% |
-| 2. Dataset-to-template slice | Dataset import, sampling job, frame-set inspection, template generation | In progress; template registry deployed and managed CLI parity implemented; production crash recovery, cancellation races, and resource sizing remain | 65% |
-| 3. Review integration | Template references, campaign UI, focused invitations, progress, ground truth | Managed campaigns and diagnostic approval/supersession were reported deployed; production identity-bound qualification remains gated on email onboarding | 90% |
-| 4. Durable evaluations | Managed diagnostic runners, metrics, comparisons, reproducibility | Planned; CLI engines exist | 20% |
-| 5. Governance | Model registry, ground-truth approval, pipeline releases, rollback | Planned | 5% |
-| 6. Product integration | Product jobs consume only active approved releases | Planned | 5% |
+Product integration with the governed active registry is a separate future phase.
+It is outside the six-phase Internals build scope and does not move Product routes
+under Internals.
 
-### Immediate implementation order
+## Release qualifications and disposition
 
-1. Define and migrate the D1 control-plane schema, resource IDs, state machines,
-   artifact references, and audit events.
-2. Add internal identity and RBAC before exposing mutating `/internals` routes.
-3. Build the dataset -> sampling job -> frame set -> template vertical slice while
-   retaining and testing the legacy CLI path.
-4. Adapt hosted review creation to validated `template_id` references and retain
-   focused reviewer/adjudicator invitation pages.
-5. Promote completed, validated adjudications into versioned ground-truth records.
-6. Wrap existing diagnostics as durable evaluation jobs.
-7. Add model registration, evaluation evidence, release approval, activation, and
-   rollback.
-
-## Known gaps and disposition
-
-| Current problem | Decision |
+| Area | Disposition |
 | --- | --- |
-| Sampling runner operational qualification is incomplete | The runner and control plane are deployed, and a production run through frame-set finalization is verified; continue crash-recovery, cancellation-race, and resource-sizing exercises while retaining CLI execution/import. |
-| Templates are loose generated files | Register immutable template artifacts in D1 with content in R2. |
-| Review creation accepts raw templates and URL maps | Migrate to validated template references and managed evidence resolution; keep a compatibility route temporarily. |
-| Diagnostics are not durable jobs | Wrap shared diagnostic engines in queued, retryable, auditable jobs. |
-| Metadata spans two provisioned D1 databases | Keep dataset ownership and orchestration separate; validate references explicitly and use reconciliation because no cross-D1 foreign keys or transactions exist. |
-| Production remains on the administrator-token path while named identities are not operational | Keep the legacy administrator token as the primary owner override; add role-checked named sessions, verified assignment bindings, and authenticated approver attribution as an additional path, then enable email delivery before exercising it. |
-| Ground truth has local diagnostic governance; models and releases remain open | Deploy the ground-truth slice and continue model/release lifecycle resources. |
-| No complete `/internals` UI | Expand the status shell with vertical-slice screens after resource/state contracts are defined. |
+| Sampling and evaluation operations | Local recovery/cancellation tests and constrained Container measurements pass; hosted fault injection and representative load qualification are deferred to merge. |
+| Policies/templates/reviews/ground truth | Implemented; policy lifecycle and configurable restrictions are in this branch. Legacy review APIs remain compatible. |
+| Evaluations/models/releases | Implemented and build-tested; publish the new migrations, Worker/assets, and runner after merge. |
+| Storage retention/concurrency/access | Resolved in [operational decisions](internals-operations.md); registered evidence is retained and old unregistered objects can be reclaimed safely. |
+| Named sign-in | Code and local role/session checks exist; production email onboarding is excluded and authentication mode stays unchanged. |
+| Product integration | A separate future project; Internals owns its active release registry only. |
 
 ## Non-goals for the first slice
 

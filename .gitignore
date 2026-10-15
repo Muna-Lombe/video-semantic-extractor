@@ -15,3 +15,6 @@ video_capsule.json
 
 # Also ignore a virtual environment symlink stored outside the workspace.
 /.venv
+
+# Task scratch files and isolated verification environments.
+/work/

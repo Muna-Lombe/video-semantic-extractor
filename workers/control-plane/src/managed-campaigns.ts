@@ -69,7 +69,7 @@ async function pinnedPolicy(env: AdjudicationEnv, template: JsonRecord, requireA
   if (requireActive && row.status !== "active") fail("new campaigns require an active policy version", 409);
   const definition = JSON.parse(row.definition_json);
   if (definition.annotation_schema_version !== template.schema_version || typeof definition.document !== "string") fail("pinned policy is incompatible with the template", 422);
-  return { id: row.id, name: row.name, version: row.version, sha256: row.sha256, document: definition.document };
+  return { id: row.id, name: row.name, version: row.version, sha256: row.sha256, document: definition.document, annotation_rules: definition.annotation_rules ?? null };
 }
 function invitation(origin: string, assignmentId: string, role: Role, secret: string) {
   return { assignment_id: assignmentId, url: `${origin}/${role === "adjudicator" ? "adjudicate" : "review"}/#token=${encodeURIComponent(secret)}`, job_token: secret, api_token: secret };
@@ -247,7 +247,7 @@ async function writeAdjudication(request: Request, env: AdjudicationEnv, actor: 
     if (Object.keys(value).some((key) => !["frame", "resolution"].includes(key)) || !["reviewer_a", "reviewer_b", "edited", "ambiguous"].includes(value.resolution)) fail("frame and a valid resolution are required");
     const target = merged.sources.find((item: JsonRecord) => item.source === source)?.frames.find((frame: JsonRecord) => frame.filename === filename);
     if (!target || !comparison.disagreements.some((item: JsonRecord) => item.source === source && item.filename === filename)) fail("unknown disagreement frame", 404);
-    validateFrameAnnotations(value.frame, target);
+    validateFrameAnnotations(value.frame, target, new Set(), template.validation?.annotation_rules);
     if (value.resolution === "reviewer_a" || value.resolution === "reviewer_b") {
       const selected = JSON.parse(state.reviewers[value.resolution === "reviewer_a" ? 0 : 1].submission_json).sources.find((item: JsonRecord) => item.source === source).frames.find((frame: JsonRecord) => frame.filename === filename);
       if (!sameJson(value.frame, selected)) fail("selected reviewer resolution must match that reviewer's frame");
@@ -389,7 +389,7 @@ export async function handleManagedCampaigns(request: Request, env: Adjudication
   } catch (cause) {
     if (cause instanceof CampaignError) return json({ error: cause.message }, cause.status);
     // Validation messages contain only contract descriptions; database/storage errors do not.
-    if (cause instanceof Error && cause.constructor === Error && /^(frame evidence identity|objects require|objects and|object regions|submission must|source identity|candidate predictions|reviewed_frames|every registered)/.test(cause.message)) return json({ error: cause.message }, 400);
+    if (cause instanceof Error && cause.constructor === Error && /^(frame evidence identity|objects require|objects and|objects exceed|annotation is outside|object regions|submission must|source identity|candidate predictions|reviewed_frames|every registered)/.test(cause.message)) return json({ error: cause.message }, 400);
     throw cause;
   }
 }

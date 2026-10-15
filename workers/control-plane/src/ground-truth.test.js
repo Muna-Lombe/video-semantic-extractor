@@ -98,7 +98,7 @@ describe("ground-truth validation and diagnostic approval", () => {
       reason: "Verified evidence and approval attestations.",
       scope: "diagnostic",
       attestations: approveBody.attestations,
-    }, { cookie: `internals_session=${session}`, "if-match": String(data.revision) });
+    }, { origin: "https://internal.test", cookie: `internals_session=${session}`, "if-match": String(data.revision) });
     expect(response.status).toBe(200);
     const decision = env.CONTROL_DB.db.prepare("SELECT actor_user_id, actor_reference FROM ground_truth_decisions WHERE ground_truth_id = ?").get(prepared.truth.id);
     expect(decision).toEqual({ actor_user_id: userId, actor_reference: "approver@example.test" });
@@ -202,7 +202,7 @@ describe("ground-truth validation and diagnostic approval", () => {
     ["candidate bytes", (prepared) => { const key = prepared.env.CONTROL_DB.db.prepare("SELECT storage_key FROM artifacts WHERE kind = 'ground_truth'").get().storage_key; prepared.env.INTERNAL_ARTIFACTS_BUCKET.objects.get(key).bytes[0] = 120; }],
     ["validation report bytes", (prepared) => { const key = prepared.env.CONTROL_DB.db.prepare("SELECT report_storage_key FROM ground_truth_validations").get().report_storage_key; prepared.env.INTERNAL_ARTIFACTS_BUCKET.objects.get(key).bytes[0] = 120; }],
     ["private evidence metadata", (prepared) => { prepared.env.INTERNAL_ARTIFACTS_BUCKET.objects.get('frame_0.jpg').httpMetadata.contentType = 'image/png'; }],
-    ["frozen policy definition", (prepared) => prepared.env.CONTROL_DB.db.exec("UPDATE policy_versions SET definition_json = '{}' ")],
+    ["frozen policy definition", (prepared) => prepared.env.CONTROL_DB.db.exec("DROP TRIGGER immutable_policy_definition; UPDATE policy_versions SET definition_json = '{}' ")],
     ["review assignment status", (prepared) => prepared.env.CONTROL_DB.db.exec("UPDATE campaign_assignments SET status = 'in_progress' WHERE role = 'reviewer-a'")],
   ])("refuses approval and evaluation eligibility after changed %s", async (_label, damage) => {
     const prepared = await candidate(), { env, truth } = prepared;

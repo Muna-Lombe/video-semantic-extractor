@@ -1,0 +1,12 @@
+.git
+work
+node_modules
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+.venv
+.env
+.dev.vars
+**/.dev.vars
+**/.wrangler
+sample-input-media

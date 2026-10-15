@@ -91,7 +91,7 @@ function progressClass(type: ResourceType, status: string): "complete" | "active
   if (type === "frame_set") return ["ready", "archived"].includes(status) ? "complete" : "attention";
   if (type === "template") return ["ready", "superseded", "archived"].includes(status) ? "complete" : status === "generating" ? "active" : "attention";
   if (type === "review_campaign") return status === "completed" ? "complete" : "active";
-  if (type === "model_version") return "complete";
+  if (type === "model_version") return ["approved", "production"].includes(status) ? "complete" : ["rejected", "retired"].includes(status) ? "attention" : "active";
   return ["approved", "active", "superseded"].includes(status) ? "complete" : "active";
 }
 

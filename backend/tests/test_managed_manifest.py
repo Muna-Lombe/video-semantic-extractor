@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 
 import pytest
@@ -242,3 +243,21 @@ def test_policy_definition_sha256_matches_js_canonical_form() -> None:
     expected_json = '{"annotation_schema_version":"object-annotations.v1","document":"instructions"}'
     expected = hashlib.sha256(expected_json.encode()).hexdigest()
     assert policy_definition_sha256("  instructions\n") == expected
+
+
+def test_managed_template_preserves_configured_policy_rules() -> None:
+    manifest = _manifest()
+    policy = {"id": "pv_rules", "version": "1", "sha256": SHA, "annotation_rules": {"allowed_labels": ["cup", "chair"], "allowed_subsets": ["screen"], "max_objects_per_frame": 10}}
+    template = initialize_managed_annotations(manifest, policy, SHA, verify_evidence=False)
+    assert template["validation"]["annotation_rules"] == {"allowed_labels": ["chair", "cup"], "allowed_subsets": ["screen"], "max_objects_per_frame": 10}
+    policy["annotation_rules"]["allowed_labels"] = ["invented class"]
+    with pytest.raises(ManagedManifestError, match="taxonomy"):
+        initialize_managed_annotations(manifest, policy, SHA, verify_evidence=False)
+
+
+def test_policy_checksum_includes_normalized_profile_and_configured_rules() -> None:
+    sources = [str(index) * 64 for index in range(1, 6)]
+    profile = {"id": "coco-object-diagnostic.v1", "source_sha256": list(reversed(sources))}
+    rules = {"allowed_labels": ["cup", "chair"], "max_objects_per_frame": 20}
+    expected = {"annotation_schema_version": "object-annotations.v1", "document": "instructions", "validation_profile": {"id": "coco-object-diagnostic.v1", "source_sha256": sources}, "annotation_rules": {"allowed_labels": ["chair", "cup"], "max_objects_per_frame": 20}}
+    assert policy_definition_sha256("instructions", validation_profile=profile, annotation_rules=rules) == hashlib.sha256(json.dumps(expected, separators=(",", ":")).encode()).hexdigest()

@@ -1,6 +1,7 @@
 /** @type test @purpose Verify isolated campaigns, revocation races, and immutable candidates. */
 import { describe, expect, it } from "vitest";
 import { fixture, campaign, call, callWithHeaders, state, save, ready, finishReview, reviewerPath, adjudicatorPath } from "./campaign-test-support";
+import { environment, policy, frameSet, templateInput, policyInput, call as registryCall } from "./registry-test-support";
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const adminBase = "/api/internal/v1/review-campaigns";
 async function hash(value) {
@@ -15,6 +16,18 @@ function annotated(state, label = "person", reviewed = true) {
 }
 
 describe("managed review campaigns", () => {
+  it("pins configurable annotation restrictions and rejects out-of-policy labels without saving", async () => {
+    const env = environment(); await frameSet(env);
+    const registered = await policy(env, { ...policyInput, annotation_rules: { allowed_labels: ["chair"], allowed_subsets: ["screen"], max_objects_per_frame: 1 } });
+    const template = (await (await registryCall(env, "/templates", "POST", templateInput(registered.id))).json()).data;
+    const created = await campaign(env, template), invitation = created.invitations["reviewer-a"];
+    const initial = await state(env, invitation), value = clone(initial.annotations);
+    value.sources[0].frames[0].objects = [{ id: "obj_1", label: "person", subset: "screen", region: [1,1,10,10] }];
+    expect((await save(env, invitation, value)).status).toBe(400);
+    value.sources[0].frames[0].objects[0].label = "chair";
+    expect((await save(env, invitation, value)).status).toBe(200);
+    expect((await state(env, invitation)).annotations.validation.annotation_rules).toEqual({ allowed_labels: ["chair"], allowed_subsets: ["screen"], max_objects_per_frame: 1 });
+  });
   it("creates three scoped invitations from a registered template without exposing secrets in progress or audit views", async () => {
     const { env, template } = await fixture(), created = await campaign(env, template);
     expect(created.data).toMatchObject({ template_id: template.id, template_sha256: template.sha256, status: "ready", frame_count: 1 });

@@ -124,7 +124,7 @@ async function evaluationLease(request: Request, env: AdjudicationEnv, jobId: st
   const row = await env.CONTROL_DB.prepare(`SELECT j.id AS job_id, j.input_json, j.lease_token_hash, j.lease_expires_at, r.id AS evaluation_run_id,
       r.input_sha256, r.implementation_version, r.ground_truth_version_id, r.model_version_id
     FROM internal_jobs j JOIN evaluation_runs r ON r.job_id = j.id
-    WHERE j.id = ? AND j.job_type = 'evaluation' AND j.status = 'running' AND j.lease_token_hash = ? AND j.lease_expires_at > ?`)
+    WHERE j.id = ? AND j.job_type = 'evaluation' AND j.status = 'running' AND j.cancellation_requested_at IS NULL AND j.lease_token_hash = ? AND j.lease_expires_at > ?`)
     .bind(jobId, hash, timestamp).first<JsonRecord>();
   return row ?? error("invalid_lease", "evaluation job lease is invalid or expired", 409);
 }
@@ -132,15 +132,20 @@ async function evaluationLease(request: Request, env: AdjudicationEnv, jobId: st
 async function evaluationInputs(request: Request, env: AdjudicationEnv, jobId: string): Promise<Response> {
   const lease = await evaluationLease(request, env, jobId);
   if (lease instanceof Response) return lease;
+  return evaluationInputPlan(env, lease, `/api/internal/v1/runner/evaluation-jobs/${jobId}/artifacts`, true);
+}
+
+export async function evaluationInputPlan(env: AdjudicationEnv, lease: JsonRecord, artifactBase: string, requireCurrent = false): Promise<Response> {
+  const jobId = String(lease.job_id);
   let pinned: JsonRecord;
   try { pinned = JSON.parse(String(lease.input_json)); } catch { return error("evaluation_input_invalid", "stored evaluation inputs are invalid", 500); }
   const pinnedModel = pinned.model as JsonRecord | undefined;
   const pinnedTruth = pinned.ground_truth as JsonRecord | undefined;
   const pinnedCandidate = pinnedTruth?.candidate_artifact as JsonRecord | undefined;
   const [model, truth, frames] = await Promise.all([
-    env.CONTROL_DB.prepare(`SELECT a.id, a.sha256, a.size_bytes, a.media_type FROM model_versions mv JOIN artifacts a ON a.id = mv.artifact_id WHERE mv.id = ? AND mv.status IN ('approved','production')`)
+    env.CONTROL_DB.prepare(`SELECT a.id, a.sha256, a.size_bytes, a.media_type FROM model_versions mv JOIN artifacts a ON a.id = mv.artifact_id WHERE mv.id = ?${requireCurrent ? " AND mv.status IN ('candidate','validated','approved','production')" : ""}`)
       .bind(lease.model_version_id).first<JsonRecord>(),
-    env.CONTROL_DB.prepare(`SELECT a.id, a.sha256, a.size_bytes, a.media_type FROM ground_truth_versions g JOIN artifacts a ON a.id = g.artifact_id WHERE g.id = ? AND g.status = 'approved' AND g.approval_status = 'approved' AND g.approval_scope = 'diagnostic'`)
+    env.CONTROL_DB.prepare(`SELECT a.id, a.sha256, a.size_bytes, a.media_type FROM ground_truth_versions g JOIN artifacts a ON a.id = g.artifact_id WHERE g.id = ?${requireCurrent ? " AND g.status = 'approved' AND g.approval_status = 'approved' AND g.approval_scope = 'diagnostic'" : ""}`)
       .bind(lease.ground_truth_version_id).first<JsonRecord>(),
     env.CONTROL_DB.prepare(`SELECT f.dataset_source_id AS source_id, f.id AS frame_id, f.timestamp_seconds, f.width, f.height, a.id AS artifact_id, a.sha256, a.size_bytes, a.media_type
       FROM evaluation_runs r JOIN ground_truth_versions g ON g.id = r.ground_truth_version_id
@@ -155,15 +160,19 @@ async function evaluationInputs(request: Request, env: AdjudicationEnv, jobId: s
     input_sha256: lease.input_sha256,
     implementation_version: lease.implementation_version,
     configuration: pinned.configuration,
-    model: { ...model, download_path: `/api/internal/v1/runner/evaluation-jobs/${jobId}/artifacts/${model.id}` },
-    ground_truth: { ...truth, download_path: `/api/internal/v1/runner/evaluation-jobs/${jobId}/artifacts/${truth.id}` },
-    frames: frames.results.map((frame) => ({ ...frame, download_path: `/api/internal/v1/runner/evaluation-jobs/${jobId}/artifacts/${frame.artifact_id}` })),
+    model: { ...model, download_path: `${artifactBase}/${model.id}` },
+    ground_truth: { ...truth, download_path: `${artifactBase}/${truth.id}` },
+    frames: frames.results.map((frame) => ({ ...frame, download_path: `${artifactBase}/${frame.artifact_id}` })),
   } });
 }
 
 async function evaluationArtifact(request: Request, env: AdjudicationEnv, jobId: string, artifactId: string): Promise<Response> {
   const lease = await evaluationLease(request, env, jobId);
   if (lease instanceof Response) return lease;
+  return evaluationInputArtifact(env, jobId, artifactId);
+}
+
+export async function evaluationInputArtifact(env: AdjudicationEnv, jobId: string, artifactId: string): Promise<Response> {
   const artifact = await env.CONTROL_DB.prepare(`SELECT a.storage_key, a.sha256, a.size_bytes, a.media_type FROM artifacts a
     WHERE a.id = ? AND (
       EXISTS (SELECT 1 FROM evaluation_runs r JOIN model_versions mv ON mv.id = r.model_version_id WHERE r.job_id = ? AND mv.artifact_id = a.id)
@@ -173,7 +182,10 @@ async function evaluationArtifact(request: Request, env: AdjudicationEnv, jobId:
   if (!artifact) return error("not_found", "artifact is not an input to this evaluation run", 404);
   const object = await env.INTERNAL_ARTIFACTS_BUCKET.get(String(artifact.storage_key));
   if (!object || object.size !== Number(artifact.size_bytes) || object.customMetadata?.sha256 !== artifact.sha256) return error("artifact_unavailable", "registered evaluation input is missing or changed", 422);
-  return new Response(object.body, { headers: { "content-type": String(artifact.media_type), "content-length": String(artifact.size_bytes), "cache-control": "no-store", etag: `"${artifact.sha256}"` } });
+  const bytes = await object.arrayBuffer();
+  const checksum = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  if (checksum !== artifact.sha256) return error("artifact_unavailable", "registered evaluation input checksum mismatch", 422);
+  return new Response(bytes, { headers: { "content-type": String(artifact.media_type), "content-length": String(artifact.size_bytes), "cache-control": "no-store", etag: `"${artifact.sha256}"` } });
 }
 
 async function heartbeat(request: Request, env: AdjudicationEnv, jobId: string, jobType: "sampling" | "evaluation" = "sampling"): Promise<Response> {
@@ -216,6 +228,14 @@ async function completeEvaluation(request: Request, env: AdjudicationEnv, jobId:
   } catch { return error("invalid_report", "evaluation report must be valid JSON", 400); }
   if (report.schema_version !== "managed-evaluation-report.v1" || typeof report.input_sha256 !== "string" || !/^[a-f0-9]{64}$/.test(report.input_sha256) || typeof report.implementation_version !== "string" || !report.metrics || typeof report.metrics !== "object" || Array.isArray(report.metrics)) return error("invalid_report", "evaluation report is missing its schema, input checksum, implementation version, or metrics", 400);
   const metrics = report.metrics as JsonRecord;
+  for (const key of ["object_precision", "object_recall", "object_f1"]) {
+    const metric = metrics[key];
+    if (metric !== null && (typeof metric !== "number" || !Number.isFinite(metric) || metric < 0 || metric > 1)) return error("invalid_metrics", `${key} must be null or a finite value between 0 and 1`, 422);
+  }
+  for (const key of ["mean_inference_ms", "p95_inference_ms"]) {
+    const metric = metrics[key];
+    if (typeof metric !== "number" || !Number.isFinite(metric) || metric < 0) return error("invalid_metrics", `${key} must be finite and non-negative`, 422);
+  }
 
   const run = await env.CONTROL_DB.prepare(`SELECT r.id, r.input_sha256, r.implementation_version, r.ground_truth_version_id, r.model_version_id, j.input_json FROM evaluation_runs r
     JOIN internal_jobs j ON j.id = r.job_id WHERE r.job_id = ? AND j.job_type = 'evaluation'`).bind(jobId).first<JsonRecord>();
@@ -234,6 +254,7 @@ async function completeEvaluation(request: Request, env: AdjudicationEnv, jobId:
   const reportSources = metrics.sources;
   if (!expectedFrames.results?.length || !reportSources || typeof reportSources !== "object" || Array.isArray(reportSources)) return error("evaluation_coverage_invalid", "report does not contain the registered source and frame slices", 422);
   const reportedChecksums = new Map<string, unknown>();
+  const totals = { true_positives: 0, false_positives: 0, false_negatives: 0 };
   for (const [sourceId, sourceValue] of Object.entries(reportSources as JsonRecord)) {
     if (!sourceValue || typeof sourceValue !== "object" || Array.isArray(sourceValue) || !Array.isArray((sourceValue as JsonRecord).frames)) return error("evaluation_coverage_invalid", "report source slices are malformed", 422);
     for (const frameValue of (sourceValue as JsonRecord).frames as unknown[]) {
@@ -241,13 +262,23 @@ async function completeEvaluation(request: Request, env: AdjudicationEnv, jobId:
       const frame = frameValue as JsonRecord, key = `${sourceId}/${String(frame.frame_id)}`;
       if (reportedChecksums.has(key)) return error("evaluation_coverage_invalid", "report repeats a frame", 422);
       reportedChecksums.set(key, frame.artifact_sha256);
+      const score = frame.score as JsonRecord | undefined;
+      if (!score || typeof frame.inference_ms !== "number" || !Number.isFinite(frame.inference_ms) || frame.inference_ms < 0) return error("invalid_metrics", "every frame needs finite inference timing and object counts", 422);
+      for (const field of ["true_positives", "false_positives", "false_negatives"] as const) {
+        if (!Number.isSafeInteger(score[field]) || Number(score[field]) < 0) return error("invalid_metrics", "per-frame object counts must be non-negative safe integers", 422);
+        totals[field] += Number(score[field]);
+      }
     }
   }
   if (reportedChecksums.size !== expectedFrames.results.length || expectedFrames.results.some((frame) => reportedChecksums.get(`${frame.source_id}/${frame.frame_id}`) !== frame.sha256) || metrics.frame_count !== expectedFrames.results.length) return error("evaluation_coverage_invalid", "report frame coverage or checksums differ from the registered evidence", 422);
+  if (metrics.source_count !== Object.keys(reportSources as JsonRecord).length || Object.entries(totals).some(([key, count]) => metrics[key] !== count)) return error("invalid_metrics", "aggregate counts differ from the frame slices", 422);
+  const tp = totals.true_positives, fp = totals.false_positives, fn = totals.false_negatives;
+  const expectedMetrics = { object_precision: tp + fp ? tp / (tp + fp) : null, object_recall: tp + fn ? tp / (tp + fn) : null, object_f1: 2 * tp + fp + fn ? 2 * tp / (2 * tp + fp + fn) : null };
+  if (Object.entries(expectedMetrics).some(([key, value]) => value === null ? metrics[key] !== null : typeof metrics[key] !== "number" || Math.abs(Number(metrics[key]) - value) > 0.000051)) return error("invalid_metrics", "aggregate scores differ from the object counts", 422);
 
   const digestBuffer = await crypto.subtle.digest("SHA-256", bytes);
   const checksum = [...new Uint8Array(digestBuffer)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-  const artifactId = id("artifact_eval"), storageKey = `evaluations/${run.id}/${checksum}.json`;
+  const artifactId = id("artifact_eval"), storageKey = `evaluations/${run.id}/${artifactId}/${checksum}.json`;
   const summary = Object.fromEntries(["frame_count", "source_count", "true_positives", "false_positives", "false_negatives", "object_precision", "object_recall", "object_f1", "mean_inference_ms", "p95_inference_ms"].filter((key) => metrics[key] !== undefined).map((key) => [key, metrics[key]]));
   await env.INTERNAL_ARTIFACTS_BUCKET.put(storageKey, bytes, { httpMetadata: { contentType: "application/json" }, customMetadata: { sha256: checksum, evaluationRunId: String(run.id) } });
   const output = JSON.stringify({ evaluation_run_id: run.id, report_artifact_id: artifactId, report_sha256: checksum, metrics: summary });
@@ -266,6 +297,10 @@ async function completeEvaluation(request: Request, env: AdjudicationEnv, jobId:
       env.CONTROL_DB.prepare(`UPDATE internal_job_attempts SET status = 'succeeded', output_json = ?, finished_at = ? WHERE job_id = ? AND lease_token_hash = ? AND status = 'running'
         AND EXISTS (SELECT 1 FROM internal_jobs WHERE id = ? AND status = 'succeeded' AND output_json = ?)`)
         .bind(output, timestamp, jobId, leaseHash, jobId, output),
+      runnerAvailabilityAfterJobStatement(env, jobId, timestamp),
+      env.CONTROL_DB.prepare(`INSERT INTO internal_audit_events (action, resource_type, resource_id, details_json, created_at)
+        SELECT 'evaluation.completed', 'evaluation_run', ?, ?, ? WHERE EXISTS (SELECT 1 FROM internal_jobs WHERE id = ? AND status = 'succeeded' AND output_json = ?)`)
+        .bind(run.id, JSON.stringify({ report_artifact_id: artifactId, sha256: checksum }), timestamp, jobId, output),
     ]);
   } catch (cause) {
     await env.INTERNAL_ARTIFACTS_BUCKET.delete(storageKey);
@@ -351,34 +386,38 @@ export async function handleRunnerApi(request: Request, env: AdjudicationEnv): P
   return finish(request, env, jobId, activeMatch[2] as "complete" | "fail", jobType);
 }
 
-async function currentJob(env: AdjudicationEnv, jobId: string): Promise<JsonRecord | null> {
-  return env.CONTROL_DB.prepare("SELECT * FROM internal_jobs WHERE id = ? AND job_type = 'sampling'").bind(jobId).first<JsonRecord>();
+async function currentJob(env: AdjudicationEnv, jobId: string, jobType: string): Promise<JsonRecord | null> {
+  return env.CONTROL_DB.prepare("SELECT * FROM internal_jobs WHERE id = ? AND job_type = ?").bind(jobId, jobType).first<JsonRecord>();
 }
 
 export async function handleAdminJobAction(request: Request, env: AdjudicationEnv): Promise<Response | null> {
   const path = new URL(request.url).pathname.replace(/\/$/, "");
-  const match = path.match(/^\/api\/internal\/v1\/sampling-jobs\/([^/]+)\/(cancel|retry)$/);
+  const match = path.match(/^\/api\/internal\/v1\/(sampling-jobs|evaluations)\/([^/]+)\/(cancel|retry)$/);
   if (!match) return null;
   if (request.method !== "POST") return error("method_not_allowed", "method not allowed", 405);
-  const jobId = decodeId(match[1]);
+  const jobId = decodeId(match[2]);
   if (jobId instanceof Response) return jobId;
   const timestamp = now();
-  if (match[2] === "cancel") {
-    const queued = await env.CONTROL_DB.prepare("UPDATE internal_jobs SET status = 'cancelled', cancellation_requested_at = ?, cancellation_reason = 'administrator request', cancelled_at = ?, completed_at = ?, updated_at = ? WHERE id = ? AND job_type = 'sampling' AND status = 'queued' RETURNING id")
-      .bind(timestamp, timestamp, timestamp, timestamp, jobId).first<JsonRecord>();
+  const jobType = match[1] === "evaluations" ? "evaluation" : "sampling";
+  const evaluation = jobType === "evaluation" ? await env.CONTROL_DB.prepare("SELECT job_id FROM evaluation_runs WHERE id = ?").bind(jobId).first<{ job_id: string }>() : null;
+  if (jobType === "evaluation" && !evaluation) return error("not_found", "evaluation run not found", 404);
+  const activeJobId = evaluation?.job_id ?? jobId;
+  if (match[3] === "cancel") {
+    const queued = await env.CONTROL_DB.prepare("UPDATE internal_jobs SET status = 'cancelled', cancellation_requested_at = ?, cancellation_reason = 'administrator request', cancelled_at = ?, completed_at = ?, updated_at = ? WHERE id = ? AND job_type = ? AND status = 'queued' RETURNING id")
+      .bind(timestamp, timestamp, timestamp, timestamp, activeJobId, jobType).first<JsonRecord>();
     if (queued) return json({ data: { id: jobId, status: "cancelled", cancellation_requested: false } });
-    const running = await env.CONTROL_DB.prepare("UPDATE internal_jobs SET cancellation_requested_at = ?, cancellation_reason = 'administrator request', updated_at = ? WHERE id = ? AND job_type = 'sampling' AND status = 'running' AND cancellation_requested_at IS NULL RETURNING id")
-      .bind(timestamp, timestamp, jobId).first<JsonRecord>();
+    const running = await env.CONTROL_DB.prepare("UPDATE internal_jobs SET cancellation_requested_at = ?, cancellation_reason = 'administrator request', updated_at = ? WHERE id = ? AND job_type = ? AND status = 'running' AND cancellation_requested_at IS NULL RETURNING id")
+      .bind(timestamp, timestamp, activeJobId, jobType).first<JsonRecord>();
     if (running) return json({ data: { id: jobId, status: "running", cancellation_requested: true } });
-    const row = await currentJob(env, jobId);
+    const row = await currentJob(env, activeJobId, jobType);
     if (!row) return error("not_found", "sampling job not found", 404);
     if (row.status === "cancelled") return json({ data: { id: jobId, status: "cancelled", cancellation_requested: false } });
     if (row.status === "running" && row.cancellation_requested_at) return json({ data: { id: jobId, status: "running", cancellation_requested: true } });
     return error("invalid_state", "only queued or running jobs can be cancelled", 409);
   }
-  const retried = await env.CONTROL_DB.prepare("UPDATE internal_jobs SET status = 'queued', available_at = NULL, cancellation_requested_at = NULL, cancellation_reason = NULL, cancelled_at = NULL, completed_at = NULL, error_message = NULL, output_json = NULL, retry_requested_at = ?, max_attempts = CASE WHEN max_attempts <= attempt_count THEN attempt_count + 1 ELSE max_attempts END, updated_at = ? WHERE id = ? AND job_type = 'sampling' AND status IN ('failed', 'cancelled') RETURNING id")
-    .bind(timestamp, timestamp, jobId).first<JsonRecord>();
+  const retried = await env.CONTROL_DB.prepare("UPDATE internal_jobs SET status = 'queued', available_at = NULL, cancellation_requested_at = NULL, cancellation_reason = NULL, cancelled_at = NULL, completed_at = NULL, error_message = NULL, output_json = NULL, retry_requested_at = ?, max_attempts = CASE WHEN max_attempts <= attempt_count THEN attempt_count + 1 ELSE max_attempts END, updated_at = ? WHERE id = ? AND job_type = ? AND status IN ('failed', 'cancelled') RETURNING id")
+    .bind(timestamp, timestamp, activeJobId, jobType).first<JsonRecord>();
   if (retried) return json({ data: { id: jobId, status: "queued" } });
-  const row = await currentJob(env, jobId);
+  const row = await currentJob(env, activeJobId, jobType);
   return row ? error("invalid_state", "only failed or cancelled jobs can be retried", 409) : error("not_found", "sampling job not found", 404);
 }

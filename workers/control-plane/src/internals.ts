@@ -12,6 +12,9 @@ import { handleGroundTruthApi } from "./ground-truth";
 import { canAccessInternals, resolveInternalActor, type InternalUser } from "./internal-auth";
 import { handlePipelineTracking } from "./pipeline-tracking";
 import { handleEvaluations } from "./evaluations";
+import { handleReleaseGovernance } from "./release-governance";
+import { handleAdminJobAction } from "./job-lifecycle";
+import { handleOperations } from "./operations";
 
 type JsonRecord = Record<string, unknown>;
 type DatasetStatus = "draft" | "ready" | "active" | "archived";
@@ -288,13 +291,19 @@ export async function handleInternalsApi(request: Request, env: AdjudicationEnv,
   const actor = await resolveInternalActor(request, env);
   if (!actor) return error("unauthorized", "verified Internals sign-in required", 401);
   if (!canAccessInternals(actor, request)) return error("forbidden", "your role is not allowed to perform this operation", 403);
+  const jobAction = await handleAdminJobAction(request, env);
+  if (jobAction) return jobAction;
+  const governance = await handleReleaseGovernance(request, env, actor);
+  if (governance) return governance;
+  const operations = await handleOperations(request, env, actor);
+  if (operations) return operations;
   const groundTruth = await handleGroundTruthApi(request, env, authenticatedUser ?? (actor.kind === "user" ? actor.user : null));
   if (groundTruth) return groundTruth;
   const pipeline = await handlePipelineTracking(request, env);
   if (pipeline) return pipeline;
   const evaluation = await handleEvaluations(request, env, actor);
   if (evaluation) return evaluation;
-  const registry = await handleTemplateRegistry(request, env);
+  const registry = await handleTemplateRegistry(request, env, actor);
   if (registry) return registry;
   if (path === "/api/internal/v1/datasets") {
     if (request.method === "POST") return createDataset(request, env);

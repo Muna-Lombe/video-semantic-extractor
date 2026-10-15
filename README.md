@@ -26,24 +26,22 @@ keyframes contain brightness and edge-density measurements. Object detection,
 OCR, embeddings, and an external summarizer are represented by stable schema
 fields and extension points rather than pretend model output.
 
-The project is now separating this production extraction path from an internal
-**model-evaluation and pipeline-development control plane**. The human-facing
-foundation is `/internals`, with APIs under `/api/internal/v1`. Internals will manage the
-dataset -> sampling job -> frame set -> template -> review campaign -> ground truth
--> evaluation -> governed model/pipeline-release chain. An initial `/internals`
-status shell, authenticated overview API, and D1 schema now establish that boundary;
-the managed pipeline resources remain incremental work rather than complete features.
-Policy registration and verified frame-set-to-template generation now have working
-Internals screens and local tests; that new slice is not yet deployed. See
-[`template registry`](docs/template-registry.md) for its contract and limits.
-[`Managed campaigns`](docs/managed-review-campaigns.md) also now connect registered
-templates to independent review and immutable adjudicated candidates. This slice
-is locally tested; deployment remains pending.
-[`Ground-truth governance`](docs/ground-truth-governance.md) now also provides local
-diagnostic validation, explicit approval/rejection, supersession, and an evidence
-eligibility gate. Managed evaluations and named-user RBAC remain open.
-See [`docs/internals-roadmap.md`](docs/internals-roadmap.md) for the implemented/planned
-boundary, priorities, and migration policy.
+The Product extraction path is separate from an authenticated **Internals**
+workspace at `/internals`, with APIs under `/api/internal/v1`. The supported v1
+workflow covers versioned datasets, durable sampling, immutable frame sets,
+policy-bound templates, independent review/adjudication, governed diagnostic ground
+truth, durable model evaluations, and evidence-backed model/release decisions,
+activation, supersession, and rollback. CLI fallbacks and reproduction remain
+supported. See [the roadmap](docs/internals-roadmap.md),
+[managed evaluations](docs/managed-evaluations.md), and
+[model/release governance](docs/model-release-governance.md).
+
+The 2026-10-15 branch is implemented and build-tested; deployment and hosted
+operational acceptance are deferred to merge. Email sender onboarding is excluded,
+and production retains administrator-token compatibility. Named sessions, role
+checks, verified assignment binding, and named decision attribution are implemented.
+Training and wiring Product execution to the active Internals release registry are
+separate future projects.
 
 ## Repository layout
 

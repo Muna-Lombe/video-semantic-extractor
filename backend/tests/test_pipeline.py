@@ -3,6 +3,7 @@
 """
 
 from itertools import pairwise
+import json
 from pathlib import Path
 import shutil
 import subprocess
@@ -184,6 +185,17 @@ def test_real_media_timing_variants_retain_first_and_final(tmp_path: Path, timin
         command.extend(["-vf", "setpts=PTS+5/TB"])
     command.extend(["-c:v", "libx264", "-pix_fmt", "yuv420p", str(output)])
     subprocess.run(command, check=True)
+    # Some FFmpeg/MP4 combinations shorten the final sample with an offset edit
+    # list. Assert against the actual decodable tail, rather than an assumed
+    # generated frame count that includes samples the demuxer cannot deliver.
+    decoded = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+         "frame=best_effort_timestamp_time", "-of", "json", str(output)],
+        capture_output=True, text=True, check=True,
+    )
+    presentation_times = [float(frame["best_effort_timestamp_time"])
+                          for frame in json.loads(decoded.stdout)["frames"]]
+    expected_final = max(presentation_times) - min(presentation_times)
 
     frames = pipeline.extract_keyframes(
         output,
@@ -197,5 +209,21 @@ def test_real_media_timing_variants_retain_first_and_final(tmp_path: Path, timin
     timestamps = [frame.timestamp_sec for frame in frames]
     assert timestamps == sorted(timestamps)
     assert timestamps[0] == 0.0
-    assert timestamps[-1] == pytest.approx(2.2)
+    assert timestamps[-1] == pytest.approx(expected_final)
     assert "near_final" in frames[-1].sampling_reasons
+
+
+@pytest.mark.parametrize("bounds", [{"max_candidates": 2}, {"max_output_bytes": 1}])
+def test_runner_candidate_limits_reject_truncation_instead_of_registering_incomplete_coverage(tmp_path: Path, bounds: dict) -> None:
+    """Stop oversized intermediate output before it can become a successful frame set."""
+    if shutil.which("ffmpeg") is None:
+        pytest.skip("FFmpeg required")
+    source = tmp_path / "input.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=s=160x90:r=10:d=1", "-c:v", "libx264", str(source)], check=True)
+    with pytest.raises(pipeline.ExtractionError, match="budget exceeded"):
+        pipeline._extract_frame_candidates(source, tmp_path / "frames" / "scene", "gte(n,0)", "scene_change", **bounds)
+
+
+def test_runner_cancellation_stops_before_launching_ffmpeg(tmp_path: Path) -> None:
+    with pytest.raises(pipeline.ExtractionError, match="cancelled"):
+        pipeline._extract_frame_candidates(tmp_path / "unused.mp4", tmp_path / "frames", "gte(n,0)", "scene_change", should_abort=lambda: True)

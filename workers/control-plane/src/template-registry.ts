@@ -3,6 +3,8 @@ import type { AdjudicationEnv } from "./types";
 import { sha256Hex } from "./artifact-pipeline";
 import { validateFrameSetManifest, type FrameSetManifestV1 } from "./frame-set-manifest";
 import { parseValidationProfile } from "./ground-truth-validation";
+import type { InternalActor } from "./internal-auth";
+import { parseAnnotationRules, type AnnotationRules } from "./managed-annotations";
 
 export const ANNOTATION_SCHEMA_VERSION = "object-annotations.v1";
 const GENERATOR_VERSION = "object-template.v1";
@@ -53,23 +55,23 @@ function pagination(url: URL): { limit: number; offset: number } | Response {
 
 function policyRow(row: Row, includeDocument = false) {
   const definition = JSON.parse(String(row.definition_json)) as Row;
-  return { id: row.id, policy_id: row.policy_id, name: row.name, task_type: row.task_type, version: row.version, status: row.status, annotation_schema_version: definition.annotation_schema_version, validation_profile: definition.validation_profile ?? null, sha256: row.sha256, created_at: row.created_at, ...(includeDocument ? { document: definition.document } : {}) };
+  return { id: row.id, policy_id: row.policy_id, name: row.name, task_type: row.task_type, version: row.version, status: row.status, revision: Number(row.revision ?? 0), annotation_schema_version: definition.annotation_schema_version, validation_profile: definition.validation_profile ?? null, annotation_rules: definition.annotation_rules ?? null, sha256: row.sha256, created_at: row.created_at, ...(includeDocument ? { document: definition.document } : {}) };
 }
 
 const POLICY_SELECT = "SELECT pv.*, p.name, p.task_type FROM policy_versions pv JOIN policies p ON p.id = pv.policy_id";
 
-async function registerPolicy(request: Request, env: AdjudicationEnv): Promise<Response> {
+async function registerPolicy(request: Request, env: AdjudicationEnv, actor?: InternalActor): Promise<Response> {
   const value = await body(request);
   if (value instanceof Response) return value;
-  if (!exact(value, ["name", "version", "annotation_schema_version", "document", "validation_profile"]) || typeof value.name !== "string" || !value.name.trim() || value.name.trim().length > 120 || typeof value.version !== "string" || !/^[a-zA-Z0-9._-]{1,80}$/.test(value.version) || typeof value.document !== "string" || !value.document.trim() || value.document.length > 48000) return error("invalid_request", "name, version, annotation_schema_version, and a non-empty policy document (at most 48000 characters) are required", 400);
+  if (!exact(value, ["name", "version", "annotation_schema_version", "document", "validation_profile", "annotation_rules"]) || typeof value.name !== "string" || !value.name.trim() || value.name.trim().length > 120 || typeof value.version !== "string" || !/^[a-zA-Z0-9._-]{1,80}$/.test(value.version) || typeof value.document !== "string" || !value.document.trim() || value.document.length > 48000) return error("invalid_request", "name, version, annotation_schema_version, and a non-empty policy document (at most 48000 characters) are required", 400);
   if (value.annotation_schema_version !== ANNOTATION_SCHEMA_VERSION) return error("unsupported_schema", `only ${ANNOTATION_SCHEMA_VERSION} is supported`, 422);
   const name = value.name.trim();
   const policyId = `policy_${(await sha256Hex(name)).slice(0, 32)}`;
   const versionId = `pv_${(await sha256Hex(JSON.stringify([policyId, value.version]))).slice(0, 32)}`;
-  let validationProfile;
-  try { validationProfile = value.validation_profile === undefined ? undefined : parseValidationProfile(value.validation_profile); }
+  let validationProfile, annotationRules;
+  try { validationProfile = value.validation_profile === undefined ? undefined : parseValidationProfile(value.validation_profile); annotationRules = value.annotation_rules === undefined ? undefined : parseAnnotationRules(value.annotation_rules); }
   catch (cause) { return error("invalid_profile", cause instanceof Error ? cause.message : "invalid validation profile", 400); }
-  const definition = JSON.stringify({ annotation_schema_version: ANNOTATION_SCHEMA_VERSION, document: value.document.trim(), ...(validationProfile ? { validation_profile: validationProfile } : {}) });
+  const definition = JSON.stringify({ annotation_schema_version: ANNOTATION_SCHEMA_VERSION, document: value.document.trim(), ...(validationProfile ? { validation_profile: validationProfile } : {}), ...(annotationRules ? { annotation_rules: annotationRules } : {}) });
   const checksum = await sha256Hex(definition);
   const existing = await env.CONTROL_DB.prepare(`${POLICY_SELECT} WHERE pv.id = ?`).bind(versionId).first<Row>();
   const duplicate = (row: Row) => row.sha256 === checksum ? json({ data: policyRow(row, true), meta: { deduplicated: true } }) : error("immutable_version_conflict", "this policy version already has a different definition; register a new version", 409);
@@ -79,7 +81,7 @@ async function registerPolicy(request: Request, env: AdjudicationEnv): Promise<R
     await env.CONTROL_DB.batch([
       env.CONTROL_DB.prepare("INSERT INTO policies (id, name, task_type, created_at) VALUES (?, ?, 'object_annotation', ?) ON CONFLICT(id) DO NOTHING").bind(policyId, name, now),
       env.CONTROL_DB.prepare("INSERT INTO policy_versions (id, policy_id, version, status, definition_json, sha256, created_at, activated_at) VALUES (?, ?, ?, 'active', ?, ?, ?, ?)").bind(versionId, policyId, value.version, definition, checksum, now, now),
-      env.CONTROL_DB.prepare("INSERT INTO internal_audit_events (action, resource_type, resource_id, details_json, created_at) VALUES ('policy.register', 'policy_version', ?, ?, ?)").bind(versionId, JSON.stringify({ authentication: "administrator_token", sha256: checksum }), now),
+      env.CONTROL_DB.prepare("INSERT INTO internal_audit_events (actor_user_id, action, resource_type, resource_id, details_json, created_at) VALUES (?, 'policy.register', 'policy_version', ?, ?, ?)").bind(actor?.kind === "user" ? actor.user.id : null, versionId, JSON.stringify({ authentication: actor?.kind === "user" ? "email_link_session" : "legacy_administrator_token", sha256: checksum }), now),
     ]);
   } catch (cause) {
     const raced = await env.CONTROL_DB.prepare(`${POLICY_SELECT} WHERE pv.id = ?`).bind(versionId).first<Row>();
@@ -90,12 +92,12 @@ async function registerPolicy(request: Request, env: AdjudicationEnv): Promise<R
 }
 
 /** Mechanical initialization only: no detector output and no completed human pass. */
-export function initializeManagedTemplate(manifest: FrameSetManifestV1, policy: { id: string; version: string; sha256: string }, manifestSha: string) {
+export function initializeManagedTemplate(manifest: FrameSetManifestV1, policy: { id: string; version: string; sha256: string; annotation_rules?: AnnotationRules }, manifestSha: string) {
   return {
     schema_version: ANNOTATION_SCHEMA_VERSION,
     policy_version: policy.version,
     provenance: { frame_set_id: manifest.frame_set_id, dataset_version_id: manifest.dataset_version_id, manifest_sha256: manifestSha, policy_version_id: policy.id, policy_sha256: policy.sha256, generator_version: GENERATOR_VERSION },
-    validation: { valid: true, frame_count: manifest.frame_count, source_count: manifest.source_count, checks: ["manifest_schema", "manifest_checksum", "policy_checksum", "source_membership", "frame_membership", "private_evidence"] },
+    validation: { valid: true, frame_count: manifest.frame_count, source_count: manifest.source_count, checks: ["manifest_schema", "manifest_checksum", "policy_checksum", "source_membership", "frame_membership", "private_evidence"], ...(policy.annotation_rules ? { annotation_rules: policy.annotation_rules } : {}) },
     review: { independent_passes: 0, predictions_reviewed_before_freeze: false, adjudication_status: "not_started", adjudication_log: [], reviewed_frames: [], assisted_review: { reviewed_frames: [], completed_passes: 0, status: "not_started" } },
     sources: manifest.sources.map((source) => ({
       source: source.dataset_source_id, source_sha256: source.source_sha256,
@@ -104,7 +106,7 @@ export function initializeManagedTemplate(manifest: FrameSetManifestV1, policy: 
   };
 }
 
-async function generateTemplate(request: Request, env: AdjudicationEnv): Promise<Response> {
+async function generateTemplate(request: Request, env: AdjudicationEnv, actor?: InternalActor): Promise<Response> {
   const value = await body(request);
   if (value instanceof Response) return value;
   if (!exact(value, ["frame_set_id", "policy_version_id", "annotation_schema_version"]) || !resourceId(value.frame_set_id) || !resourceId(value.policy_version_id)) return error("invalid_request", "frame_set_id, policy_version_id, and annotation_schema_version are required", 400);
@@ -149,32 +151,54 @@ async function generateTemplate(request: Request, env: AdjudicationEnv): Promise
       if (!evidence || evidence.size !== frame.artifact.size_bytes || evidence.customMetadata?.sha256 !== frame.artifact.sha256 || evidence.httpMetadata?.contentType !== frame.artifact.media_type) return error("evidence_unavailable", "private frame evidence is missing or its metadata differs from the manifest", 422);
     }
   }
-  const template = initializeManagedTemplate(manifest, { id: String(policy.id), version: String(policy.version), sha256: policy.sha256 }, checksum);
+  const template = initializeManagedTemplate(manifest, { id: String(policy.id), version: String(policy.version), sha256: policy.sha256, ...(definition.annotation_rules ? { annotation_rules: parseAnnotationRules(definition.annotation_rules) } : {}) }, checksum);
   const content = JSON.stringify(template), templateSha = await sha256Hex(content);
-  const artifactId = `artifact_${templateId}`, key = `templates/${templateId}/${templateSha}.json`, now = new Date().toISOString();
+  const artifactId = `artifact_${templateId}`, key = `templates/${templateId}/${crypto.randomUUID()}/${templateSha}.json`, now = new Date().toISOString();
   await env.INTERNAL_ARTIFACTS_BUCKET.put(key, content, { httpMetadata: { contentType: "application/json" }, customMetadata: { sha256: templateSha, artifactId } });
   try {
     await env.CONTROL_DB.batch([
       env.CONTROL_DB.prepare("INSERT INTO artifacts (id, kind, storage_key, sha256, size_bytes, media_type, created_at) VALUES (?, 'template', ?, ?, ?, 'application/json', ?)").bind(artifactId, key, templateSha, new TextEncoder().encode(content).byteLength, now),
       env.CONTROL_DB.prepare("INSERT INTO templates (id, frame_set_id, policy_version_id, artifact_id, schema_version, status, frame_count, sha256, created_at) VALUES (?, ?, ?, ?, ?, 'ready', ?, ?, ?)").bind(templateId, frameSet.id, policy.id, artifactId, ANNOTATION_SCHEMA_VERSION, manifest.frame_count, templateSha, now),
-      env.CONTROL_DB.prepare("INSERT INTO internal_audit_events (action, resource_type, resource_id, details_json, created_at) VALUES ('template.generate', 'template', ?, ?, ?)").bind(templateId, JSON.stringify({ authentication: "administrator_token", frame_set_id: frameSet.id, policy_version_id: policy.id, sha256: templateSha, generator_version: GENERATOR_VERSION }), now),
+      env.CONTROL_DB.prepare("INSERT INTO internal_audit_events (actor_user_id, action, resource_type, resource_id, details_json, created_at) VALUES (?, 'template.generate', 'template', ?, ?, ?)").bind(actor?.kind === "user" ? actor.user.id : null, templateId, JSON.stringify({ authentication: actor?.kind === "user" ? "email_link_session" : "legacy_administrator_token", frame_set_id: frameSet.id, policy_version_id: policy.id, sha256: templateSha, generator_version: GENERATOR_VERSION }), now),
     ]);
   } catch (cause) {
     const raced = await env.CONTROL_DB.prepare("SELECT * FROM templates WHERE id = ?").bind(templateId).first<Row>();
+    // Each attempt owns its object key, so losing attempts cannot delete the winner.
+    await env.INTERNAL_ARTIFACTS_BUCKET.delete(key);
     if (raced && raced.sha256 === templateSha && raced.status === "ready") return json({ data: raced, meta: { deduplicated: true } });
-    // Do not delete a shared content-addressed object: another transaction may reference it.
     throw cause;
   }
   return json({ data: { id: templateId, frame_set_id: frameSet.id, policy_version_id: policy.id, artifact_id: artifactId, schema_version: ANNOTATION_SCHEMA_VERSION, status: "ready", frame_count: manifest.frame_count, sha256: templateSha, created_at: now } }, 201);
 }
 
 /** Called only after the Internals administrator guard. */
-export async function handleTemplateRegistry(request: Request, env: AdjudicationEnv): Promise<Response | null> {
+export async function handleTemplateRegistry(request: Request, env: AdjudicationEnv, actor?: InternalActor): Promise<Response | null> {
   const url = new URL(request.url), path = url.pathname.replace(/\/$/, "");
+  const lifecycle = path.match(/^\/api\/internal\/v1\/policies\/([a-z][a-z0-9_]{1,99})\/(deprecate|retire)$/);
+  if (lifecycle) {
+    if (request.method !== "POST") return error("method_not_allowed", "method not allowed", 405);
+    if (!request.headers.has("if-match")) return error("revision_required", "If-Match revision is required", 428);
+    const value = await body(request); if (value instanceof Response) return value;
+    if (!exact(value, ["reason"]) || typeof value.reason !== "string" || !value.reason.trim() || value.reason.length > 2000) return error("invalid_request", "a reason is required", 400);
+    const row = await env.CONTROL_DB.prepare("SELECT * FROM policy_versions WHERE id = ?").bind(lifecycle[1]).first<Row>();
+    if (!row) return error("not_found", "policy version not found", 404);
+    if (request.headers.get("if-match") !== String(row.revision)) return error("stale_revision", "policy changed; reload", 412);
+    const next = lifecycle[2] === "deprecate" ? "deprecated" : "retired";
+    if (row.status !== "active" && !(row.status === "deprecated" && next === "retired")) return error("invalid_state", "only active policies can be deprecated; active or deprecated policies can be retired", 409);
+    try {
+      await env.CONTROL_DB.batch([
+        env.CONTROL_DB.prepare("INSERT INTO governance_assertions (valid) SELECT CASE WHEN EXISTS (SELECT 1 FROM policy_versions WHERE id = ? AND revision = ?) THEN 1 ELSE 0 END").bind(row.id, row.revision),
+        env.CONTROL_DB.prepare("UPDATE policy_versions SET status = ?, revision = revision + 1 WHERE id = ? AND revision = ?").bind(next, row.id, row.revision),
+        env.CONTROL_DB.prepare("INSERT INTO internal_audit_events (actor_user_id, action, resource_type, resource_id, details_json, created_at) VALUES (?, ?, 'policy_version', ?, ?, ?)")
+          .bind(actor?.kind === "user" ? actor.user.id : null, `policy.${lifecycle[2]}`, row.id, JSON.stringify({ reason: value.reason }), new Date().toISOString()),
+      ]);
+    } catch (cause) { if (cause instanceof Error && cause.message.includes("governance_assertions")) return error("stale_revision", "policy changed; reload", 412); throw cause; }
+    return json({ data: { id: row.id, status: next, revision: Number(row.revision) + 1 } });
+  }
   const match = path.match(/^\/api\/internal\/v1\/(policies|templates)(?:\/([^/]+)(?:\/(artifact))?)?$/);
   if (!match) return null;
   const [, collection, encodedId, artifact] = match;
-  if (request.method === "POST" && !encodedId) return collection === "policies" ? registerPolicy(request, env) : generateTemplate(request, env);
+  if (request.method === "POST" && !encodedId) return collection === "policies" ? registerPolicy(request, env, actor) : generateTemplate(request, env, actor);
   if (request.method !== "GET") return error("method_not_allowed", "method not allowed", 405);
   if (!encodedId) {
     const page = pagination(url);
