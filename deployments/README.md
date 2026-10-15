@@ -54,15 +54,13 @@ end-user authentication, so do not deploy it publicly until access control and
 cost limits are defined.
 
 The Cloudflare deployment uses the same Dockerfile as the Compose deployment.
-Build and push the image to Cloudflare's container registry from the repository
-root, then update the account ID in
-`workers/wrangler.capsule-container.toml`. The Worker entry point binds a single
+The configuration in
+`workers/wrangler.capsule-container.toml` points to `deployments/Dockerfile` and
+sets the repository root as its image build context. Wrangler builds and publishes
+the image during deployment. The Worker entry point binds a single
 named Durable Object container to the Python API on port 8000:
 
 ```bash
-docker build -f deployments/Dockerfile \
-	-t registry.cloudflare.com/ACCOUNT_ID/video-semantic-extractor:latest .
-docker push registry.cloudflare.com/ACCOUNT_ID/video-semantic-extractor:latest
 cd workers
 npx wrangler deploy --config wrangler.capsule-container.toml
 ```
@@ -73,7 +71,7 @@ outbound internet access because the API downloads public videos and loads the
 Whisper model. The image build installs and verifies `ffmpeg`/`ffprobe` before
 Python dependencies, so the Cloudflare deployment has the same prerequisite
 guarantee as Compose. Docker is required locally or in CI to build the image;
-Wrangler only deploys the pushed image.
+Wrangler invokes Docker to build and publish the configured image.
 
 The image installs the CPU-only PyTorch wheel because Cloudflare Containers do
 not provide a CUDA runtime. This avoids pulling the much larger NVIDIA runtime
@@ -157,8 +155,8 @@ outside the configured build root.
 sampling-runner configuration reaches its Dockerfile from `workers/` with a `../`
 path and explicitly sets the repository root as the image build context. Wrangler
 therefore builds and publishes that image during deployment without duplicating the
-Python backend into the Worker package. The optional Product capsule image continues
-to use the separate manual build and push workflow documented above.
+Python backend into the Worker package. The optional Product capsule configuration
+uses the same build-context convention with the shared Product Dockerfile.
 
 ## Configuration and operations
 

@@ -96,7 +96,7 @@ def main() -> int:
             continue
         run_cleanup(label, command, size)
 
-    remaining = sum(directory_size(path) for _, path, _, _ in targets)
+    remaining = sum(directory_size(path) for _, path, _command in targets)
     print(f"Cleanup complete; remaining pip/npm cache size: {human_size(remaining)}")
     return 0
 

@@ -89,8 +89,11 @@ format supports COCO classes, live/composited/screen subsets, and source-pixel b
 under the registered instructions.
 
 The existing CLI initializer and stricter ground-truth validator remain supported
-for the original five-video corpus. Exact hosted/CLI parity for managed manifests
-is future work. Empty template lists do not certify negative ground truth.
+for the original five-video corpus. Managed manifests now have hosted/CLI parity:
+`scripts/diagnostics/initialize-managed-annotations.py` validates a downloaded
+`frame-set-manifest.v1`, verifies local frame evidence by size and SHA-256, and
+emits the same prediction-blind `object-annotations.v1` template as the hosted
+generator. Empty template lists do not certify negative ground truth.
 
 [`Managed review campaigns`](managed-review-campaigns.md) now implement review
 creation by `template_id`, scoped private evidence, and pinned policy instructions.

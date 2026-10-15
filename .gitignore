@@ -12,3 +12,6 @@ dist/
 *.wav
 *.mp4
 video_capsule.json
+
+# Also ignore a virtual environment symlink stored outside the workspace.
+/.venv

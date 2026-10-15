@@ -25,8 +25,8 @@ Configure `workers` as the root directory in Cloudflare Workers Builds. A build
 whose root is this directory cannot read a configuration stored in
 `deployments/cloudflare`, which is why Wrangler configuration is colocated here.
 Dockerfiles and Compose definitions stay in `../deployments` because their build
-context is the whole repository; build and push those images separately before
-deploying either Container Worker.
+context is the whole repository. Both Container configurations set that build
+context explicitly; Wrangler builds and publishes their images during deployment.
 
 The Worker validates `POST /capsule`, applies a 2 KiB request-body limit, and
 forwards the request to `UPSTREAM_API_URL`. Set the optional secret

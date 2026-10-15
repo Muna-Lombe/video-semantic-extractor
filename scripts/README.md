@@ -136,6 +136,34 @@ timestamps before merging object metadata. It does not update `reviewed_frames`,
 required, followed by comparison and human adjudication. Treat agent output as
 assisted annotation, not as an independent human review pass.
 
+## Managed manifest annotation initialization
+
+When a managed sampling run has registered an immutable frame set in Internals,
+download the private manifest and frame evidence, then reproduce the hosted
+prediction-blind `object-annotations.v1` template locally. The script validates
+the `frame-set-manifest.v1` contract, verifies every frame file by size and
+SHA-256, and emits the same shape as the hosted generator without consulting any
+predictions:
+
+```bash
+python scripts/diagnostics/initialize-managed-annotations.py \
+  --manifest /tmp/internals/frameset_123.manifest.json \
+  --manifest-sha256 <registered-manifest-sha256> \
+  --frames-dir /tmp/internals/frameset_123/frames \
+  --policy-version 2026-09-18 \
+  --policy-version-id pv_example \
+  --policy-sha256 <registered-policy-sha256> \
+  --policy-document docs/investigations/object-annotation-policy.md \
+  --output /tmp/internals/frameset_123.annotations.json
+```
+
+Frame files must be named `<frame_id>.<ext>` (`jpg`, `png`, or `webp` from the
+manifest media type). Add `--validate-only` to check the manifest and evidence
+without writing output, and `--force` to replace an existing file. `--policy-document`
+and `--manifest-sha256` are optional extra checks; the computed manifest digest is
+always embedded in the template provenance. The resulting file feeds the same
+review, comparison, and adjudication workflows as the locally initialized fixture.
+
 ## Diagnostic fixture and full extraction
 
 ```bash

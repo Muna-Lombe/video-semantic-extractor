@@ -4,11 +4,12 @@ name = "video-semantic-extractor-container"
 main = "capsule-container/src/container.ts"
 compatibility_date = "2026-09-01"
 
-# Build and push the image from the repository root before deploying. Cloudflare
-# then pulls this fully qualified image reference.
+# Wrangler builds the shared Product API image using the repository root so
+# backend/ is available to the Dockerfile's COPY instructions.
 [[containers]]
 class_name = "VideoSemanticExtractorContainer"
-image = "../deployments/CapsuleContainer.Dockerfile"
+image = "../deployments/Dockerfile"
+image_build_context = ".."
 instance_type = "basic"
 
 [[durable_objects.bindings]]

@@ -134,8 +134,8 @@ The following are working foundations, not the complete Internals control plane:
   and pipeline-release references in `CONTROL_DB`. Pipeline progress is derived
   from linked resource states; evaluation lineage exposes its ground-truth,
   campaign, template, frame-set, and dataset-version inputs. Migration 0010 and
-  its Internals screen/API are implemented locally; production application and
-  deployment remain pending.
+  its Internals screen/API were reported deployed in the previous implementation
+  session; production state has not been reverified in this review.
 - Checksum-bound diagnostic validation reports, explicit approval/rejection and
   approved supersession, decision/audit history, and a current evidence eligibility
   gate. Implemented and deployed; named-session decisions are role-checked and
@@ -243,8 +243,10 @@ The reusable sampling and initializer engines exist. Dataset records, queued
 sampling metadata, and a separately deployable sampling executor are implemented.
 The runner and control plane are deployed, and a production sampling run completed
 through verified frame-set finalization. Policy-version registration, the initial annotation contract, and bounded template
-generation are implemented and deployed. Hosted/CLI parity for managed manifests
-and operational qualification remain open.
+generation are implemented and deployed. The local CLI now reproduces managed
+template initialization from downloaded manifests and evidence, preserving
+hosted/CLI parity. Operational qualification for the sampling runner remains
+open.
 
 - [x] Register HTTPS source URLs with an initial ready/frozen dataset version.
 - [x] Bind each sampling request to a dataset-version ID rather than mutable
@@ -261,8 +263,10 @@ and operational qualification remain open.
 - [x] Register immutable policy versions and pin the initial object annotation schema.
 - [x] Generate and validate a template from a frame-set ID plus policy-version ID.
 - [x] Deploy the registry slice.
-- [ ] Extend CLI support to managed manifests.
-- Retain equivalent CLI commands as supported fallback entry points.
+- [x] Extend CLI support to managed manifests: `initialize-managed-annotations.py`
+  validates a downloaded `frame-set-manifest.v1`, verifies local frame evidence,
+  and reproduces the hosted `object-annotations.v1` template without predictions.
+- [x] Retain equivalent CLI commands as supported fallback entry points.
 
 ### Phase 3 — Template-to-ground-truth vertical slice (in progress, 90%)
 
@@ -315,11 +319,11 @@ The diagnostic engines exist; durable scheduling and registered outputs do not.
 | Problem | Decision | Planned phase |
 | --- | --- | --- |
 | Sampling execution was previously manual outside the service | The API, deployed external runner, and verified production run now provide managed sampling through immutable frame-set registration; keep CLI execution/import for fallback and reproducibility | 1-2 |
-| Templates were files rather than registered artifacts | D1 metadata and private immutable R2 artifacts are implemented locally; deployment pending | 1-2 |
+| Templates were files rather than registered artifacts | D1 metadata and private immutable R2 artifacts are implemented and deployed | 1-2 |
 | Legacy review creation accepts raw templates and URL maps | Managed campaigns accept template references and resolve private evidence; keep the legacy compatibility API | 2-3 |
 | Diagnostics are not durable jobs | Wrap the existing engines with durable scheduling and provenance | 1, 4 |
 | Transactional metadata spans two provisioned D1 databases | Keep dataset ownership in `DATASET_DB` and orchestration in `CONTROL_DB`; explicitly validate references because cross-D1 foreign keys and transactions do not exist | 1 |
-| Identity and role checks exist, but named-user sign-in remains disabled in production, and campaign assignments/approval decisions do not yet enforce verified identities | Onboard the email sender, enable sessions after verification, and bind reviewer/adjudicator/approver actions to authenticated actors | 1, 3, 5 |
+| Named-user sign-in awaits sender onboarding; optional verified assignment binding and session-derived approver attribution are implemented | Verify email delivery and exercise identity-bound workflows; retain administrator-token access as primary | 1, 3, 5 |
 | Ground truth now has diagnostic governance; models and pipeline releases remain ungoverned | Deploy the validation/approval slice and continue model/release lifecycle resources | 3, 5 |
 | There is no complete `/internals` UI | Expand the status shell with each guarded vertical slice | 1-5 |
 
@@ -342,7 +346,7 @@ complete.
 
 ### Current slice boundary
 
-The deployed managed slice ends at verified frame-set registration: a dataset can
+The deployed sampling portion ends at verified frame-set registration: a dataset can
 be registered from HTTPS source URLs, the dataset is marked `ready`, its initial
 version is `frozen`, and a sampling request can be stored as `queued`. The deployed
 authenticated runner has completed a production job through atomic claim, lease

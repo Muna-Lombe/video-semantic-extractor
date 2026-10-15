@@ -475,7 +475,7 @@ Progress values are planning estimates, not measured completion claims.
 | --- | --- | --- | ---: |
 | 0. Architecture | Product/Internals boundary, resources, storage, security, migration | In progress; runner topology selected | 90% |
 | 1. Control-plane foundation | D1 schema, migrations, identities/RBAC, jobs, artifacts, audit log | In progress; sampling production happy path verified; RBAC and operational qualification remain | 80% |
-| 2. Dataset-to-template slice | Dataset import, sampling job, frame-set inspection, template generation | In progress; template registry now implemented locally; deployment and managed CLI parity remain | 65% |
+| 2. Dataset-to-template slice | Dataset import, sampling job, frame-set inspection, template generation | In progress; template registry deployed and managed CLI parity implemented; runner operational qualification remains | 65% |
 | 3. Review integration | Template references, campaign UI, focused invitations, progress, ground truth | Implemented locally through diagnostic approval/supersession; deployment pending | 90% |
 | 4. Durable evaluations | Managed diagnostic runners, metrics, comparisons, reproducibility | Planned; CLI engines exist | 20% |
 | 5. Governance | Model registry, ground-truth approval, pipeline releases, rollback | Planned | 5% |
