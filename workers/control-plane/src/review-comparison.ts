@@ -14,6 +14,7 @@ function iou(left: number[], right: number[]): number {
 function maximumMatches(left: JsonRecord[], right: JsonRecord[]): Array<[number, number]> {
   const edges = left.map((candidate) => right.flatMap((other, index) =>
     candidate.label === other.label && candidate.subset === other.subset &&
+    (candidate.label !== "other" || candidate.description?.trim().toLowerCase() === other.description?.trim().toLowerCase()) && Boolean(candidate.uncertain) === Boolean(other.uncertain) &&
     iou(candidate.region ?? [], other.region ?? []) >= 0.8 ? [index] : []));
   const rightToLeft = new Map<number, number>();
   const visit = (leftIndex: number, visited: Set<number>): boolean => {

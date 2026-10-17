@@ -8,7 +8,14 @@ import numpy as np
 import pytest
 
 from video_semantic_extractor.pipeline import FrameCandidate
-from video_semantic_extractor.sampling_runner import ControlPlaneClient, RunnerError, SamplingRunner, _log_event, _source_frame_limit, create_runner_app
+from video_semantic_extractor.sampling_runner import (
+    ControlPlaneClient,
+    RunnerError,
+    SamplingRunner,
+    _log_event,
+    _source_frame_limit,
+    create_runner_app,
+)
 
 
 class StubRunner:
@@ -121,3 +128,29 @@ def test_source_frame_limit_preserves_a_global_budget_and_each_source() -> None:
 def test_source_frame_limit_rejects_impossible_source_coverage() -> None:
     with pytest.raises(RunnerError, match="at least one frame per source"):
         _source_frame_limit(250, 1, 2)
+
+
+@pytest.mark.parametrize("report_failure", [False, True])
+def test_catalog_checksum_change_stops_sampling_before_upload(monkeypatch, report_failure) -> None:
+    reported = []
+
+    class Control:
+        def request(self, method, path, **kwargs):
+            if path.endswith('/claim'):
+                return {'data': {'job': {'id': 'job_changed', 'input': {'dataset_version_id': 'dsv_1'}}, 'lease_token': 'lease'}}
+            if path.endswith('/sources'):
+                return {'data': {'sources': [{'id': 'src_changed', 'ordinal': 0, 'url': 'https://media.example/video.mp4', 'expected_sha256': '0' * 64}]}}
+            if path.endswith('/fail'):
+                reported.append(kwargs['json_body']['error_message'])
+                if report_failure:
+                    raise RunnerError("failure reporting unavailable")
+                return {'data': {}}
+            raise AssertionError('Changed content must not reach sampling or upload')
+
+    monkeypatch.setattr('video_semantic_extractor.sampling_runner.download_video', lambda url, destination, *args: destination.write_bytes(b'changed video'))
+    with pytest.raises(RunnerError, match='content changed') as error:
+        SamplingRunner(Control()).run_once()
+    assert len(reported) == 1
+    assert 'src_changed' in reported[0]
+    if report_failure:
+        assert str(error.value.__cause__) == "failure reporting unavailable"

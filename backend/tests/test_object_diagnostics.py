@@ -164,3 +164,17 @@ def test_managed_evaluation_stops_before_inference_after_cancellation(tmp_path: 
             detector=lambda _image: pytest.fail("cancelled inference must not run"),
             should_abort=lambda: True,
         )
+
+
+def test_extended_objects_are_explicitly_reported_outside_coco_scores(tmp_path: Path) -> None:
+    path = tmp_path / 'frame.jpg'
+    assert cv2.imwrite(str(path), np.zeros((40, 40, 3), dtype=np.uint8))
+    model = tmp_path / 'model.onnx'
+    model.write_bytes(b'identity')
+    truth = {'sources': [{'source': 's', 'frames': [{'frame_id': 'f', 'objects': [{'label': 'person', 'region': [1, 1, 20, 20]}, {'label': 'other', 'description': 'desk lamp', 'region': [2, 2, 10, 10]}, {'label': 'microphone', 'region': [3, 3, 10, 10]}]}]}]}
+    result = objects.evaluate_managed_ground_truth(model, [{'source_id': 's', 'frame_id': 'f', 'timestamp_sec': 0, 'path': str(path), 'sha256': 'a' * 64}], truth, detector=lambda image: ([objects.ObjectObservation('person', .9, (1, 1, 20, 20))], 1.0))
+    assert result['true_positives'] == 1
+    assert result['false_negatives'] == 0
+    assert result['unsupported_ground_truth_objects'] == 2
+    assert result['unsupported_ground_truth_classes'] == {'microphone': 1, 'other': 1}
+    assert len(result['sources']['s']['frames'][0]['unsupported_objects']) == 2

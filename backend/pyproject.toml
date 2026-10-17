@@ -19,8 +19,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["httpx>=0.27,<1", "pytest>=8,<9", "ruff>=0.6,<1"]
+dev = ["httpx>=0.27,<1", "pytest>=8,<9", "ruff>=0.6,<1", "pycocotools==2.0.10"]
 models = ["openai-whisper>=20231117"]
+benchmark = ["pyarrow==21.0.0", "pycocotools==2.0.10", "ultralytics==8.3.220", "opencv-python>=4.8,<5", "transformers==4.57.1"]
 
 [project.scripts]
 video-capsule = "video_semantic_extractor.cli:main"

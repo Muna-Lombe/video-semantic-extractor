@@ -10,10 +10,10 @@ const databases = [];
 afterEach(() => { databases.splice(0).forEach((db) => db.close()); });
 
 class SQLiteD1 {
-  constructor() {
+  constructor(kind = "control") {
     this.db = new DatabaseSync(":memory:");
     databases.push(this.db);
-    const migrations = new URL("../migrations/control/", import.meta.url);
+    const migrations = new URL(`../migrations/${kind}/`, import.meta.url);
     for (const file of readdirSync(migrations).filter((name) => name.endsWith(".sql")).sort()) this.db.exec(readFileSync(new URL(file, migrations), "utf8"));
   }
   prepare(sql) {
@@ -57,7 +57,7 @@ class MemoryBucket {
 }
 
 function environment() {
-  return { CONTROL_DB: new SQLiteD1(), INTERNAL_ARTIFACTS_BUCKET: new MemoryBucket(), ADMIN_TOKEN: "test-admin", REVIEW_BUCKET: { get: async () => null } };
+  return { CONTROL_DB: new SQLiteD1(), DATASET_DB: new SQLiteD1("dataset"), INTERNAL_ARTIFACTS_BUCKET: new MemoryBucket(), ADMIN_TOKEN: "test-admin", REVIEW_BUCKET: { get: async () => null } };
 }
 function request(path, method = "GET", payload, token = "test-admin") {
   return new Request(`https://internal.test/api/internal/v1${path}`, { method, headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, ...(payload === undefined ? {} : { body: JSON.stringify(payload) }) });

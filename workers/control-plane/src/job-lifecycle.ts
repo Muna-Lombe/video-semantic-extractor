@@ -110,7 +110,7 @@ async function datasetSources(env: AdjudicationEnv, datasetVersionId: string): P
     .bind(datasetVersionId).first<{ id: string; status: string }>();
   if (!version) return error("not_found", "dataset version not found", 404);
   if (version.status !== "frozen" && version.status !== "ready") return error("invalid_state", "dataset version is not available for sampling", 409);
-  const rows = await env.DATASET_DB.prepare("SELECT id, source_url AS url, display_name, ordinal FROM dataset_sources WHERE dataset_version_id = ? ORDER BY ordinal")
+  const rows = await env.DATASET_DB.prepare("SELECT id, source_url AS url, display_name, ordinal, expected_sha256 FROM dataset_sources WHERE dataset_version_id = ? ORDER BY ordinal")
     .bind(datasetVersionId).all<JsonRecord>();
   const sources = rows.results ?? [];
   if (!sources.length) return error("dataset_unavailable", "dataset version has no registered sources", 409);

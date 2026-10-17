@@ -1,0 +1,33 @@
+{
+  "schema_version": "local-cache-reclamation.v1",
+  "reason": "Verified selected benchmark inputs and final reports retained; regenerate unused bulk downloads from pinned upstream sources.",
+  "objects": [
+    {
+      "path": "work/coco-reference/cache/val-00000-of-00002-c4f2e391ee4aba11.parquet",
+      "sha256": "dc7a465827eab75e825eb38c9993e6b04fcf918fc2f034504d5760aedfa71d7c",
+      "size_bytes": 403698375,
+      "source": "cf0b22332314a937e9dc8a1957b21725430bb41d"
+    },
+    {
+      "path": "work/coco-reference/cache/val-00001-of-00002-7af5414a3b178949.parquet",
+      "sha256": "fa7fcf60b688c5555b92778ca9654da9400c72d1612b09f3a094a18266e8d859",
+      "size_bytes": 403728505,
+      "source": "cf0b22332314a937e9dc8a1957b21725430bb41d"
+    },
+    {
+      "path": "work/coco-reference/cache/annotations_trainval2017.zip",
+      "sha256": "113a836d90195ee1f884e704da6304dfaaecff1f023f49b6ca93c4aaae470268",
+      "size_bytes": 252907541,
+      "source": "https://images.cocodataset.org/annotations/annotations_trainval2017.zip"
+    },
+    {
+      "path": "work/models/grounding-dino-tiny/model.safetensors",
+      "sha256": "1a2412ef99bd74bcd3c2a246fa1e48581f8889a1300c9051974741314fc042f3",
+      "size_bytes": 689359096,
+      "source": "IDEA-Research/grounding-dino-tiny@a2bb814dd30d776dcf7e30523b00659f4f141c71"
+    }
+  ],
+  "reference_summary_sha256": "dd9b477b00c7aea77277d74d04968be75e70f18a9df5c8f76a8adfe2bf70c468",
+  "state": "deleted",
+  "completed_at": "2026-10-17T22:06:20.205695+00:00"
+}

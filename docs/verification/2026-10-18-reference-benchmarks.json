@@ -1,0 +1,1625 @@
+{
+  "schema_version": "reference-benchmark-summary.v1",
+  "recorded_date": "2026-10-18",
+  "execution": "Local CPU diagnostic runs; no production model or ground-truth approval.",
+  "coco": {
+    "manifest_sha256": "e4323e92a2ec425b937af2d8e7d2fd11e2c6067b675d4a8850d6a253eccbc54d",
+    "dataset": "detection-datasets/coco",
+    "dataset_revision": "cf0b22332314a937e9dc8a1957b21725430bb41d",
+    "split": "val",
+    "selection": {
+      "method": "inverse-independent-image-support.v1",
+      "seed": "vse-coco-reference-v1",
+      "count": 300,
+      "image_ids": [
+        441247,
+        435081,
+        190236,
+        139099,
+        542625,
+        229358,
+        435206,
+        379441,
+        524850,
+        540502,
+        357816,
+        245576,
+        357888,
+        16228,
+        25096,
+        245513,
+        231822,
+        257169,
+        411530,
+        463802,
+        407614,
+        471789,
+        438226,
+        125572,
+        229997,
+        455937,
+        173008,
+        149222,
+        92091,
+        67616,
+        54593,
+        76547,
+        381971,
+        14038,
+        425361,
+        397133,
+        193162,
+        492362,
+        159977,
+        312237,
+        327769,
+        416885,
+        470779,
+        39405,
+        349480,
+        293324,
+        231831,
+        102805,
+        58384,
+        366884,
+        500464,
+        60507,
+        253452,
+        186422,
+        184324,
+        74209,
+        289393,
+        387098,
+        491008,
+        306893,
+        84241,
+        94944,
+        263966,
+        87476,
+        379533,
+        33114,
+        393569,
+        17899,
+        175364,
+        407868,
+        453341,
+        192670,
+        575970,
+        35279,
+        490936,
+        104669,
+        543581,
+        405195,
+        178028,
+        261888,
+        345027,
+        367095,
+        190753,
+        322163,
+        133819,
+        140583,
+        59386,
+        42296,
+        350148,
+        562818,
+        134882,
+        273232,
+        132544,
+        40471,
+        325031,
+        569917,
+        227399,
+        177489,
+        135561,
+        171382,
+        571313,
+        425221,
+        226147,
+        225670,
+        182923,
+        106389,
+        25986,
+        356612,
+        246968,
+        375493,
+        148999,
+        279714,
+        309655,
+        268729,
+        512657,
+        572517,
+        273711,
+        59598,
+        189475,
+        239041,
+        369442,
+        213255,
+        315492,
+        55528,
+        338905,
+        286182,
+        179265,
+        303713,
+        97022,
+        579158,
+        298396,
+        119641,
+        345466,
+        17029,
+        226417,
+        160556,
+        377486,
+        142790,
+        311295,
+        558213,
+        78266,
+        449432,
+        84674,
+        385997,
+        532481,
+        530975,
+        113589,
+        301421,
+        368212,
+        467776,
+        458663,
+        308476,
+        213547,
+        323751,
+        548339,
+        551660,
+        205401,
+        127092,
+        453302,
+        18380,
+        119828,
+        254814,
+        361919,
+        64359,
+        501368,
+        200421,
+        549220,
+        304984,
+        371677,
+        369751,
+        572900,
+        553221,
+        237864,
+        369757,
+        233567,
+        181753,
+        203095,
+        92053,
+        196141,
+        202339,
+        218439,
+        491216,
+        376442,
+        502347,
+        413689,
+        419974,
+        119233,
+        447465,
+        486046,
+        232088,
+        396200,
+        294783,
+        530836,
+        135410,
+        390826,
+        569976,
+        194724,
+        99024,
+        23937,
+        402615,
+        146358,
+        304404,
+        350122,
+        118367,
+        569030,
+        160728,
+        52891,
+        472678,
+        66231,
+        35682,
+        572678,
+        227044,
+        162543,
+        516601,
+        509735,
+        296649,
+        460494,
+        139,
+        520531,
+        229948,
+        361506,
+        230450,
+        66841,
+        348881,
+        479448,
+        435208,
+        477955,
+        572408,
+        74256,
+        506707,
+        323496,
+        1268,
+        192904,
+        42628,
+        137246,
+        389381,
+        139872,
+        7574,
+        519688,
+        384136,
+        326082,
+        433243,
+        365387,
+        172595,
+        520264,
+        367680,
+        526103,
+        284623,
+        279278,
+        160864,
+        445658,
+        363666,
+        572462,
+        128675,
+        463542,
+        565153,
+        114770,
+        397681,
+        158744,
+        290179,
+        37740,
+        158548,
+        376307,
+        473869,
+        276024,
+        476810,
+        163290,
+        442746,
+        371042,
+        468505,
+        376322,
+        241602,
+        5001,
+        350002,
+        341094,
+        232348,
+        414673,
+        191580,
+        384949,
+        343496,
+        434996,
+        15660,
+        387916,
+        225757,
+        132796,
+        580294,
+        57149,
+        334417,
+        565776,
+        288685,
+        301376,
+        438774,
+        513580,
+        84270,
+        87470,
+        539962,
+        322959,
+        3845,
+        385719,
+        495146
+      ]
+    },
+    "annotations_sha256": "8758514ba04bdfc0a1ba288c080d33ea5f5c76f0114bd68ab13297cf23a5c097",
+    "native_annotations_sha256": "e8c7f7908f1d7278341fae127d0da654f102f11bd7b21d8aeefa635b8c810b6f",
+    "native_annotations_url": "https://images.cocodataset.org/annotations/annotations_trainval2017.zip",
+    "class_support": {
+      "person": 1014,
+      "bicycle": 43,
+      "car": 134,
+      "motorcycle": 47,
+      "airplane": 16,
+      "bus": 22,
+      "train": 15,
+      "truck": 34,
+      "boat": 53,
+      "traffic light": 72,
+      "fire hydrant": 15,
+      "stop sign": 12,
+      "parking meter": 27,
+      "bench": 68,
+      "bird": 29,
+      "cat": 18,
+      "dog": 18,
+      "horse": 18,
+      "sheep": 46,
+      "cow": 57,
+      "elephant": 23,
+      "bear": 8,
+      "zebra": 22,
+      "giraffe": 28,
+      "backpack": 64,
+      "umbrella": 33,
+      "handbag": 70,
+      "tie": 18,
+      "suitcase": 27,
+      "frisbee": 10,
+      "skis": 47,
+      "snowboard": 22,
+      "sports ball": 26,
+      "kite": 37,
+      "baseball bat": 18,
+      "baseball glove": 17,
+      "skateboard": 12,
+      "surfboard": 16,
+      "tennis racket": 17,
+      "bottle": 162,
+      "wine glass": 44,
+      "cup": 137,
+      "fork": 43,
+      "knife": 71,
+      "spoon": 57,
+      "bowl": 112,
+      "banana": 47,
+      "apple": 39,
+      "sandwich": 48,
+      "orange": 36,
+      "broccoli": 42,
+      "carrot": 60,
+      "hot dog": 30,
+      "pizza": 22,
+      "donut": 45,
+      "cake": 35,
+      "chair": 211,
+      "couch": 28,
+      "potted plant": 44,
+      "bed": 18,
+      "dining table": 88,
+      "toilet": 10,
+      "tv": 46,
+      "laptop": 25,
+      "mouse": 23,
+      "remote": 24,
+      "keyboard": 29,
+      "cell phone": 27,
+      "microwave": 19,
+      "oven": 33,
+      "toaster": 9,
+      "sink": 39,
+      "refrigerator": 23,
+      "book": 153,
+      "clock": 26,
+      "vase": 35,
+      "scissors": 12,
+      "teddy bear": 17,
+      "hair drier": 10,
+      "toothbrush": 12
+    },
+    "configuration": {
+      "ap_minimum_confidence": 0.001,
+      "point_confidence": 0.35,
+      "nms_threshold": 0.6,
+      "point_iou": 0.5,
+      "max_detections": 100,
+      "cpu_threads": 2
+    },
+    "scope": "Coverage-selected validation subset; not the full official COCO benchmark or an untouched holdout. Video and extended taxonomy coverage are evaluated separately.",
+    "models": [
+      {
+        "engine": "nanodet",
+        "benchmark_sha256": "e4323e92a2ec425b937af2d8e7d2fd11e2c6067b675d4a8850d6a253eccbc54d",
+        "implementation_sha256": "6dccc3cfc5dde5dac77b13a8100b987fa5762e2a88255001a4da35049dff4775",
+        "model_sha256": "4b82da9944b88577175ee23a459dce2e26e6e4be573def65b1055dc2d9720186",
+        "model_size_bytes": 3800954,
+        "configuration": {
+          "ap_minimum_confidence": 0.001,
+          "point_confidence": 0.35,
+          "nms_threshold": 0.6,
+          "point_iou": 0.5,
+          "max_detections": 100,
+          "cpu_threads": 2
+        },
+        "runtime": {
+          "python": "3.12.14",
+          "opencv": "4.14.0",
+          "platform": "Linux-6.18.55-x86_64-with-glibc2.41",
+          "device": "cpu",
+          "dependencies": {
+            "numpy": "2.5.4",
+            "pycocotools": "2.0.10"
+          }
+        },
+        "metrics": {
+          "map_50_95": 0.12912936244856948,
+          "map_50": 0.22325221503799136,
+          "precision_at_035": 0.5908032596041909,
+          "recall_at_035": 0.23803939962476547,
+          "f1_at_035": 0.3393513874958208,
+          "true_positives": 1015,
+          "false_positives": 703,
+          "false_negatives": 3249,
+          "classes": {
+            "person": {
+              "support": 1014,
+              "support_images": 184,
+              "ap_50_95": 0.27652572628686056
+            },
+            "bicycle": {
+              "support": 43,
+              "support_images": 21,
+              "ap_50_95": 0.12537256775725514
+            },
+            "car": {
+              "support": 134,
+              "support_images": 47,
+              "ap_50_95": 0.14813187800425548
+            },
+            "motorcycle": {
+              "support": 47,
+              "support_images": 16,
+              "ap_50_95": 0.13816736874834767
+            },
+            "airplane": {
+              "support": 16,
+              "support_images": 10,
+              "ap_50_95": 0.11772681885516624
+            },
+            "bus": {
+              "support": 22,
+              "support_images": 15,
+              "ap_50_95": 0.234144244989283
+            },
+            "train": {
+              "support": 15,
+              "support_images": 13,
+              "ap_50_95": 0.08736476501100099
+            },
+            "truck": {
+              "support": 34,
+              "support_images": 23,
+              "ap_50_95": 0.13335922012897003
+            },
+            "boat": {
+              "support": 53,
+              "support_images": 14,
+              "ap_50_95": 0.031168116785197653
+            },
+            "traffic light": {
+              "support": 72,
+              "support_images": 19,
+              "ap_50_95": 0.03799760953329963
+            },
+            "fire hydrant": {
+              "support": 15,
+              "support_images": 12,
+              "ap_50_95": 0.15198019801980198
+            },
+            "stop sign": {
+              "support": 12,
+              "support_images": 12,
+              "ap_50_95": 0.16287128712871288
+            },
+            "parking meter": {
+              "support": 27,
+              "support_images": 11,
+              "ap_50_95": 0.23299968274188865
+            },
+            "bench": {
+              "support": 68,
+              "support_images": 24,
+              "ap_50_95": 0.04129048290327662
+            },
+            "bird": {
+              "support": 29,
+              "support_images": 12,
+              "ap_50_95": 0.1694262709804712
+            },
+            "cat": {
+              "support": 18,
+              "support_images": 16,
+              "ap_50_95": 0.35949487405425734
+            },
+            "dog": {
+              "support": 18,
+              "support_images": 16,
+              "ap_50_95": 0.23416818100888054
+            },
+            "horse": {
+              "support": 18,
+              "support_images": 12,
+              "ap_50_95": 0.19328528694444008
+            },
+            "sheep": {
+              "support": 46,
+              "support_images": 11,
+              "ap_50_95": 0.10743381086895498
+            },
+            "cow": {
+              "support": 57,
+              "support_images": 12,
+              "ap_50_95": 0.15078748592583713
+            },
+            "elephant": {
+              "support": 23,
+              "support_images": 9,
+              "ap_50_95": 0.32115167509176523
+            },
+            "bear": {
+              "support": 8,
+              "support_images": 8,
+              "ap_50_95": 0.3950825082508251
+            },
+            "zebra": {
+              "support": 22,
+              "support_images": 11,
+              "ap_50_95": 0.45962500909224857
+            },
+            "giraffe": {
+              "support": 28,
+              "support_images": 11,
+              "ap_50_95": 0.34814078856404346
+            },
+            "backpack": {
+              "support": 64,
+              "support_images": 38,
+              "ap_50_95": 0.003776800689436625
+            },
+            "umbrella": {
+              "support": 33,
+              "support_images": 18,
+              "ap_50_95": 0.13240302786170632
+            },
+            "handbag": {
+              "support": 70,
+              "support_images": 37,
+              "ap_50_95": 0.008232408566535065
+            },
+            "tie": {
+              "support": 18,
+              "support_images": 14,
+              "ap_50_95": 0.025602465906968054
+            },
+            "suitcase": {
+              "support": 27,
+              "support_images": 14,
+              "ap_50_95": 0.08074264885856838
+            },
+            "frisbee": {
+              "support": 10,
+              "support_images": 10,
+              "ap_50_95": 0.4
+            },
+            "skis": {
+              "support": 47,
+              "support_images": 11,
+              "ap_50_95": 0.014236009038177
+            },
+            "snowboard": {
+              "support": 22,
+              "support_images": 12,
+              "ap_50_95": 0.006839564553470272
+            },
+            "sports ball": {
+              "support": 26,
+              "support_images": 20,
+              "ap_50_95": 0.10078865029360079
+            },
+            "kite": {
+              "support": 37,
+              "support_images": 12,
+              "ap_50_95": 0.25284205449581837
+            },
+            "baseball bat": {
+              "support": 18,
+              "support_images": 13,
+              "ap_50_95": 0.10888217529452239
+            },
+            "baseball glove": {
+              "support": 17,
+              "support_images": 12,
+              "ap_50_95": 0.05804858826896514
+            },
+            "skateboard": {
+              "support": 12,
+              "support_images": 10,
+              "ap_50_95": 0.2734357635763576
+            },
+            "surfboard": {
+              "support": 16,
+              "support_images": 11,
+              "ap_50_95": 0.035077986751495566
+            },
+            "tennis racket": {
+              "support": 17,
+              "support_images": 9,
+              "ap_50_95": 0.09618104667609617
+            },
+            "bottle": {
+              "support": 162,
+              "support_images": 60,
+              "ap_50_95": 0.07659992075397082
+            },
+            "wine glass": {
+              "support": 44,
+              "support_images": 19,
+              "ap_50_95": 0.03581665188310599
+            },
+            "cup": {
+              "support": 137,
+              "support_images": 60,
+              "ap_50_95": 0.15949015444380074
+            },
+            "fork": {
+              "support": 43,
+              "support_images": 27,
+              "ap_50_95": 0.031287922154406955
+            },
+            "knife": {
+              "support": 71,
+              "support_images": 29,
+              "ap_50_95": 0.006748621445995531
+            },
+            "spoon": {
+              "support": 57,
+              "support_images": 30,
+              "ap_50_95": 0.000766873046594905
+            },
+            "bowl": {
+              "support": 112,
+              "support_images": 43,
+              "ap_50_95": 0.12209070539473897
+            },
+            "banana": {
+              "support": 47,
+              "support_images": 18,
+              "ap_50_95": 0.04427301323724489
+            },
+            "apple": {
+              "support": 39,
+              "support_images": 18,
+              "ap_50_95": 0.011752348311754252
+            },
+            "sandwich": {
+              "support": 48,
+              "support_images": 18,
+              "ap_50_95": 0.020792079207920786
+            },
+            "orange": {
+              "support": 36,
+              "support_images": 16,
+              "ap_50_95": 0.0
+            },
+            "broccoli": {
+              "support": 42,
+              "support_images": 12,
+              "ap_50_95": 0.027694989854230374
+            },
+            "carrot": {
+              "support": 60,
+              "support_images": 17,
+              "ap_50_95": 0.01945092096562159
+            },
+            "hot dog": {
+              "support": 30,
+              "support_images": 10,
+              "ap_50_95": 0.011881188118811881
+            },
+            "pizza": {
+              "support": 22,
+              "support_images": 13,
+              "ap_50_95": 0.07291849094411704
+            },
+            "donut": {
+              "support": 45,
+              "support_images": 10,
+              "ap_50_95": 0.06387841613595427
+            },
+            "cake": {
+              "support": 35,
+              "support_images": 15,
+              "ap_50_95": 0.014916139042061658
+            },
+            "chair": {
+              "support": 211,
+              "support_images": 71,
+              "ap_50_95": 0.09495933143406662
+            },
+            "couch": {
+              "support": 28,
+              "support_images": 21,
+              "ap_50_95": 0.2924276219523328
+            },
+            "potted plant": {
+              "support": 44,
+              "support_images": 26,
+              "ap_50_95": 0.05056061648431691
+            },
+            "bed": {
+              "support": 18,
+              "support_images": 15,
+              "ap_50_95": 0.13937381149956884
+            },
+            "dining table": {
+              "support": 88,
+              "support_images": 56,
+              "ap_50_95": 0.17430992057211686
+            },
+            "toilet": {
+              "support": 10,
+              "support_images": 10,
+              "ap_50_95": 0.296826925465697
+            },
+            "tv": {
+              "support": 46,
+              "support_images": 29,
+              "ap_50_95": 0.3822129110889526
+            },
+            "laptop": {
+              "support": 25,
+              "support_images": 24,
+              "ap_50_95": 0.288869727995948
+            },
+            "mouse": {
+              "support": 23,
+              "support_images": 18,
+              "ap_50_95": 0.2598580166091353
+            },
+            "remote": {
+              "support": 24,
+              "support_images": 18,
+              "ap_50_95": 0.13085808580858085
+            },
+            "keyboard": {
+              "support": 29,
+              "support_images": 19,
+              "ap_50_95": 0.16141219560271539
+            },
+            "cell phone": {
+              "support": 27,
+              "support_images": 22,
+              "ap_50_95": 0.07298976419381069
+            },
+            "microwave": {
+              "support": 19,
+              "support_images": 18,
+              "ap_50_95": 0.17155759336197945
+            },
+            "oven": {
+              "support": 33,
+              "support_images": 23,
+              "ap_50_95": 0.14089354213374417
+            },
+            "toaster": {
+              "support": 9,
+              "support_images": 8,
+              "ap_50_95": 0.0
+            },
+            "sink": {
+              "support": 39,
+              "support_images": 35,
+              "ap_50_95": 0.1027322802625993
+            },
+            "refrigerator": {
+              "support": 23,
+              "support_images": 22,
+              "ap_50_95": 0.3750711760864107
+            },
+            "book": {
+              "support": 153,
+              "support_images": 25,
+              "ap_50_95": 0.015126953932315617
+            },
+            "clock": {
+              "support": 26,
+              "support_images": 21,
+              "ap_50_95": 0.07146576568789224
+            },
+            "vase": {
+              "support": 35,
+              "support_images": 19,
+              "ap_50_95": 0.03642420142635381
+            },
+            "scissors": {
+              "support": 12,
+              "support_images": 9,
+              "ap_50_95": 0.0011138613861386138
+            },
+            "teddy bear": {
+              "support": 17,
+              "support_images": 12,
+              "ap_50_95": 0.09616120945379386
+            },
+            "hair drier": {
+              "support": 10,
+              "support_images": 8,
+              "ap_50_95": 0.0
+            },
+            "toothbrush": {
+              "support": 12,
+              "support_images": 10,
+              "ap_50_95": 0.0
+            }
+          }
+        },
+        "timing": {
+          "warmup_runs": 3,
+          "includes": "preprocessing, inference and postprocessing; excludes image disk read and scoring",
+          "mean_ms": 98.24822214670348,
+          "p95_ms": 112.78697344941975,
+          "peak_process_rss_mib": 238.48828125
+        },
+        "class_mapping": "Native COCO category IDs; YOLO contiguous 0\u201379 IDs use the publisher model card mapping, independently checked against native category order.",
+        "full_report_sha256": "c8e3059dc0de03ad847168235cbe5f714aa0a642de389ad4c3ed4340d7cbfdb0",
+        "predictions_sha256": "2d02f334d71038f701b0fe2f683466a44af83bdbf15094a89d1d7dfca9b4ae59"
+      },
+      {
+        "engine": "yolov10",
+        "benchmark_sha256": "e4323e92a2ec425b937af2d8e7d2fd11e2c6067b675d4a8850d6a253eccbc54d",
+        "implementation_sha256": "6dccc3cfc5dde5dac77b13a8100b987fa5762e2a88255001a4da35049dff4775",
+        "model_sha256": "55e1563d55db0a2bf89446d30131f0462c23a56c87b9c73a64c2f73cb5959365",
+        "model_size_bytes": 11447983,
+        "configuration": {
+          "ap_minimum_confidence": 0.001,
+          "point_confidence": 0.35,
+          "nms_threshold": 0.6,
+          "point_iou": 0.5,
+          "max_detections": 100,
+          "cpu_threads": 2
+        },
+        "runtime": {
+          "python": "3.12.14",
+          "opencv": "4.14.0",
+          "platform": "Linux-6.18.55-x86_64-with-glibc2.41",
+          "device": "cpu",
+          "dependencies": {
+            "numpy": "2.5.4",
+            "pycocotools": "2.0.10",
+            "torch": "2.8.0+cpu",
+            "torchvision": "0.23.0+cpu",
+            "ultralytics": "8.3.220"
+          }
+        },
+        "metrics": {
+          "map_50_95": 0.2939038681050846,
+          "map_50": 0.42021346196583853,
+          "precision_at_035": 0.8449559918754231,
+          "recall_at_035": 0.2926829268292683,
+          "f1_at_035": 0.4347674621146142,
+          "true_positives": 1248,
+          "false_positives": 229,
+          "false_negatives": 3016,
+          "classes": {
+            "person": {
+              "support": 1014,
+              "support_images": 184,
+              "ap_50_95": 0.47273408733121103
+            },
+            "bicycle": {
+              "support": 43,
+              "support_images": 21,
+              "ap_50_95": 0.24442275376903472
+            },
+            "car": {
+              "support": 134,
+              "support_images": 47,
+              "ap_50_95": 0.3302553879372678
+            },
+            "motorcycle": {
+              "support": 47,
+              "support_images": 16,
+              "ap_50_95": 0.2587463772073798
+            },
+            "airplane": {
+              "support": 16,
+              "support_images": 10,
+              "ap_50_95": 0.41798406666924104
+            },
+            "bus": {
+              "support": 22,
+              "support_images": 15,
+              "ap_50_95": 0.5161879919091485
+            },
+            "train": {
+              "support": 15,
+              "support_images": 13,
+              "ap_50_95": 0.2858811991204098
+            },
+            "truck": {
+              "support": 34,
+              "support_images": 23,
+              "ap_50_95": 0.3469874174666277
+            },
+            "boat": {
+              "support": 53,
+              "support_images": 14,
+              "ap_50_95": 0.09098491710494588
+            },
+            "traffic light": {
+              "support": 72,
+              "support_images": 19,
+              "ap_50_95": 0.1581271918582052
+            },
+            "fire hydrant": {
+              "support": 15,
+              "support_images": 12,
+              "ap_50_95": 0.38472915915073286
+            },
+            "stop sign": {
+              "support": 12,
+              "support_images": 12,
+              "ap_50_95": 0.1751042209484106
+            },
+            "parking meter": {
+              "support": 27,
+              "support_images": 11,
+              "ap_50_95": 0.4125428920923454
+            },
+            "bench": {
+              "support": 68,
+              "support_images": 24,
+              "ap_50_95": 0.06517770297779561
+            },
+            "bird": {
+              "support": 29,
+              "support_images": 12,
+              "ap_50_95": 0.33940816252221884
+            },
+            "cat": {
+              "support": 18,
+              "support_images": 16,
+              "ap_50_95": 0.6560255529119522
+            },
+            "dog": {
+              "support": 18,
+              "support_images": 16,
+              "ap_50_95": 0.47291498244038677
+            },
+            "horse": {
+              "support": 18,
+              "support_images": 12,
+              "ap_50_95": 0.4843422611364085
+            },
+            "sheep": {
+              "support": 46,
+              "support_images": 11,
+              "ap_50_95": 0.40292470341480835
+            },
+            "cow": {
+              "support": 57,
+              "support_images": 12,
+              "ap_50_95": 0.38562787935121934
+            },
+            "elephant": {
+              "support": 23,
+              "support_images": 9,
+              "ap_50_95": 0.6101379733518263
+            },
+            "bear": {
+              "support": 8,
+              "support_images": 8,
+              "ap_50_95": 0.6232673267326733
+            },
+            "zebra": {
+              "support": 22,
+              "support_images": 11,
+              "ap_50_95": 0.7327782247681026
+            },
+            "giraffe": {
+              "support": 28,
+              "support_images": 11,
+              "ap_50_95": 0.5614299857916325
+            },
+            "backpack": {
+              "support": 64,
+              "support_images": 38,
+              "ap_50_95": 0.1129087550762946
+            },
+            "umbrella": {
+              "support": 33,
+              "support_images": 18,
+              "ap_50_95": 0.2535115278634153
+            },
+            "handbag": {
+              "support": 70,
+              "support_images": 37,
+              "ap_50_95": 0.0585283817616122
+            },
+            "tie": {
+              "support": 18,
+              "support_images": 14,
+              "ap_50_95": 0.0927864214992928
+            },
+            "suitcase": {
+              "support": 27,
+              "support_images": 14,
+              "ap_50_95": 0.15439223796734253
+            },
+            "frisbee": {
+              "support": 10,
+              "support_images": 10,
+              "ap_50_95": 0.542929792979298
+            },
+            "skis": {
+              "support": 47,
+              "support_images": 11,
+              "ap_50_95": 0.09151193033618213
+            },
+            "snowboard": {
+              "support": 22,
+              "support_images": 12,
+              "ap_50_95": 0.07924512741777646
+            },
+            "sports ball": {
+              "support": 26,
+              "support_images": 20,
+              "ap_50_95": 0.3230870524971781
+            },
+            "kite": {
+              "support": 37,
+              "support_images": 12,
+              "ap_50_95": 0.4053759695208906
+            },
+            "baseball bat": {
+              "support": 18,
+              "support_images": 13,
+              "ap_50_95": 0.3459040860305406
+            },
+            "baseball glove": {
+              "support": 17,
+              "support_images": 12,
+              "ap_50_95": 0.24440015430114442
+            },
+            "skateboard": {
+              "support": 12,
+              "support_images": 10,
+              "ap_50_95": 0.4329465089366079
+            },
+            "surfboard": {
+              "support": 16,
+              "support_images": 11,
+              "ap_50_95": 0.09417011499413463
+            },
+            "tennis racket": {
+              "support": 17,
+              "support_images": 9,
+              "ap_50_95": 0.2624494589065747
+            },
+            "bottle": {
+              "support": 162,
+              "support_images": 60,
+              "ap_50_95": 0.23947123613530033
+            },
+            "wine glass": {
+              "support": 44,
+              "support_images": 19,
+              "ap_50_95": 0.17365024764137027
+            },
+            "cup": {
+              "support": 137,
+              "support_images": 60,
+              "ap_50_95": 0.3785812462719859
+            },
+            "fork": {
+              "support": 43,
+              "support_images": 27,
+              "ap_50_95": 0.20298304798661437
+            },
+            "knife": {
+              "support": 71,
+              "support_images": 29,
+              "ap_50_95": 0.06441802023104158
+            },
+            "spoon": {
+              "support": 57,
+              "support_images": 30,
+              "ap_50_95": 0.049518215329231154
+            },
+            "bowl": {
+              "support": 112,
+              "support_images": 43,
+              "ap_50_95": 0.3114294112555609
+            },
+            "banana": {
+              "support": 47,
+              "support_images": 18,
+              "ap_50_95": 0.26560804376647046
+            },
+            "apple": {
+              "support": 39,
+              "support_images": 18,
+              "ap_50_95": 0.06582178648371434
+            },
+            "sandwich": {
+              "support": 48,
+              "support_images": 18,
+              "ap_50_95": 0.16733486731832095
+            },
+            "orange": {
+              "support": 36,
+              "support_images": 16,
+              "ap_50_95": 0.06970814816246579
+            },
+            "broccoli": {
+              "support": 42,
+              "support_images": 12,
+              "ap_50_95": 0.17546490022913247
+            },
+            "carrot": {
+              "support": 60,
+              "support_images": 17,
+              "ap_50_95": 0.2082718928400981
+            },
+            "hot dog": {
+              "support": 30,
+              "support_images": 10,
+              "ap_50_95": 0.13960396039603962
+            },
+            "pizza": {
+              "support": 22,
+              "support_images": 13,
+              "ap_50_95": 0.2610351132255524
+            },
+            "donut": {
+              "support": 45,
+              "support_images": 10,
+              "ap_50_95": 0.2524889957488203
+            },
+            "cake": {
+              "support": 35,
+              "support_images": 15,
+              "ap_50_95": 0.1332750106442521
+            },
+            "chair": {
+              "support": 211,
+              "support_images": 71,
+              "ap_50_95": 0.2788624788291911
+            },
+            "couch": {
+              "support": 28,
+              "support_images": 21,
+              "ap_50_95": 0.563376861765786
+            },
+            "potted plant": {
+              "support": 44,
+              "support_images": 26,
+              "ap_50_95": 0.14971634108950338
+            },
+            "bed": {
+              "support": 18,
+              "support_images": 15,
+              "ap_50_95": 0.3858243441575155
+            },
+            "dining table": {
+              "support": 88,
+              "support_images": 56,
+              "ap_50_95": 0.3667299322899393
+            },
+            "toilet": {
+              "support": 10,
+              "support_images": 10,
+              "ap_50_95": 0.6616491919462215
+            },
+            "tv": {
+              "support": 46,
+              "support_images": 29,
+              "ap_50_95": 0.6257325447948852
+            },
+            "laptop": {
+              "support": 25,
+              "support_images": 24,
+              "ap_50_95": 0.5190217184798902
+            },
+            "mouse": {
+              "support": 23,
+              "support_images": 18,
+              "ap_50_95": 0.400916748391257
+            },
+            "remote": {
+              "support": 24,
+              "support_images": 18,
+              "ap_50_95": 0.32413860914550613
+            },
+            "keyboard": {
+              "support": 29,
+              "support_images": 19,
+              "ap_50_95": 0.35306586299276965
+            },
+            "cell phone": {
+              "support": 27,
+              "support_images": 22,
+              "ap_50_95": 0.203867363928233
+            },
+            "microwave": {
+              "support": 19,
+              "support_images": 18,
+              "ap_50_95": 0.40901787531911327
+            },
+            "oven": {
+              "support": 33,
+              "support_images": 23,
+              "ap_50_95": 0.2853027353186798
+            },
+            "toaster": {
+              "support": 9,
+              "support_images": 8,
+              "ap_50_95": 0.3077779674519176
+            },
+            "sink": {
+              "support": 39,
+              "support_images": 35,
+              "ap_50_95": 0.23652151789193873
+            },
+            "refrigerator": {
+              "support": 23,
+              "support_images": 22,
+              "ap_50_95": 0.5860626527668032
+            },
+            "book": {
+              "support": 153,
+              "support_images": 25,
+              "ap_50_95": 0.09273555840710387
+            },
+            "clock": {
+              "support": 26,
+              "support_images": 21,
+              "ap_50_95": 0.23445935078463537
+            },
+            "vase": {
+              "support": 35,
+              "support_images": 19,
+              "ap_50_95": 0.1352372932499887
+            },
+            "scissors": {
+              "support": 12,
+              "support_images": 9,
+              "ap_50_95": 0.006683168316831683
+            },
+            "teddy bear": {
+              "support": 17,
+              "support_images": 12,
+              "ap_50_95": 0.260638097235719
+            },
+            "hair drier": {
+              "support": 10,
+              "support_images": 8,
+              "ap_50_95": 0.015841584158415842
+            },
+            "toothbrush": {
+              "support": 12,
+              "support_images": 10,
+              "ap_50_95": 0.027595567976681258
+            }
+          }
+        },
+        "timing": {
+          "warmup_runs": 3,
+          "includes": "preprocessing, inference and postprocessing; excludes image disk read and scoring",
+          "mean_ms": 55.73057183339794,
+          "p95_ms": 78.24840250032142,
+          "peak_process_rss_mib": 517.0390625
+        },
+        "class_mapping": "Native COCO category IDs; YOLO contiguous 0\u201379 IDs use the publisher model card mapping, independently checked against native category order.",
+        "full_report_sha256": "186c81ead80d90eab92e95c8ea8b8b8a1378a7bbc06795732ad6f790b554b1c4",
+        "predictions_sha256": "1d30ebed51af56348df8b7614367ecbcf610af34ee62d0afb788de41ad8e0ce2"
+      }
+    ]
+  },
+  "video": {
+    "manifest_sha256": "c39f87de79a549a45fdb6c8178630ea167c046ea0d61a5cdcac6cfaff48a8a1a",
+    "catalog_version": "2026-10-18.1",
+    "configuration": {
+      "method": "hybrid",
+      "scene_threshold": 0.34,
+      "interval_seconds": 5,
+      "max_frames": 25,
+      "include_final_frame": true
+    },
+    "frame_count": 254,
+    "status": "awaiting_independent_review",
+    "approval_status": "pending",
+    "grouping_status": "preview_inspected; related-footage grouping requires human confirmation before benchmark approval",
+    "sources": [
+      {
+        "source": "sample_1",
+        "source_sha256": "bc14db678d642d02ae769c92a234ddd53c611a6bdf88ca93da97fb166bbfaa1b",
+        "group_id": "sample_1",
+        "split": "holdout",
+        "frame_count": 25
+      },
+      {
+        "source": "sample_2",
+        "source_sha256": "434295f8f59b7cce995c6a5c6311922a13165ce726d760164a3878abe5ced5ef",
+        "group_id": "sample_2",
+        "split": "development",
+        "frame_count": 4
+      },
+      {
+        "source": "sample_3",
+        "source_sha256": "461207be93539144fab5b6ba8ab87848bc73b26d902035806e8fbbf76040e0bc",
+        "group_id": "sample_3",
+        "split": "development",
+        "frame_count": 25
+      },
+      {
+        "source": "sample_4",
+        "source_sha256": "2a5b97bc6f8e711c172c1d951896f51d9b9c215075610a0259651a40a65b5d34",
+        "group_id": "sample_4",
+        "split": "development",
+        "frame_count": 25
+      },
+      {
+        "source": "sample_5",
+        "source_sha256": "1d442ef0cc26937da5662505af7307996c043658e8204630846c8a5cffa2d6d2",
+        "group_id": "sample_5",
+        "split": "holdout",
+        "frame_count": 23
+      },
+      {
+        "source": "sample_6",
+        "source_sha256": "5eea5d3679e4524533f95eb363a23c41f35d6e691a8eb772a2df64f85b72fed3",
+        "group_id": "sample_6",
+        "split": "development",
+        "frame_count": 25
+      },
+      {
+        "source": "sample_7",
+        "source_sha256": "a5999634bd9ffa333b07e51ec413f390d6f7fb7444c8233223d3d191185cb731",
+        "group_id": "sample_7",
+        "split": "development",
+        "frame_count": 15
+      },
+      {
+        "source": "sample_8",
+        "source_sha256": "85f77fd41b8df296addb2e56b2a15d5ac321db5ba6a73867449a555ceeb1c142",
+        "group_id": "sample_8",
+        "split": "development",
+        "frame_count": 8
+      },
+      {
+        "source": "sample_9",
+        "source_sha256": "1facc2f7ecf41c6e5b945a3f07764b690586955a255bc525e96ebf48d7e8a7a6",
+        "group_id": "sample_9",
+        "split": "development",
+        "frame_count": 5
+      },
+      {
+        "source": "sample_10",
+        "source_sha256": "e4a1e4c4a27ac91582f7b1180f95415c1e94d4d1425d2f20bc0ea9341694975b",
+        "group_id": "sample_10",
+        "split": "development",
+        "frame_count": 13
+      },
+      {
+        "source": "sample_11",
+        "source_sha256": "cb83be010f6772a55873f4d3c931d91420344a95c7405229bce8df8f2d0eb526",
+        "group_id": "sample_11",
+        "split": "holdout",
+        "frame_count": 7
+      },
+      {
+        "source": "sample_12",
+        "source_sha256": "8e8a3e619626a48f90da0718a03fc8e8a5e55f1d0396cad6fca0f8a724c80108",
+        "group_id": "sample_12",
+        "split": "development",
+        "frame_count": 25
+      },
+      {
+        "source": "sample_13",
+        "source_sha256": "b9459524e4e7bf82e8427894181f1b9b61becb9e37af30e714124d5f1d530525",
+        "group_id": "sample_13",
+        "split": "holdout",
+        "frame_count": 6
+      },
+      {
+        "source": "sample_14",
+        "source_sha256": "734400d78b7b6217d252b724f12dac88635b21385516222799c1a80e942cdd2b",
+        "group_id": "sample_14",
+        "split": "development",
+        "frame_count": 16
+      },
+      {
+        "source": "sample_15",
+        "source_sha256": "1bc2c6e9e2f995f9bf7490b9093f81767ba5dd3d149e109acc95065e102e9ada",
+        "group_id": "sample_15",
+        "split": "development",
+        "frame_count": 3
+      },
+      {
+        "source": "sample_16",
+        "source_sha256": "36dcc3c86410518e6c5612843fcf350c2ae2f9b9c97232689826a6d5de543b9e",
+        "group_id": "sample_16",
+        "split": "development",
+        "frame_count": 4
+      },
+      {
+        "source": "sample_17",
+        "source_sha256": "21a762b11411009df1c223bbf3c1f878c52be46815e8b4454ceb97b4a4ef2d93",
+        "group_id": "sample_17",
+        "split": "holdout",
+        "frame_count": 25
+      }
+    ]
+  },
+  "open_vocabulary": {
+    "schema_version": "open-vocabulary-trial.v1",
+    "video_split_sha256": "c39f87de79a549a45fdb6c8178630ea167c046ea0d61a5cdcac6cfaff48a8a1a",
+    "model": {
+      "repository": "IDEA-Research/grounding-dino-tiny",
+      "revision": "a2bb814dd30d776dcf7e30523b00659f4f141c71",
+      "upstream": "ShilongLiu/GroundingDINO groundingdino_swint_ogc.pth",
+      "format": "Transformers conversion; not byte-identical to upstream .pth",
+      "files": {
+        "config.json": "eec82c5ab66e16df12a9a212e68ac011779927c2536cf9078658e35d85f0c67a",
+        "model.safetensors": "1a2412ef99bd74bcd3c2a246fa1e48581f8889a1300c9051974741314fc042f3",
+        "preprocessor_config.json": "8454179ba95e2ad22947835aad7b45862a601fc0055ab88bf1ee70892d3aea60",
+        "tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+        "tokenizer_config.json": "d40ab645b68211910b9170d22433d43186a6ec8ee6fd10ba170524b25bf4fb56",
+        "special_tokens_map.json": "b6d346be366a7d1d48332dbc9fdf3bf8960b5d879522b7799ddba59e76237ee3",
+        "vocab.txt": "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3",
+        "added_tokens.json": "909e96cb32d92ce728a01bc99850cbba26196d74115c17ebeb019275412588f2"
+      }
+    },
+    "prompt": "microphone. headphones. camera. wristwatch. tablet. bottle. book. sports ball.",
+    "box_threshold": 0.35,
+    "text_threshold": 0.25,
+    "device": "cpu",
+    "cpu_threads": 2,
+    "images": {
+      "sample_4-0.jpg": "7fc62a550a6e11bc6768ea25e3756f5467823166673e367cce1d1928085b8c4b",
+      "sample_10-3.jpg": "86090b0b76262c5ba0f528e550f311217cd352121e306773ba8a22e6ac9b2f29",
+      "sample_14-3.jpg": "36cf01d90e5b645cf408e124e3718423f5d43d590e97cdf437bff86226b80de3",
+      "sample_15-1.jpg": "010c6d185654bae8156a8395c8e75e94ee1faf6ed7bcd2641a1c371efb5743e1",
+      "sample_16-2.jpg": "f8acf906474652f50ba9aacd0f65b3af3388c51d55e6fedbad9f28b307f4c12f"
+    },
+    "scope": "Exploratory unreviewed suggestions on development sources only. No accuracy, unknown-object completeness or production approval claims.",
+    "implementation_sha256": "410121950dcec0f9ef9b46908b94ed542517012a63cd5632376f010d8e8f8a33",
+    "frames": [
+      {
+        "filename": "sample_4-0.jpg",
+        "sha256": "7fc62a550a6e11bc6768ea25e3756f5467823166673e367cce1d1928085b8c4b",
+        "elapsed_ms": 9809.016171000621,
+        "suggestions": [
+          {
+            "phrase": "microphone",
+            "confidence": 0.697888195514679,
+            "region_xyxy": [
+              150.52606201171875,
+              178.219970703125,
+              195.02188110351562,
+              276.74591064453125
+            ]
+          },
+          {
+            "phrase": "headphones",
+            "confidence": 0.3907288610935211,
+            "region_xyxy": [
+              88.37319946289062,
+              100.15763854980469,
+              127.04776763916016,
+              190.3341064453125
+            ]
+          },
+          {
+            "phrase": "book",
+            "confidence": 0.3606904447078705,
+            "region_xyxy": [
+              78.74268341064453,
+              429.2520751953125,
+              237.1263427734375,
+              479.9293518066406
+            ]
+          }
+        ]
+      },
+      {
+        "filename": "sample_10-3.jpg",
+        "sha256": "86090b0b76262c5ba0f528e550f311217cd352121e306773ba8a22e6ac9b2f29",
+        "elapsed_ms": 9680.283727000642,
+        "suggestions": []
+      },
+      {
+        "filename": "sample_14-3.jpg",
+        "sha256": "36cf01d90e5b645cf408e124e3718423f5d43d590e97cdf437bff86226b80de3",
+        "elapsed_ms": 9733.583270999588,
+        "suggestions": [
+          {
+            "phrase": "bottle",
+            "confidence": 0.5724045634269714,
+            "region_xyxy": [
+              23.38899803161621,
+              224.19773864746094,
+              88.37852478027344,
+              404.2221374511719
+            ]
+          },
+          {
+            "phrase": "bottle",
+            "confidence": 0.565606951713562,
+            "region_xyxy": [
+              168.98501586914062,
+              221.52662658691406,
+              235.8123016357422,
+              417.487060546875
+            ]
+          },
+          {
+            "phrase": "bottle",
+            "confidence": 0.5709294676780701,
+            "region_xyxy": [
+              88.29658508300781,
+              220.44552612304688,
+              168.25135803222656,
+              456.9169616699219
+            ]
+          },
+          {
+            "phrase": "bottle",
+            "confidence": 0.5731275677680969,
+            "region_xyxy": [
+              239.688232421875,
+              221.8494110107422,
+              307.05633544921875,
+              410.8362731933594
+            ]
+          }
+        ]
+      },
+      {
+        "filename": "sample_15-1.jpg",
+        "sha256": "010c6d185654bae8156a8395c8e75e94ee1faf6ed7bcd2641a1c371efb5743e1",
+        "elapsed_ms": 11318.778176000706,
+        "suggestions": [
+          {
+            "phrase": "book",
+            "confidence": 0.7055476307868958,
+            "region_xyxy": [
+              13.410968780517578,
+              165.73655700683594,
+              296.031982421875,
+              431.7648010253906
+            ]
+          },
+          {
+            "phrase": "wristwatch",
+            "confidence": 0.35045433044433594,
+            "region_xyxy": [
+              145.6151580810547,
+              406.34918212890625,
+              161.80914306640625,
+              428.8013000488281
+            ]
+          }
+        ]
+      },
+      {
+        "filename": "sample_16-2.jpg",
+        "sha256": "f8acf906474652f50ba9aacd0f65b3af3388c51d55e6fedbad9f28b307f4c12f",
+        "elapsed_ms": 10236.84262000097,
+        "suggestions": [
+          {
+            "phrase": "camera",
+            "confidence": 0.38755911588668823,
+            "region_xyxy": [
+              92.5191421508789,
+              66.00328826904297,
+              153.73036193847656,
+              97.33411407470703
+            ]
+          }
+        ]
+      }
+    ],
+    "peak_process_rss_mib": 2540.79296875,
+    "timing_note": "Includes preprocessing, inference and postprocessing; first image includes cold execution. Preview images are downscaled and timings are not comparable to the COCO benchmark."
+  },
+  "limitations": [
+    "Coverage-selected COCO validation subset; not full official COCO metrics or an untouched holdout.",
+    "The video pack has no completed independent human reviews or adjudication; video model accuracy is not established.",
+    "Preview tags and Grounding DINO suggestions are not ground truth.",
+    "CPU timing and peak process memory describe this environment; production resource qualification remains separate."
+  ]
+}

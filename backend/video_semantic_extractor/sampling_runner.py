@@ -14,9 +14,10 @@ import sys
 import tempfile
 import threading
 import time
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Protocol, Callable
+from typing import Any, Protocol
 
 import cv2
 import requests
@@ -224,6 +225,8 @@ class SamplingRunner:
                     source_dir.mkdir()
                     video = source_dir / "source.video"
                     download_video(source["url"], video, _setting_int("RUNNER_MAX_DOWNLOAD_BYTES", 500_000_000), _setting_int("RUNNER_DOWNLOAD_TIMEOUT_SEC", 120))
+                    if source.get("expected_sha256") and _sha256(video) != source["expected_sha256"]:
+                        raise RunnerError(f"source content changed since catalog audit: {source['id']}")
                     _log_event(
                         "sampling_source_downloaded",
                         job_id=job_id,
@@ -292,6 +295,7 @@ class SamplingRunner:
                     job_id=job_id,
                     error_type=type(report_error).__name__,
                 )
+                raise exc from report_error
             raise
         finally:
             stop.set()
@@ -386,6 +390,7 @@ class SamplingRunner:
                 self.control.request("POST", f"/api/internal/v1/runner/evaluation-jobs/{job_id}/fail", lease=lease, json_body={"error_message": str(exc)[:2000], "requeue": not cancelled.is_set()})
             except Exception as report_error:
                 _log_event("evaluation_failure_report_failed", job_id=job_id, error_type=type(report_error).__name__)
+                raise exc from report_error
             raise
         finally:
             stop.set()

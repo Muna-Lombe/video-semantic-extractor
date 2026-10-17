@@ -152,6 +152,8 @@ textarea { resize: vertical; }
 .canvas-toolbar label { flex: 1 1 9rem; max-width: 100%; }
 .canvas-toolbar select { width: 100%; min-width: 0; max-width: 100%; }
 .object-row { flex-wrap: wrap; }
+.object-row > label { flex: 1 1 100%; min-width: 0; }
+.object-row input[type="checkbox"], .decision-object input[type="checkbox"] { width: auto; justify-self: start; }
 .object-row > span:first-child { flex: 1 1 10rem; }
 .frame-navigation, .completion-controls { max-width: 100%; }
 .panel-heading { flex-wrap: wrap; }

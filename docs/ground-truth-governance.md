@@ -112,3 +112,22 @@ frozen checksum identity, profile immutability, minimum integer boxes, missing o
 changed artifacts/review evidence, approval attestations, concurrent decisions and
 validation, rejection during report upload, supersession compatibility, decision
 history, eligibility, scoped reports, and rollback with no partial state.
+
+## Variable-source and extended-object profile
+
+`video-object-diagnostic.v2` freezes 5–100 distinct source SHA-256 values, preserving
+all existing COCO diagnostic instance, class, subset, scale and concentration gates.
+`coco-object-diagnostic.v1` still requires exactly five sources. Gate overrides
+remain rejected. A new source corpus needs a new immutable policy/template/review.
+
+Policies may separately pin `annotation_rules.taxonomy_version: "coco-extended.v1"`.
+This extends the object annotation contract with microphone, headphones, camera,
+watch, tablet and `other`; the geometry/schema remains source-pixel object boxes.
+`other` requires a non-empty `description` of at most 200 characters. An optional
+boolean `uncertain` is independent from the class. Legacy policies reject these
+extensions. Different `other` names or uncertainty flags require adjudication.
+
+Validation reports list extended class counts separately. Only COCO objects count
+toward the existing adequacy gates. The managed COCO detector reports unsupported
+annotations explicitly without silently treating them as model-supported classes.
+A passing adequacy gate is still not independent human confirmation or approval.

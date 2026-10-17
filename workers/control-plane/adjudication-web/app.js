@@ -34,7 +34,7 @@ function renderPolicy(policy) {
   if (!policy) return;
   $("policy-heading").textContent = `${policy.name} · ${policy.version}`;
   const rules = policy.annotation_rules;
-  $("policy-instructions").textContent = policy.document + (rules ? `\n\nAllowed labels: ${rules.allowed_labels?.join(", ") || "all COCO labels"}. Allowed subsets: ${rules.allowed_subsets?.join(", ") || "live, composited, screen"}. Maximum objects per frame: ${rules.max_objects_per_frame || 200}.` : "");
+  $("policy-instructions").textContent = policy.document + (rules ? `\n\nAllowed labels: ${rules.allowed_labels?.join(", ") || (rules.taxonomy_version === "coco-extended.v1" ? "all COCO labels plus microphone, headphones, camera, watch, tablet and other" : "all COCO labels")}. Allowed subsets: ${rules.allowed_subsets?.join(", ") || "live, composited, screen"}. Maximum objects per frame: ${rules.max_objects_per_frame || 200}. Other requires a descriptive name; uncertainty is recorded separately.` : "");
 }
 
 async function login() {
@@ -62,12 +62,31 @@ async function login() {
   $("login").hidden = true;
 }
 
+const EXTENDED_CLASSES = ["microphone", "headphones", "camera", "watch", "tablet", "other"];
+function policyLabels() {
+  const rules = state?.policy?.annotation_rules || {};
+  return rules.allowed_labels || (rules.taxonomy_version === "coco-extended.v1" ? [...COCO_CLASSES, ...EXTENDED_CLASSES] : COCO_CLASSES);
+}
+function metadataFields(container, object, changed, editable) {
+  if (state.policy?.annotation_rules?.taxonomy_version !== "coco-extended.v1") return;
+  const nameLabel = document.createElement("label"), input = document.createElement("input");
+  nameLabel.textContent = object.label === "other" ? "Object name (required)" : "Object description (optional)";
+  input.type = "text"; input.maxLength = 200; input.value = object.description || ""; input.disabled = !editable;
+  input.setAttribute("aria-label", `Description for ${object.id}`);
+  input.oninput = () => { if (input.value.trim()) object.description = input.value; else delete object.description; changed(); };
+  nameLabel.append(input);
+  const uncertainLabel = document.createElement("label"), checkbox = document.createElement("input");
+  checkbox.type = "checkbox"; checkbox.checked = Boolean(object.uncertain); checkbox.disabled = !editable;
+  checkbox.onchange = () => { object.uncertain = checkbox.checked; changed(); };
+  uncertainLabel.append(checkbox, " Uncertain identification or boundary");
+  container.append(nameLabel, uncertainLabel);
+}
 async function loadReviewer() {
   state = await api(identity.links.state);
   renderPolicy(state.policy);
   $("reviewer").hidden = false;
   $("reviewer-role").textContent = identity.actor.role === "reviewer-a" ? "Reviewer A" : "Reviewer B";
-  $("object-label").replaceChildren(...(state.policy?.annotation_rules?.allowed_labels || COCO_CLASSES).map((label) => {
+  $("object-label").replaceChildren(...policyLabels().map((label) => {
     const option = document.createElement("option");
     option.value = label;
     option.textContent = label;
@@ -208,6 +227,7 @@ function renderReviewAnnotations(frame) {
       drawReviewCanvas();
     };
     row.append(description, remove);
+    metadataFields(row, object, () => drawReviewCanvas(), state.assignment.status !== "complete");
     return row;
   });
   if (!rows.length) {
@@ -579,11 +599,12 @@ function renderDecisionEditor() {
   $("decision-objects").replaceChildren(...decisionDraft.objects.map((object, index) => {
     const row = document.createElement("div"); row.className = "decision-object";
     const fields = document.createElement("div"); fields.className = "object-fields";
-    for (const [field, values] of [["label", rules.allowed_labels || COCO_CLASSES], ["subset", rules.allowed_subsets || ["live", "composited", "screen"]]]) {
+    for (const [field, values] of [["label", policyLabels()], ["subset", rules.allowed_subsets || ["live", "composited", "screen"]]]) {
       const label = document.createElement("label"), select = document.createElement("select");
       label.textContent = field === "label" ? `Object ${index + 1} label` : "Subset";
+      select.setAttribute("aria-label", `Object ${index + 1} ${field}`);
       for (const value of values) { const option = document.createElement("option"); option.value = value; option.textContent = value; select.append(option); }
-      select.value = object[field]; select.onchange = () => { object[field] = select.value; changedDecision(); };
+      select.value = object[field]; select.onchange = () => { object[field] = select.value; changedDecision(); renderDecisionEditor(); };
       label.append(select); fields.append(label);
     }
     const coordinates = document.createElement("div"); coordinates.className = "coordinates";
@@ -597,14 +618,16 @@ function renderDecisionEditor() {
     const remove = document.createElement("button"); remove.type = "button"; remove.className = "secondary"; remove.textContent = "Remove object";
     remove.setAttribute("aria-label", `Remove object ${index + 1}`);
     remove.onclick = () => { decisionDraft.objects.splice(index, 1); changedDecision(); renderDecisionEditor(); };
-    row.append(fields, coordinates, remove); return row;
+    row.append(fields, coordinates, remove);
+    metadataFields(row, object, changedDecision, true);
+    return row;
   }));
   if (!decisionDraft.objects.length) { const text = document.createElement("p"); text.className = "hint"; text.textContent = "No objects in this decision. Check the evidence before saving an empty frame."; $("decision-objects").append(text); }
   $("decision-taxonomy").value = decisionDraft.out_of_taxonomy.join("\n");
   syncDecisionJson(); updateAdjudicationControls(); drawAdjudicationCanvases();
 }
 function validateDecision(frame) {
-  const rules = state.policy?.annotation_rules || {}, labels = rules.allowed_labels || COCO_CLASSES, subsets = rules.allowed_subsets || ["live", "composited", "screen"];
+  const rules = state.policy?.annotation_rules || {}, labels = policyLabels(), subsets = rules.allowed_subsets || ["live", "composited", "screen"];
   if (!Array.isArray(frame.objects) || frame.objects.length > (rules.max_objects_per_frame || 200)) throw new Error(`Use at most ${rules.max_objects_per_frame || 200} objects for this frame.`);
   const ids = new Set();
   for (const source of state.merged.sources) for (const other of source.frames) {
@@ -612,7 +635,8 @@ function validateDecision(frame) {
     other.objects.forEach((object) => ids.add(object.id));
   }
   for (const object of frame.objects) {
-    if (!object || Object.keys(object).some((key) => !["id", "label", "subset", "region"].includes(key)) || typeof object.id !== "string" || !/^[a-zA-Z0-9._:-]{1,100}$/.test(object.id) || ids.has(object.id)) throw new Error("Every object needs a unique ID; check for duplicates in the decision.");
+    if (!object || Object.keys(object).some((key) => !["id", "label", "subset", "region", ...(rules.taxonomy_version === "coco-extended.v1" ? ["description", "uncertain"] : [])].includes(key)) || typeof object.id !== "string" || !/^[a-zA-Z0-9._:-]{1,100}$/.test(object.id) || ids.has(object.id)) throw new Error("Every object needs a unique ID; check for duplicates in the decision.");
+    if ((object.label === "other" && (typeof object.description !== "string" || !object.description.trim())) || (object.description !== undefined && (typeof object.description !== "string" || !object.description.trim() || object.description.length > 200)) || (object.uncertain !== undefined && typeof object.uncertain !== "boolean")) throw new Error("Other requires a descriptive name (up to 200 characters); uncertainty must be a checkbox value.");
     ids.add(object.id);
     if (!labels.includes(object.label) || !subsets.includes(object.subset)) throw new Error("Use the labels and subsets allowed by the instructions.");
     const box = object.region;
@@ -670,7 +694,7 @@ function addDecisionObject(region) {
   if (!decisionEditable() || rawDecisionDirty || !adjudicationImage) return;
   const rules = state.policy?.annotation_rules || {};
   if (decisionDraft.objects.length >= (rules.max_objects_per_frame || 200)) { resolutionMessage("This frame has reached the object limit in the instructions.", true); return; }
-  decisionDraft.objects.push({ id: `decision-${crypto.randomUUID()}`, label: (rules.allowed_labels || COCO_CLASSES)[0], subset: (rules.allowed_subsets || ["live"])[0], region });
+  decisionDraft.objects.push({ id: `decision-${crypto.randomUUID()}`, label: policyLabels()[0], subset: (rules.allowed_subsets || ["live"])[0], region });
   changedDecision(); renderDecisionEditor();
 }
 function setDecisionDrawing(enabled) {

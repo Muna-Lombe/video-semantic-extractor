@@ -15,6 +15,9 @@ import { handleEvaluations } from "./evaluations";
 import { handleReleaseGovernance } from "./release-governance";
 import { handleAdminJobAction } from "./job-lifecycle";
 import { handleOperations } from "./operations";
+import { SAMPLE_LIBRARY, selectSamples, verifySampleSelection } from "./sample-library";
+import { publicMediaUrl, probeMedia } from "./media-preflight";
+import { REFERENCE_BENCHMARKS } from "./reference-benchmarks";
 
 type JsonRecord = Record<string, unknown>;
 type DatasetStatus = "draft" | "ready" | "active" | "archived";
@@ -110,7 +113,7 @@ function jobRow(row: Record<string, unknown>) {
 async function createDataset(request: Request, env: AdjudicationEnv): Promise<Response> {
   const value = await body(request);
   if (value instanceof Response) return value;
-  const unknown = exactKeys(value, ["name", "description", "sources"]);
+  const unknown = exactKeys(value, ["name", "description", "sources", "selection"]);
   if (unknown.length) return error("invalid_request", "request contains unknown fields", 400, { fields: unknown });
   if (typeof value.name !== "string" || value.name.trim().length < 1 || value.name.trim().length > 120) {
     return error("invalid_request", "name must be a non-empty string of at most 120 characters", 400);
@@ -129,7 +132,7 @@ async function createDataset(request: Request, env: AdjudicationEnv): Promise<Re
     if (sourceUnknown.length) return error("invalid_request", "source contains unknown fields", 400, { ordinal, fields: sourceUnknown });
     if (typeof source.url !== "string") return error("invalid_request", "source url is required", 400, { ordinal });
     let parsed: URL;
-    try { parsed = new URL(source.url); } catch { return error("invalid_request", "source url must be a valid HTTPS URL", 400, { ordinal }); }
+    try { parsed = publicMediaUrl(source.url); } catch { return error("invalid_request", "source url must be a public HTTPS URL", 400, { ordinal }); }
     if (parsed.protocol !== "https:" || parsed.username || parsed.password || parsed.hash) return error("invalid_request", "source url must use HTTPS without credentials or a fragment", 400, { ordinal });
     const normalized = parsed.toString();
     if (seen.has(normalized)) return error("invalid_request", "source urls must be unique", 400, { ordinal });
@@ -137,6 +140,9 @@ async function createDataset(request: Request, env: AdjudicationEnv): Promise<Re
     seen.add(normalized);
     sources.push({ id: id("src"), url: normalized, display_name: typeof source.display_name === "string" ? source.display_name.trim() : null, ordinal });
   }
+  let selection;
+  try { selection = value.selection === undefined ? undefined : await verifySampleSelection(value.selection, sources.map((source) => source.url)); }
+  catch (cause) { return error("invalid_selection", (cause as Error).message, 400); }
   const datasetId = id("ds"), versionId = id("dsv"), now = new Date().toISOString();
   await env.DATASET_DB.batch([
     env.DATASET_DB.prepare("INSERT INTO datasets (id, name, description, status, created_at, updated_at) VALUES (?, ?, ?, 'ready', ?, ?)")
@@ -145,8 +151,9 @@ async function createDataset(request: Request, env: AdjudicationEnv): Promise<Re
       .bind(versionId, datasetId, now),
     ...sources.map((source) => env.DATASET_DB.prepare("INSERT INTO dataset_sources (id, dataset_version_id, source_url, display_name, ordinal, created_at) VALUES (?, ?, ?, ?, ?, ?)")
       .bind(source.id, versionId, source.url, source.display_name, source.ordinal, now)),
+    ...(selection ? [env.DATASET_DB.prepare("UPDATE dataset_versions SET selection_json = ? WHERE id = ?").bind(JSON.stringify(selection), versionId), ...sources.map((source, index) => env.DATASET_DB.prepare("UPDATE dataset_sources SET expected_sha256 = ? WHERE id = ?").bind(selection.source_sha256[index], source.id))] : []),
   ]);
-  return json({ data: { id: datasetId, name: value.name.trim(), description: value.description ?? "", status: "ready", source_count: sources.length, created_at: now, updated_at: now, initial_version: { id: versionId, version: 1, status: "frozen", sources } } }, 201);
+  return json({ data: { id: datasetId, name: value.name.trim(), description: value.description ?? "", status: "ready", source_count: sources.length, created_at: now, updated_at: now, initial_version: { id: versionId, version: 1, status: "frozen", sources, ...(selection ? { selection } : {}) } } }, 201);
 }
 
 async function listDatasets(url: URL, env: AdjudicationEnv): Promise<Response> {
@@ -170,9 +177,9 @@ async function listDatasets(url: URL, env: AdjudicationEnv): Promise<Response> {
 async function getDataset(datasetId: string, env: AdjudicationEnv): Promise<Response> {
   const row = await env.DATASET_DB.prepare("SELECT id, name, description, status, created_at, updated_at, (SELECT COUNT(*) FROM dataset_sources ds JOIN dataset_versions dv ON dv.id = ds.dataset_version_id WHERE dv.dataset_id = datasets.id) AS source_count FROM datasets WHERE id = ?").bind(datasetId).first<Record<string, unknown>>();
   if (!row) return error("not_found", "dataset not found", 404);
-  const versions = await env.DATASET_DB.prepare("SELECT id, version, status, manifest_artifact_id, created_at FROM dataset_versions WHERE dataset_id = ? ORDER BY version DESC").bind(datasetId).all<Record<string, unknown>>();
-  const sources = await env.DATASET_DB.prepare("SELECT ds.id, ds.dataset_version_id, ds.source_url AS url, ds.display_name, ds.ordinal, ds.created_at FROM dataset_sources ds JOIN dataset_versions dv ON dv.id = ds.dataset_version_id WHERE dv.dataset_id = ? ORDER BY dv.version DESC, ds.ordinal").bind(datasetId).all<Record<string, unknown>>();
-  return json({ data: { ...datasetRow(row), versions: versions.results ?? [], sources: sources.results ?? [] } });
+  const versions = await env.DATASET_DB.prepare("SELECT id, version, status, manifest_artifact_id, created_at, selection_json FROM dataset_versions WHERE dataset_id = ? ORDER BY version DESC").bind(datasetId).all<Record<string, unknown>>();
+  const sources = await env.DATASET_DB.prepare("SELECT ds.id, ds.dataset_version_id, ds.source_url AS url, ds.display_name, ds.ordinal, ds.created_at, ds.expected_sha256 FROM dataset_sources ds JOIN dataset_versions dv ON dv.id = ds.dataset_version_id WHERE dv.dataset_id = ? ORDER BY dv.version DESC, ds.ordinal").bind(datasetId).all<Record<string, unknown>>();
+  return json({ data: { ...datasetRow(row), versions: (versions.results ?? []).map(({ selection_json, ...version }) => ({ ...version, selection: selection_json ? JSON.parse(String(selection_json)) : null })), sources: sources.results ?? [] } });
 }
 
 async function createSamplingJob(request: Request, env: AdjudicationEnv): Promise<Response> {
@@ -264,6 +271,7 @@ async function listFrameSets(url: URL, env: AdjudicationEnv): Promise<Response> 
 async function getFrameSet(frameSetId: string, env: AdjudicationEnv): Promise<Response> {
   const row = await env.CONTROL_DB.prepare("SELECT * FROM frame_sets WHERE id = ?").bind(frameSetId).first<Record<string, unknown>>();
   if (!row) return error("not_found", "frame set not found", 404);
+  const retention = await env.CONTROL_DB.prepare("SELECT id,state,delete_after,completed_at FROM resource_archives WHERE resource_type='frame_set' AND resource_id=? AND state!='cancelled'").bind(frameSetId).first<Record<string, unknown>>();
   const [sources, frames] = await Promise.all([
     env.CONTROL_DB.prepare("SELECT dataset_source_id, ordinal, source_sha256, size_bytes, duration_seconds FROM frame_set_sources WHERE frame_set_id = ? ORDER BY ordinal").bind(frameSetId).all<Record<string, unknown>>(),
     env.CONTROL_DB.prepare(`SELECT f.id, f.dataset_source_id, f.ordinal, f.timestamp_seconds, f.reasons_json, f.width, f.height,
@@ -271,12 +279,16 @@ async function getFrameSet(frameSetId: string, env: AdjudicationEnv): Promise<Re
       FROM frame_set_frames f JOIN artifacts a ON a.id = f.artifact_id
       WHERE f.frame_set_id = ? ORDER BY f.dataset_source_id, f.ordinal`).bind(frameSetId).all<Record<string, unknown>>(),
   ]);
-  return json({ data: { ...frameSetRow(row), sources: sources.results ?? [], frames: (frames.results ?? []).map((frame) => ({ id: frame.id, dataset_source_id: frame.dataset_source_id, ordinal: Number(frame.ordinal), timestamp_seconds: Number(frame.timestamp_seconds), reasons: JSON.parse(String(frame.reasons_json)), width: Number(frame.width), height: Number(frame.height), artifact: { id: frame.artifact_id, sha256: frame.sha256, size_bytes: Number(frame.size_bytes), media_type: frame.media_type } })) } });
+  return json({ data: { ...frameSetRow(row), retention, sources: sources.results ?? [], frames: (frames.results ?? []).map((frame) => ({ id: frame.id, dataset_source_id: frame.dataset_source_id, ordinal: Number(frame.ordinal), timestamp_seconds: Number(frame.timestamp_seconds), reasons: JSON.parse(String(frame.reasons_json)), width: Number(frame.width), height: Number(frame.height), artifact: { id: frame.artifact_id, sha256: frame.sha256, size_bytes: Number(frame.size_bytes), media_type: frame.media_type } })) } });
 }
 
 async function frameSetObject(frameSetId: string, frameId: string | null, env: AdjudicationEnv): Promise<Response> {
+  if (frameId !== null) {
+    const retention = await env.CONTROL_DB.prepare("SELECT id,state FROM resource_archives WHERE resource_type='frame_set' AND resource_id=? AND state!='cancelled'").bind(frameSetId).first<Record<string, unknown>>();
+    if (retention) return error("artifact_archived", "This media is archived. Inspect its archival record; scheduled removal can be cancelled before deletion starts.", 410, { archive_id: retention.id, state: retention.state });
+  }
   const row = frameId === null
-    ? await env.CONTROL_DB.prepare("SELECT a.storage_key, a.media_type, a.sha256 FROM frame_sets fs JOIN artifacts a ON a.id = fs.manifest_artifact_id WHERE fs.id = ? AND fs.status = 'ready'").bind(frameSetId).first<Record<string, unknown>>()
+    ? await env.CONTROL_DB.prepare("SELECT a.storage_key, a.media_type, a.sha256 FROM frame_sets fs JOIN artifacts a ON a.id = fs.manifest_artifact_id WHERE fs.id = ? AND fs.status IN ('ready','archived')").bind(frameSetId).first<Record<string, unknown>>()
     : await env.CONTROL_DB.prepare("SELECT a.storage_key, a.media_type, a.sha256 FROM frame_set_frames f JOIN frame_sets fs ON fs.id = f.frame_set_id JOIN artifacts a ON a.id = f.artifact_id WHERE f.frame_set_id = ? AND f.id = ? AND fs.status = 'ready'").bind(frameSetId, frameId).first<Record<string, unknown>>();
   if (!row) return error("not_found", frameId === null ? "frame-set manifest not found" : "frame evidence not found", 404);
   const object = await env.INTERNAL_ARTIFACTS_BUCKET.get(String(row.storage_key));
@@ -291,6 +303,22 @@ export async function handleInternalsApi(request: Request, env: AdjudicationEnv,
   const actor = await resolveInternalActor(request, env);
   if (!actor) return error("unauthorized", "verified Internals sign-in required", 401);
   if (!canAccessInternals(actor, request)) return error("forbidden", "your role is not allowed to perform this operation", 403);
+  if (path === "/api/internal/v1/reference-benchmarks" && request.method === "GET") return json({ data: REFERENCE_BENCHMARKS });
+  if (path === "/api/internal/v1/datasets/probe" && request.method === "POST") {
+    const value = await body(request); if (value instanceof Response) return value;
+    try {
+      if (exactKeys(value, ["urls"]).length || !Array.isArray(value.urls) || value.urls.some((url) => typeof url !== "string")) throw new Error("urls must be an array of HTTPS links");
+      return json({ data: await probeMedia(value.urls as string[]) });
+    } catch (cause) { return error("invalid_links", (cause as Error).message, 400); }
+  }
+  if (path === "/api/internal/v1/sample-library" && request.method === "GET") return json({ data: SAMPLE_LIBRARY });
+  if (path === "/api/internal/v1/sample-library/select" && request.method === "POST") {
+    const value = await body(request); if (value instanceof Response) return value;
+    try {
+      if (exactKeys(value, ["count", "seed"]).length) throw new Error("selection accepts only count and seed");
+      return json({ data: await selectSamples(value.count, value.seed) });
+    } catch (cause) { return error("invalid_selection", (cause as Error).message, 400); }
+  }
   const jobAction = await handleAdminJobAction(request, env);
   if (jobAction) return jobAction;
   const governance = await handleReleaseGovernance(request, env, actor);
