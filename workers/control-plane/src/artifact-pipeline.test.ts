@@ -89,6 +89,15 @@ async function setup() {
 }
 
 describe("sampling artifact pipeline", () => {
+  it("rejects source content outside the catalog before registering uploads", async () => {
+    const { env } = await setup();
+    env.DATASET_DB = { prepare: () => ({ bind() { return this; }, async all() { return { results: [{ id: "src_123", expected_sha256: "b".repeat(64) }] }; } }) } as unknown as D1Database;
+    const sha = "a".repeat(64);
+    const manifest = { schema_version: "frame-set-manifest.v1", frame_set_id: "frameset_123", sampling_job_id: "job_123", dataset_version_id: "dsv_123", created_at: "2026-10-03T12:00:00.000Z", engine: { name: "sampler", version: "1", configuration_sha256: sha }, source_count: 1, frame_count: 1, sources: [{ dataset_source_id: "src_123", source_sha256: sha, size_bytes: 100, duration_seconds: 60, frames: [{ id: "f1", timestamp_seconds: 0, reasons: ["first"], width: 640, height: 360, artifact: { artifact_id: "artifact_missing", sha256: sha, size_bytes: 3, media_type: "image/jpeg" } }] }] };
+    const response = await handleArtifactPipeline(jsonRequest("/api/internal/v1/runner/sampling-jobs/job_123/finalize", "POST", { manifest }), env, "job_123", "finalize");
+    expect(response?.status).toBe(422);
+    expect((await response!.json() as any).error.code).toBe("source_content_changed");
+  });
   it("verifies uploaded bytes and finalizes an immutable frame set idempotently", async () => {
     const { control, bucket, env } = await setup();
     const bytes = new TextEncoder().encode("image bytes");

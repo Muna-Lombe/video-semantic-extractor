@@ -1,0 +1,518 @@
+{
+  "schema_version": "sample-media-audit.v1",
+  "created_at": "2026-10-17T21:37:18.524499+00:00",
+  "sources": [
+    {
+      "id": "sample_1",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_1.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "bc14db678d642d02ae769c92a234ddd53c611a6bdf88ca93da97fb166bbfaa1b",
+      "size_bytes": 11838029,
+      "duration_seconds": 74.138458,
+      "width": 720,
+      "height": 1280,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_1-0.jpg",
+          "timestamp_seconds": 7.414
+        },
+        {
+          "filename": "sample_1-1.jpg",
+          "timestamp_seconds": 25.948
+        },
+        {
+          "filename": "sample_1-2.jpg",
+          "timestamp_seconds": 44.483
+        },
+        {
+          "filename": "sample_1-3.jpg",
+          "timestamp_seconds": 63.018
+        }
+      ]
+    },
+    {
+      "id": "sample_2",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_2.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "434295f8f59b7cce995c6a5c6311922a13165ce726d760164a3878abe5ced5ef",
+      "size_bytes": 6057908,
+      "duration_seconds": 5.467007,
+      "width": 720,
+      "height": 1280,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_2-0.jpg",
+          "timestamp_seconds": 0.547
+        },
+        {
+          "filename": "sample_2-1.jpg",
+          "timestamp_seconds": 1.913
+        },
+        {
+          "filename": "sample_2-2.jpg",
+          "timestamp_seconds": 3.28
+        },
+        {
+          "filename": "sample_2-3.jpg",
+          "timestamp_seconds": 4.647
+        }
+      ]
+    },
+    {
+      "id": "sample_3",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_3.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "461207be93539144fab5b6ba8ab87848bc73b26d902035806e8fbbf76040e0bc",
+      "size_bytes": 16519698,
+      "duration_seconds": 76.69907,
+      "width": 720,
+      "height": 960,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_3-0.jpg",
+          "timestamp_seconds": 7.67
+        },
+        {
+          "filename": "sample_3-1.jpg",
+          "timestamp_seconds": 26.845
+        },
+        {
+          "filename": "sample_3-2.jpg",
+          "timestamp_seconds": 46.019
+        },
+        {
+          "filename": "sample_3-3.jpg",
+          "timestamp_seconds": 65.194
+        }
+      ]
+    },
+    {
+      "id": "sample_4",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_4.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "2a5b97bc6f8e711c172c1d951896f51d9b9c215075610a0259651a40a65b5d34",
+      "size_bytes": 7354004,
+      "duration_seconds": 87.327392,
+      "width": 720,
+      "height": 1280,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_4-0.jpg",
+          "timestamp_seconds": 8.733
+        },
+        {
+          "filename": "sample_4-1.jpg",
+          "timestamp_seconds": 30.565
+        },
+        {
+          "filename": "sample_4-2.jpg",
+          "timestamp_seconds": 52.396
+        },
+        {
+          "filename": "sample_4-3.jpg",
+          "timestamp_seconds": 74.228
+        }
+      ]
+    },
+    {
+      "id": "sample_5",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_5.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "1d442ef0cc26937da5662505af7307996c043658e8204630846c8a5cffa2d6d2",
+      "size_bytes": 10215549,
+      "duration_seconds": 99.889388,
+      "width": 720,
+      "height": 1280,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_5-0.jpg",
+          "timestamp_seconds": 9.989
+        },
+        {
+          "filename": "sample_5-1.jpg",
+          "timestamp_seconds": 34.961
+        },
+        {
+          "filename": "sample_5-2.jpg",
+          "timestamp_seconds": 59.934
+        },
+        {
+          "filename": "sample_5-3.jpg",
+          "timestamp_seconds": 84.906
+        }
+      ]
+    },
+    {
+      "id": "sample_6",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_6.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "5eea5d3679e4524533f95eb363a23c41f35d6e691a8eb772a2df64f85b72fed3",
+      "size_bytes": 2755815,
+      "duration_seconds": 52.218821,
+      "width": 720,
+      "height": 1280,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_6-0.jpg",
+          "timestamp_seconds": 5.222
+        },
+        {
+          "filename": "sample_6-1.jpg",
+          "timestamp_seconds": 18.277
+        },
+        {
+          "filename": "sample_6-2.jpg",
+          "timestamp_seconds": 31.331
+        },
+        {
+          "filename": "sample_6-3.jpg",
+          "timestamp_seconds": 44.386
+        }
+      ]
+    },
+    {
+      "id": "sample_7",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_7.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "a5999634bd9ffa333b07e51ec413f390d6f7fb7444c8233223d3d191185cb731",
+      "size_bytes": 2973676,
+      "duration_seconds": 65.662708,
+      "width": 720,
+      "height": 1280,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_7-0.jpg",
+          "timestamp_seconds": 6.566
+        },
+        {
+          "filename": "sample_7-1.jpg",
+          "timestamp_seconds": 22.982
+        },
+        {
+          "filename": "sample_7-2.jpg",
+          "timestamp_seconds": 39.398
+        },
+        {
+          "filename": "sample_7-3.jpg",
+          "timestamp_seconds": 55.813
+        }
+      ]
+    },
+    {
+      "id": "sample_8",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_8.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "85f77fd41b8df296addb2e56b2a15d5ac321db5ba6a73867449a555ceeb1c142",
+      "size_bytes": 1350968,
+      "duration_seconds": 13.093197,
+      "width": 720,
+      "height": 1280,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_8-0.jpg",
+          "timestamp_seconds": 1.309
+        },
+        {
+          "filename": "sample_8-1.jpg",
+          "timestamp_seconds": 4.583
+        },
+        {
+          "filename": "sample_8-2.jpg",
+          "timestamp_seconds": 7.856
+        },
+        {
+          "filename": "sample_8-3.jpg",
+          "timestamp_seconds": 11.129
+        }
+      ]
+    },
+    {
+      "id": "sample_9",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_9.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "1facc2f7ecf41c6e5b945a3f07764b690586955a255bc525e96ebf48d7e8a7a6",
+      "size_bytes": 2783260,
+      "duration_seconds": 10.190703,
+      "width": 720,
+      "height": 1280,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_9-0.jpg",
+          "timestamp_seconds": 1.019
+        },
+        {
+          "filename": "sample_9-1.jpg",
+          "timestamp_seconds": 3.567
+        },
+        {
+          "filename": "sample_9-2.jpg",
+          "timestamp_seconds": 6.114
+        },
+        {
+          "filename": "sample_9-3.jpg",
+          "timestamp_seconds": 8.662
+        }
+      ]
+    },
+    {
+      "id": "sample_10",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_10.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "e4a1e4c4a27ac91582f7b1180f95415c1e94d4d1425d2f20bc0ea9341694975b",
+      "size_bytes": 1548065,
+      "duration_seconds": 13.865375,
+      "width": 720,
+      "height": 1280,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_10-0.jpg",
+          "timestamp_seconds": 1.387
+        },
+        {
+          "filename": "sample_10-1.jpg",
+          "timestamp_seconds": 4.853
+        },
+        {
+          "filename": "sample_10-2.jpg",
+          "timestamp_seconds": 8.319
+        },
+        {
+          "filename": "sample_10-3.jpg",
+          "timestamp_seconds": 11.786
+        }
+      ]
+    },
+    {
+      "id": "sample_11",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_11.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "cb83be010f6772a55873f4d3c931d91420344a95c7405229bce8df8f2d0eb526",
+      "size_bytes": 5331480,
+      "duration_seconds": 17.830068,
+      "width": 720,
+      "height": 1280,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_11-0.jpg",
+          "timestamp_seconds": 1.783
+        },
+        {
+          "filename": "sample_11-1.jpg",
+          "timestamp_seconds": 6.241
+        },
+        {
+          "filename": "sample_11-2.jpg",
+          "timestamp_seconds": 10.698
+        },
+        {
+          "filename": "sample_11-3.jpg",
+          "timestamp_seconds": 15.156
+        }
+      ]
+    },
+    {
+      "id": "sample_12",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_12.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "8e8a3e619626a48f90da0718a03fc8e8a5e55f1d0396cad6fca0f8a724c80108",
+      "size_bytes": 7616909,
+      "duration_seconds": 57.002132,
+      "width": 720,
+      "height": 1280,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_12-0.jpg",
+          "timestamp_seconds": 5.7
+        },
+        {
+          "filename": "sample_12-1.jpg",
+          "timestamp_seconds": 19.951
+        },
+        {
+          "filename": "sample_12-2.jpg",
+          "timestamp_seconds": 34.201
+        },
+        {
+          "filename": "sample_12-3.jpg",
+          "timestamp_seconds": 48.452
+        }
+      ]
+    },
+    {
+      "id": "sample_13",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_13.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "b9459524e4e7bf82e8427894181f1b9b61becb9e37af30e714124d5f1d530525",
+      "size_bytes": 1426991,
+      "duration_seconds": 6.893469,
+      "width": 720,
+      "height": 1280,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_13-0.jpg",
+          "timestamp_seconds": 0.689
+        },
+        {
+          "filename": "sample_13-1.jpg",
+          "timestamp_seconds": 2.413
+        },
+        {
+          "filename": "sample_13-2.jpg",
+          "timestamp_seconds": 4.136
+        },
+        {
+          "filename": "sample_13-3.jpg",
+          "timestamp_seconds": 5.859
+        }
+      ]
+    },
+    {
+      "id": "sample_14",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_14.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "734400d78b7b6217d252b724f12dac88635b21385516222799c1a80e942cdd2b",
+      "size_bytes": 1550344,
+      "duration_seconds": 14.230975,
+      "width": 720,
+      "height": 1280,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_14-0.jpg",
+          "timestamp_seconds": 1.423
+        },
+        {
+          "filename": "sample_14-1.jpg",
+          "timestamp_seconds": 4.981
+        },
+        {
+          "filename": "sample_14-2.jpg",
+          "timestamp_seconds": 8.539
+        },
+        {
+          "filename": "sample_14-3.jpg",
+          "timestamp_seconds": 12.096
+        }
+      ]
+    },
+    {
+      "id": "sample_15",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_15.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "1bc2c6e9e2f995f9bf7490b9093f81767ba5dd3d149e109acc95065e102e9ada",
+      "size_bytes": 4553351,
+      "duration_seconds": 7.543628,
+      "width": 720,
+      "height": 1280,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_15-0.jpg",
+          "timestamp_seconds": 0.754
+        },
+        {
+          "filename": "sample_15-1.jpg",
+          "timestamp_seconds": 2.64
+        },
+        {
+          "filename": "sample_15-2.jpg",
+          "timestamp_seconds": 4.526
+        },
+        {
+          "filename": "sample_15-3.jpg",
+          "timestamp_seconds": 6.412
+        }
+      ]
+    },
+    {
+      "id": "sample_16",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_16.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "36dcc3c86410518e6c5612843fcf350c2ae2f9b9c97232689826a6d5de543b9e",
+      "size_bytes": 2867266,
+      "duration_seconds": 10.237143,
+      "width": 720,
+      "height": 1280,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_16-0.jpg",
+          "timestamp_seconds": 1.024
+        },
+        {
+          "filename": "sample_16-1.jpg",
+          "timestamp_seconds": 3.583
+        },
+        {
+          "filename": "sample_16-2.jpg",
+          "timestamp_seconds": 6.142
+        },
+        {
+          "filename": "sample_16-3.jpg",
+          "timestamp_seconds": 8.702
+        }
+      ]
+    },
+    {
+      "id": "sample_17",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_17.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "21a762b11411009df1c223bbf3c1f878c52be46815e8b4454ceb97b4a4ef2d93",
+      "size_bytes": 3556008,
+      "duration_seconds": 12.907438,
+      "width": 720,
+      "height": 1280,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_17-0.jpg",
+          "timestamp_seconds": 1.291
+        },
+        {
+          "filename": "sample_17-1.jpg",
+          "timestamp_seconds": 4.518
+        },
+        {
+          "filename": "sample_17-2.jpg",
+          "timestamp_seconds": 7.744
+        },
+        {
+          "filename": "sample_17-3.jpg",
+          "timestamp_seconds": 10.971
+        }
+      ]
+    }
+  ],
+  "duplicate_groups": [],
+  "coverage_note": "Preview inspection is provisional; only independent reviewed annotations establish class support."
+}

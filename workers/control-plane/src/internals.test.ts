@@ -25,6 +25,7 @@ class MemoryStatement {
     return { success: true };
   }
   async first<T>() {
+    if (this.sql.includes("FROM resource_archives")) return null;
     if (this.sql.startsWith("SELECT id, status FROM dataset_versions")) return (this.database.versions.find((row) => row.id === this.values[0]) ?? null) as T | null;
     if (this.sql.includes("idempotency_key = ?")) return (this.database.jobs.find((row) => row.idempotency_key === this.values[0]) ?? null) as T | null;
     if (this.sql.includes("FROM datasets WHERE id")) {

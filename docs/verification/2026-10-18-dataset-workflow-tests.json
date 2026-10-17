@@ -1,0 +1,42 @@
+{
+  "schema_version": "implementation-verification.v1",
+  "scope": "Local build, software behavior and real diagnostic inference; hosted rollout and human approval are separate.",
+  "branch": "codex/dataset-benchmarks-retention",
+  "checks": {
+    "worker_tests": 156,
+    "backend_tests": 107,
+    "browser_interaction_checks": 37,
+    "responsive_layout_cases": 522,
+    "layout_failures": [],
+    "browser_runtime_errors": [],
+    "typescript": "passed",
+    "javascript_syntax": "passed",
+    "ruff_changed_python": "passed",
+    "engine_fingerprints": "passed",
+    "git_diff_check": "passed",
+    "worker_dry_build": "Total Upload: 442.04 KiB / gzip: 93.16 KiB",
+    "sampling_runner_container_build": "passed",
+    "sampling_runner_container_real_onnx_smoke": {
+      "app_imported": true,
+      "real_onnx_inference": true,
+      "detections": 0,
+      "inference_ms": 55.126524001025246
+    }
+  },
+  "evidence": {
+    "2026-10-18-reference-benchmarks.json": "dd9b477b00c7aea77277d74d04968be75e70f18a9df5c8f76a8adfe2bf70c468",
+    "2026-10-18-coco-reference-manifest.json": "e4323e92a2ec425b937af2d8e7d2fd11e2c6067b675d4a8850d6a253eccbc54d",
+    "2026-10-18-video-review-manifest.json": "c39f87de79a549a45fdb6c8178630ea167c046ea0d61a5cdcac6cfaff48a8a1a",
+    "2026-10-18-sample-media-audit.json": "492d0d65768a476d65eebb34c9cdc6032904ff335f91bed5e18c8760f38bd883",
+    "2026-10-18-cache-reclamation.json": "c100ca4d642f7efd7ba4e09b7bde27e5a9010c6d6dbe6c598fc652211f5930b7"
+  },
+  "model_quality": "Measured; no production acceptance decision or promotion.",
+  "pending": [
+    "Independent video reviews, adjudication, source-group confirmation and approval.",
+    "Hosted migration, cron and runner checks after branch-merge deployment.",
+    "Production crash/load/release qualification; sender onboarding remains excluded."
+  ],
+  "production_deployment_performed": false,
+  "production_deletion_performed": false,
+  "review_approval_fabricated": false
+}

@@ -27,6 +27,31 @@ build, not substitutes for measurements on deployed Cloudflare Containers.
 See [release acceptance](internals-release.md) and
 [operational decisions](internals-operations.md).
 
+## Dataset and honest evaluation expansion — 2026-10-18
+
+- [x] Audit and preview-inspect all 17 supplied videos; full decoding and distinct
+  content checksums are recorded.
+- [x] Add reproducible sample-library selection, custom links, bounded public-media
+  preflight, persisted seeds/catalog identity and expected-source checksum fencing.
+- [x] Add pinned extended labels and descriptive `other` annotations across both
+  focused UIs, exports and validation, without counting them toward COCO gates.
+- [x] Add a versioned 5–100-source profile while preserving the five-source profile.
+- [x] Freeze a 300-image, 80-class COCO reference subset and run real NanoDet/YOLOv10n
+  CPU comparisons with native scoring; display the recorded results in Internals.
+- [x] Prepare 254 video frames with a source-group development/holdout split and run
+  a development-only Grounding DINO trial. Prediction output remains unreviewed.
+- [x] Implement scheduled archival, grace periods, dependency/pin fences, leased
+  payload reclamation, orphan scans and expired-identity pruning.
+- [ ] Complete real independent video reviews, adjudication, grouping confirmation
+  and approval. The local video pack explicitly remains unapproved.
+- [ ] Verify the new migrations and scheduled lifecycle on the hosted environment
+  after merge deployment. Production fault/load/release acceptance remains open.
+
+See [dataset evidence and reproduction](dataset-evaluation-expansion.md). Neither
+model is promoted by the local comparison; recall remains too low to imply release
+acceptance. YOLOv10 and Grounding DINO have research adapters; the managed release
+runner continues to support its pinned NanoDet ONNX contract.
+
 ## Hosted verification — 2026-10-15
 
 The first hosted smoke recorded **88 passing checks and one failure** in
@@ -36,7 +61,7 @@ API reads, cancellation/retry, model binary integrity, governance rejection gate
 existing frame evidence, template generation, campaign creation, and policy lifecycle
 checks passed.
 
-**Open blocker:** new sampling exhausted both attempts at finalization. The runner
+**Historical failure (resolved in a later run):** new sampling exhausted both attempts at finalization. The runner
 reused frame IDs such as frame_0_0, which already exist as global primary keys. A
 local regression reproduces the SQLite uniqueness failure. This follow-up namespaces
 new frame IDs by job and updates the sampler fingerprint; it still requires merge,
@@ -48,6 +73,9 @@ build passed. A hosted retry at 2026-10-15 14:57–15:00 UTC still failed finali
 the rebuilt runner is not confirmed live. See the
 [follow-up report](verification/2026-10-15-hosted-sampling-rerun.json). Resolve the
 runner publication failure before treating another hosted retry as a test of the fix.
+The subsequently supplied `sample-review-2` packet records a successful run with
+the fixed sampler fingerprint and 126 finalized frames; the ID-collision blocker
+is resolved for that run. Its ground-truth validation still failed screen coverage.
 
 The /internals/ page requires a separate Cloudflare Access session. Admin API
 credentials work, but UI acceptance remains unverified. There is no approved hosted

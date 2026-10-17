@@ -427,7 +427,7 @@ function renderDatasets() {
     $("datasets-table").innerHTML = `<div class="empty-state"><strong>${query ? "No matching datasets" : "No datasets yet"}</strong><p>${query ? "Try another filter." : "Create a dataset to begin the managed evaluation chain."}</p></div>`;
     return;
   }
-  $("datasets-table").innerHTML = `<table><thead><tr><th>Name</th><th>Sources</th><th>Latest version</th><th>Status</th><th>Created</th></tr></thead><tbody>${filtered.map((item) => `<tr><td><strong>${escapeHtml(item.name || item.id)}</strong><small>${escapeHtml(item.description || item.id || "")}</small></td><td>${escapeHtml(item.source_count ?? item.latest_version?.source_count ?? "—")}</td><td><strong>${escapeHtml(item.latest_version?.version ? `v${item.latest_version.version}` : "—")}</strong><small>${escapeHtml(item.latest_version?.id || "")}</small></td><td>${statusBadge(item.latest_version?.status || item.status || "draft")}</td><td>${escapeHtml(formatDate(item.created_at))}</td></tr>`).join("")}</tbody></table>`;
+  $("datasets-table").innerHTML = `<table><thead><tr><th>Name</th><th>Sources</th><th>Latest version</th><th>Status</th><th>Created</th></tr></thead><tbody>${filtered.map((item) => `<tr><td><button type="button" class="table-link" data-dataset-inspect="${escapeHtml(item.id)}">${escapeHtml(item.name || item.id)}</button><small>${escapeHtml(item.description || item.id || "")}</small></td><td>${escapeHtml(item.source_count ?? item.latest_version?.source_count ?? "—")}</td><td><strong>${escapeHtml(item.latest_version?.version ? `v${item.latest_version.version}` : "—")}</strong><small>${escapeHtml(item.latest_version?.id || "")}</small></td><td>${statusBadge(item.latest_version?.status || item.status || "draft")}</td><td>${escapeHtml(formatDate(item.created_at))}</td></tr>`).join("")}</tbody></table>`;
 }
 
 function renderSampling() {
@@ -698,6 +698,17 @@ document.querySelectorAll("[data-refresh]").forEach((button) => button.onclick =
 document.querySelectorAll("[data-dialog-open]").forEach((button) => button.onclick = () => $(button.dataset.dialogOpen).showModal());
 document.querySelectorAll("[data-dialog-close]").forEach((button) => button.onclick = () => button.closest("dialog").close());
 $("dataset-filter").addEventListener("input", renderDatasets);
+$("datasets-table").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-dataset-inspect]"); if (!button) return;
+  button.disabled = true;
+  try {
+    const result = await api(`/datasets/${encodeURIComponent(button.dataset.datasetInspect)}`);
+    $("registry-title").textContent = result.data.name || "Dataset";
+    $("registry-detail").innerHTML = `<section class="detail-section"><h3>Sources, frozen versions and selection provenance</h3><pre>${escapeHtml(prettyJson(result.data))}</pre></section>`;
+    $("registry-dialog").showModal();
+  } catch (error) { toast(error.message); }
+  finally { button.disabled = false; }
+});
 $("frame-set-filter").addEventListener("input", renderFrameSets);
 $("sampling-table").addEventListener("click", (event) => {
   const inspect = event.target.closest("[data-job-inspect]");
@@ -813,6 +824,7 @@ $("policy-form").addEventListener("submit", (event) => {
   const rules = {};
   for (const [id, key] of [["policy-labels", "allowed_labels"], ["policy-subsets", "allowed_subsets"]]) if ($(id).value.trim()) rules[key] = $(id).value.split(",").map((value) => value.trim()).filter(Boolean);
   if ($("policy-object-limit").value) rules.max_objects_per_frame = Number($("policy-object-limit").value);
+  if ($("policy-taxonomy").value) rules.taxonomy_version = $("policy-taxonomy").value;
   if (Object.keys(rules).length) data.annotation_rules = rules;
   if ($("policy-validation").value) data.validation_profile = { id: $("policy-validation").value, source_sha256: $("policy-profile-sources").value.split(/\r?\n/).map((value) => value.trim()).filter(Boolean) };
   submitForm(event.currentTarget, "/policies", data);
@@ -822,19 +834,54 @@ $("policy-validation").addEventListener("change", syncPolicyProfile);
 $("policy-form").addEventListener("reset", () => queueMicrotask(syncPolicyProfile));
 $("policy-corpus-frame-set").addEventListener("change", async () => {
   const id = $("policy-corpus-frame-set").value; if (!id) return;
-  try { const manifest = await api(`/frame-sets/${encodeURIComponent(id)}/manifest`); if (manifest.sources?.length !== 5) throw new Error("This profile requires five distinct source videos."); $("policy-profile-sources").value = manifest.sources.map((source) => source.source_sha256).join("\n"); }
+  try { const manifest = await api(`/frame-sets/${encodeURIComponent(id)}/manifest`); const count = manifest.sources?.length || 0; if ($("policy-validation").value === "coco-object-diagnostic.v1" ? count !== 5 : count < 5 || count > 100) throw new Error("Choose five sources for v1 or 5–100 for v2."); $("policy-profile-sources").value = manifest.sources.map((source) => source.source_sha256).join("\n"); }
   catch (error) { $("policy-form").querySelector(".form-status").textContent = error.message; }
 });
 $("template-form").addEventListener("submit", (event) => {
   event.preventDefault();
   submitForm(event.currentTarget, "/templates", { ...Object.fromEntries(new FormData(event.currentTarget)), annotation_schema_version: "object-annotations.v1" });
 });
+let datasetSelection;
+$("dataset-probe").onclick = async () => {
+  const button = $("dataset-probe"), target = $("dataset-probe-results"); button.disabled = true;
+  try {
+    const urls = parseSourceUrls($("dataset-sources").value).map((source) => source.url), rows = [];
+    for (let start = 0; start < urls.length; start += 25) rows.push(...(await api("/datasets/probe", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ urls: urls.slice(start, start + 25) }) })).data);
+    target.replaceChildren(...rows.map((result) => { const row = document.createElement("p"); row.className = "field-help"; row.textContent = `${result.url}: ${result.error || `HTTP ${result.status}, ${result.media_type || "unknown type"}, ${result.size_bytes ?? "unknown"} bytes`}. Decoding is checked during sampling.`; return row; }));
+  } catch (error) { target.textContent = error.message; }
+  finally { button.disabled = false; }
+};
+async function pickSamples(randomise) {
+  const status = $("sample-selection-status"), buttons = [$("sample-randomise"), $("sample-reproduce")];
+  datasetSelection = undefined; $("dataset-probe-results").replaceChildren();
+  buttons.forEach((button) => { button.disabled = true; });
+  try {
+    if (randomise) $("sample-seed").value = crypto.randomUUID();
+    const result = await api("/sample-library/select", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ count: Number($("sample-count").value), seed: $("sample-seed").value.trim() }) });
+    const selected = result.data;
+    datasetSelection = { catalog_version: selected.catalog_version, seed: selected.seed, source_ids: selected.source_ids };
+    $("dataset-sources").value = selected.sources.map((source) => source.url).join("\n");
+    status.textContent = `${selected.sources.length} unique samples selected. Seed recorded with the dataset. Edit the links to make a custom selection.`;
+    $("sample-selection-preview").replaceChildren(...selected.sources.map((source) => {
+      const row = document.createElement("p"); row.className = "field-help";
+      row.textContent = `${source.display_name}: ${source.provisional_labels.join(", ") || "negative examples"} (${source.provisional_subsets.join(", ") || "no confirmed subset"}; preview observations)`;
+      return row;
+    }));
+  } catch (error) { status.textContent = error.message; }
+  finally { buttons.forEach((button) => { button.disabled = false; }); }
+}
+$("sample-randomise").onclick = () => pickSamples(true);
+$("sample-reproduce").onclick = () => pickSamples(false);
+for (const id of ["sample-count", "sample-seed"]) $(id).addEventListener("input", () => { datasetSelection = undefined; $("sample-selection-status").textContent = "Selection options changed. Apply the seed to record a new selection."; });
+$("dataset-sources").addEventListener("input", () => { datasetSelection = undefined; $("sample-selection-status").textContent = "Custom links: random selection provenance cleared."; $("sample-selection-preview").replaceChildren(); $("dataset-probe-results").replaceChildren(); });
+$("dataset-form").addEventListener("reset", () => { datasetSelection = undefined; $("sample-selection-status").textContent = ""; $("sample-selection-preview").replaceChildren(); });
 $("dataset-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   const data = Object.fromEntries(new FormData(form));
   try { data.sources = parseSourceUrls(data.sources); }
   catch (error) { form.querySelector(".form-status").textContent = error.message; return; }
+  if (datasetSelection) data.selection = datasetSelection;
   submitForm(form, "/datasets", data);
 });
 $("sampling-form").addEventListener("submit", (event) => {

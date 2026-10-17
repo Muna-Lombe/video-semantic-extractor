@@ -227,14 +227,16 @@
         <label for="policy-name">Policy name</label><input id="policy-name" name="name" required maxlength="120">
         <label for="policy-version">Version</label><input id="policy-version" name="version" required maxlength="80" pattern="[a-zA-Z0-9._-]+" placeholder="2026-09-18">
         <label for="policy-document">Reviewer instructions</label><textarea id="policy-document" name="document" required rows="12" maxlength="48000"></textarea>
-        <label for="policy-labels">Allowed COCO labels <span>Optional, comma separated</span></label><input id="policy-labels" placeholder="chair, cup, laptop">
+        <label for="policy-taxonomy">Object taxonomy</label><select id="policy-taxonomy"><option value="">COCO · 80 classes</option><option value="coco-extended.v1">COCO + microphone, headphones, camera, watch, tablet, other</option></select>
+        <p class="field-help">Other requires a descriptive object name. Uncertainty is recorded separately. Extended objects do not count toward COCO adequacy or detector scores.</p>
+        <label for="policy-labels">Allowed labels <span>Optional, comma separated</span></label><input id="policy-labels" placeholder="chair, cup, laptop">
         <label for="policy-subsets">Allowed subsets <span>Optional, comma separated</span></label><input id="policy-subsets" placeholder="live, composited, screen">
         <label for="policy-object-limit">Maximum objects per frame <span>Optional</span></label><input id="policy-object-limit" type="number" min="1" max="200">
-        <label for="policy-validation">Validation profile</label><select id="policy-validation"><option value="">Review only (no evaluation approval)</option><option value="coco-object-diagnostic.v1">COCO object diagnostic corpus</option></select>
+        <label for="policy-validation">Validation profile</label><select id="policy-validation"><option value="">Review only (no evaluation approval)</option><option value="coco-object-diagnostic.v1">COCO diagnostic v1 · exactly 5 sources</option><option value="video-object-diagnostic.v2">Video diagnostic v2 · 5–100 frozen sources</option></select>
         <div id="policy-profile-fields" hidden>
-          <p class="field-help">This frozen profile requires five distinct sources, 50 non-person objects, five non-person classes, subset and scale coverage, and at most 60% of objects from one source. Rules cannot be relaxed within this profile.</p>
+          <p class="field-help">V1 requires exactly five distinct sources; V2 allows 5–100. Both require 50 non-person COCO objects, five non-person COCO classes, subset and scale coverage, and at most 60% of COCO objects from one source. Extended labels do not satisfy these gates.</p>
           <label for="policy-corpus-frame-set">Use corpus checksums from a frame set</label><select id="policy-corpus-frame-set"><option value="">Enter checksums manually</option></select>
-          <label for="policy-profile-sources">Frozen source SHA-256 digests</label><textarea id="policy-profile-sources" rows="6" disabled placeholder="One source-video digest per line; exactly five distinct digests"></textarea>
+          <label for="policy-profile-sources">Frozen source SHA-256 digests</label><textarea id="policy-profile-sources" rows="6" disabled placeholder="One distinct source-video digest per line"></textarea>
         </div>
         <p class="field-help">These instructions use the object annotation format: COCO classes, live/composited/screen subsets, and pixel boxes. Registration activates this immutable version. Change the version when changing the rules.</p>
         <p class="form-status" role="status"></p><div class="dialog-actions"><button class="secondary" type="button" data-dialog-close>Cancel</button><button type="submit">Register and activate</button></div>
@@ -257,8 +259,10 @@
         <div class="dialog-heading"><div><p class="eyebrow">New resource</p><h2>Create dataset</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div>
         <label for="dataset-name">Name</label><input id="dataset-name" name="name" required maxlength="120">
         <label for="dataset-description">Description <span>Optional</span></label><textarea id="dataset-description" name="description" rows="4" maxlength="1000"></textarea>
+        <fieldset><legend>Sample library</legend><p class="field-help">Choose from 17 audited videos, or paste fresh links below. Preview class tags are provisional.</p><div class="form-grid"><label>Number of samples<input id="sample-count" type="number" min="1" max="17" value="5"></label><label>Selection seed<input id="sample-seed" maxlength="100" placeholder="Generated when randomised"></label></div><div class="dialog-actions"><button id="sample-randomise" type="button" class="secondary">Randomise from sample library</button><button id="sample-reproduce" type="button" class="secondary">Use this seed</button></div><p id="sample-selection-status" role="status"></p><div id="sample-selection-preview"></div></fieldset>
         <label for="dataset-sources">Source video URLs <span>One HTTPS URL per line</span></label><textarea id="dataset-sources" name="sources" rows="6" required aria-describedby="dataset-sources-help" placeholder="https://media.example/video-one.mp4&#10;https://media.example/video-two.mp4"></textarea>
         <p id="dataset-sources-help" class="field-help">At least one source is required. Each source becomes part of the immutable initial dataset version.</p>
+        <button id="dataset-probe" type="button" class="secondary">Check media links</button><div id="dataset-probe-results" role="status"></div>
         <p class="muted">Creating a dataset marks it ready and freezes its immutable initial version, so it can be scheduled immediately.</p>
         <p class="form-status" role="status"></p><div class="dialog-actions"><button class="secondary" type="button" data-dialog-close>Cancel</button><button type="submit">Create dataset</button></div>
       </form>

@@ -22,10 +22,13 @@ const checks=[], check=(name,ok)=>{assert.ok(ok,name);checks.push(name);console.
 const frame=(filename,id,label)=>({filename,frame_id:id,timestamp_sec:1,width:640,height:360,artifact:{artifact_id:'artifact_'+id},objects:[{id:'object-'+id+'-'+label,label,subset:'live',region:label==='person'?[100,70,90,210]:[355,175,200,130]}],out_of_taxonomy:[]});
 const payload=(label)=>({sources:[{source:'source-with-a-long-stable-identifier',frames:[frame('000001.jpg','one',label),frame('000002.jpg','two',label)]}]});
 const makeState=(agree=false)=>({revision:0,assignment:{status:'in_progress'},policy:{name:'Independent annotation',version:'v1',document:'Compare both reviews against the evidence. Resolve all disagreements before completion.',annotation_rules:{allowed_labels:['person','chair'],allowed_subsets:['live','screen'],max_objects_per_frame:5}},reviewer_a:payload('person'),reviewer_b:payload(agree?'person':'chair'),merged:{...payload('person'),review:{adjudication_log:[]}},comparison:{disagreements:agree?[]:[{source:'source-with-a-long-stable-identifier',filename:'000001.jpg',type:'left_unmatched'},{source:'source-with-a-long-stable-identifier',filename:'000001.jpg',type:'right_unmatched'},{source:'source-with-a-long-stable-identifier',filename:'000002.jpg',type:'left_unmatched'}]}});
-async function setup({agree=false,waiting=false,reviewer=false}={}){
+async function setup({agree=false,waiting=false,reviewer=false,extended=false}={}){
  const context=await browser.newContext({viewport:{width:1580,height:1100},colorScheme:'light'}),page=await context.newPage(),errors=[];
+ page.setDefaultTimeout(15000);
  page.on('pageerror',e=>errors.push(e.message));
  let state=makeState(agree),puts=0,completes=0,stale=false,waitingNow=waiting,evidenceFails=false;
+ if(extended){state.policy.annotation_rules.taxonomy_version='coco-extended.v1';state.policy.annotation_rules.allowed_labels.push('microphone','other');}
+ let reviewerPayload={...payload('person'),review:{reviewed_frames:[]}};
  await page.route('**/adjudicate/**',route=>route.fulfill({contentType:'text/html',body:fs.readFileSync('workers/control-plane/adjudication-web/index.html','utf8')}));
  await page.route('**/review/**',route=>route.fulfill({contentType:'text/html',body:fs.readFileSync('workers/control-plane/adjudication-web/index.html','utf8')}));
  await page.route('**/api/**',async route=>{
@@ -34,6 +37,7 @@ async function setup({agree=false,waiting=false,reviewer=false}={}){
   if(path.includes('/frames/')&&method==='GET'&&evidenceFails)return json({error:{message:'Unavailable'}},503);
   if(path.includes('/frames/')&&method==='GET')return route.fulfill({contentType:'image/svg+xml',body:fixtureImage});
   if(method==='PUT'){
+   if(reviewer){reviewerPayload=r.postDataJSON();state.revision++;puts++;return json({revision:state.revision});}
    if(stale){stale=false;return json({error:{message:'adjudication changed; reload before saving'}},412)}
    assert.equal(r.headers()['if-match'],String(state.revision));const value=r.postDataJSON();
    const filename=decodeURIComponent(path.split('/').at(-1)),target=state.merged.sources[0].frames.find(f=>f.filename===filename);
@@ -47,14 +51,14 @@ async function setup({agree=false,waiting=false,reviewer=false}={}){
   if(path==='/api/internal/v1/auth/status')return json({data:{authentication:'administrator_token',bootstrap_available:false}});
   if(path==='/api/internal/v1/auth/me')return json({error:{message:'Sign in required'}},401);
   if(path.includes('/adjudications/'))return waitingNow?json({error:{message:'both independent reviewer passes must be complete'}},409):json(state);
-  if(reviewer&&path==='/api/v1/assignments/assignment-test')return json({revision:0,assignment:{status:'in_progress'},frame_count:2,annotations:{...payload('person'),review:{reviewed_frames:[]}},policy:state.policy});
+  if(reviewer&&path==='/api/v1/assignments/assignment-test')return json({revision:state.revision,assignment:{status:'in_progress'},frame_count:2,annotations:reviewerPayload,policy:state.policy});
   return json({data:[]});
  });
  await page.goto(base+'/'+(reviewer?'review/':'adjudicate/')+'#token=ui-test');
  if(waiting)await page.locator('#adjudication-empty').waitFor({state:'visible'});
  else if(!agree&&!reviewer)await page.waitForFunction(()=>document.querySelector('#left-canvas').width===640&&!document.querySelector('#save-resolution').disabled);
  else await page.locator(reviewer?'#reviewer':'#adjudicator').waitFor({state:'visible'});
- return {page,context,errors,state,get puts(){return puts},get completes(){return completes},failStale(){stale=true},ready(){waitingNow=false},failEvidence(value){evidenceFails=value}};
+ return {page,context,errors,state,get reviewerPayload(){return reviewerPayload},get puts(){return puts},get completes(){return completes},failStale(){stale=true},ready(){waitingNow=false},failEvidence(value){evidenceFails=value}};
 }
 try{
  const t=await setup(),{page}=t;
@@ -94,5 +98,7 @@ try{
  const waiting=await setup({waiting:true});check('Incomplete reviews show waiting state',await waiting.page.getByText('Waiting for both reviewer passes',{exact:true}).isVisible()&&await waiting.page.locator('#complete-adjudication').isDisabled());waiting.ready();await waiting.page.locator('#refresh-adjudication').click();await waiting.page.waitForFunction(()=>document.querySelector('#left-canvas').width===640);check('Waiting assignment can refresh into work',await waiting.page.locator('#adjudication-frame').isVisible());await waiting.context.close();
  const reviewer=await setup({reviewer:true});await reviewer.page.waitForFunction(()=>document.querySelector('#review-canvas').width===640);await reviewer.page.getByLabel('Appearance',{exact:true}).selectOption('dark');check('Reviewer workspace still loads evidence',await reviewer.page.locator('#object-list').getByText(/person/).count()>0&&reviewer.errors.length===0);await reviewer.context.close();
  const blocked=await browser.newContext({colorScheme:'dark'});await blocked.addInitScript(()=>Object.defineProperty(window,'localStorage',{get(){throw Error('Storage disabled')}}));const blockedPage=await blocked.newPage();await blockedPage.goto(base+'/');await blockedPage.getByLabel('Appearance',{exact:true}).selectOption('light');check('Appearance works when storage is disabled',await blockedPage.evaluate(()=>document.documentElement.dataset.theme==='light'));await blocked.close();
+ const extended=await setup({extended:true});await extended.page.getByLabel('Object 1 label',{exact:true}).selectOption('other');await extended.page.locator('#save-resolution').click();check('Other needs a descriptive name',(await extended.page.locator('#resolution-status').innerText()).includes('descriptive name')&&extended.puts===0);await extended.page.getByLabel('Description for object-one-person',{exact:true}).fill('desk lamp');await extended.page.getByLabel('Uncertain identification or boundary',{exact:true}).check();await extended.page.locator('#save-resolution').click();await extended.page.waitForFunction(()=>document.querySelector('#adjudication-title').textContent==='000002.jpg');check('Other name and uncertainty survive adjudication',extended.state.merged.sources[0].frames[0].objects[0].description==='desk lamp'&&extended.state.merged.sources[0].frames[0].objects[0].uncertain===true);check('Extended editor has no runtime errors',extended.errors.length===0);await extended.context.close();
+ const extendedReview=await setup({reviewer:true,extended:true});await extendedReview.page.waitForFunction(()=>document.querySelector('#review-canvas').width===640);await extendedReview.page.locator('#object-label').selectOption('other');await extendedReview.page.locator('#draw-box').click();const box=await extendedReview.page.locator('#review-canvas').boundingBox();await extendedReview.page.mouse.move(box.x+box.width*.5,box.y+box.height*.2);await extendedReview.page.mouse.down();await extendedReview.page.mouse.move(box.x+box.width*.7,box.y+box.height*.5);await extendedReview.page.mouse.up();await extendedReview.page.locator('#object-list input[type="text"]').last().fill('portable light');await extendedReview.page.locator('#mark-reviewed').click();await extendedReview.page.waitForFunction(()=>document.querySelector('#review-frames .resolved'));check('Reviewer other annotation round trips',extendedReview.reviewerPayload.sources[0].frames[0].objects.some(object=>object.label==='other'&&object.description==='portable light'));check('Extended reviewer has no runtime errors',extendedReview.errors.length===0);await extendedReview.context.close();
  fs.writeFileSync('work/adjudicator/browser-results.json',JSON.stringify({status:'passed',checks},null,2));console.log(checks.length+' browser checks passed.');
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve))}

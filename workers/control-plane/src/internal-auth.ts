@@ -266,6 +266,8 @@ export function canAccessInternals(actor: InternalActor, request: Request): bool
   const method = request.method.toUpperCase();
   if (path === "/api/internal/v1/overview") return roles.size > 0;
   if (path.startsWith("/api/internal/v1/operations")) return roles.has("operator");
+  if (path.startsWith("/api/internal/v1/sample-library")) return ["operator", "researcher", "review_coordinator"].some((role) => roles.has(role as InternalRole));
+  if (path === "/api/internal/v1/reference-benchmarks") return method === "GET" && ["operator", "researcher", "review_coordinator", "release_approver"].some((role) => roles.has(role as InternalRole));
   if (/^\/api\/internal\/v1\/(models|releases)(\/|$)/.test(path)) {
     if (method === "GET") return ["operator", "researcher", "release_approver"].some((role) => roles.has(role as InternalRole));
     if (/\/(approve|reject|activate|rollback|retire)$/.test(path)) return roles.has("release_approver");

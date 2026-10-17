@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import http from "node:http";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
 const output = "work/ui-layout"; fs.mkdirSync(output, { recursive: true });
 const assets = path.resolve("workers/control-plane/adjudication-web");
@@ -18,13 +19,14 @@ await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), headless: true, args: ["--no-sandbox"] });
 const long = "LongUnbrokenResourceName".repeat(5), digest = "a".repeat(64), date = "2026-10-15T12:00:00.000Z";
+const sampleCatalog = JSON.parse(fs.readFileSync("scripts/fixtures/sample-library.v1.json", "utf8")), submittedDatasets = [];
 const id = (prefix) => `${prefix}_${"a".repeat(64)}`;
 const user = { id: id("user"), display_name: long, email: "long-assigned-operator-" + "a".repeat(100) + "@example.test", roles: ["owner", "review_coordinator", "release_approver"], status: "active", email_verified: true };
 const dataset = { id: id("ds"), name: long, description: "Description".repeat(150), source_count: 2, status: "ready", latest_version: { id: id("dsv"), version: 12, status: "frozen" }, created_at: date };
 const job = { id: id("job"), status: "failed", input: { dataset_version_id: id("dsv"), method: "hybrid", source_url: "https://media.example.test/" + "path".repeat(150) + ".mp4" }, attempt_count: 2, max_attempts: 2, lease_owner: id("runner"), created_at: date, updated_at: date, error_message: "FailureDetail".repeat(100), progress: { stage: "sampling", reference: long }, attempts: [{ attempt_number: 1, status: "failed", worker_id: id("runner"), started_at: date, error_message: "WorkerFailure".repeat(100) }] };
 const frame = { id: id("frame"), dataset_source_id: id("src"), timestamp_seconds: 1.25, reasons: ["first", "near_final"], width: 640, height: 360, artifact: { id: id("artifact"), sha256: digest, size_bytes: 100 } };
 const frameSet = { id: id("frameset"), dataset_version_id: id("dsv"), sampling_job_id: job.id, status: "ready", source_count: 1, frame_count: 1, sha256: digest, created_at: date, engine: { name: "video-semantic-extractor", version: "1.0.0@sha256:" + digest, configuration_sha256: digest }, sources: [{ dataset_source_id: id("src"), source_sha256: digest, ordinal: 0, duration_seconds: 120, size_bytes: 1000 }], frames: [frame] };
-const policy = { id: id("pv"), name: long, version: "v".repeat(80), status: "active", revision: 0, annotation_schema_version: "object-annotations.v1", document: "Instruction".repeat(1000), sha256: digest, created_at: date };
+const policy = { id: id("pv"), name: long, version: "v".repeat(80), status: "active", revision: 0, annotation_schema_version: "object-annotations.v1", annotation_rules: {taxonomy_version:"coco-extended.v1"}, document: "Instruction".repeat(1000), sha256: digest, created_at: date };
 const template = { id: id("tpl"), frame_set_id: frameSet.id, policy_version_id: policy.id, status: "ready", frame_count: 1, sha256: digest, schema_version: "object-annotations.v1" };
 const assignments = ["reviewer-a", "reviewer-b", "adjudicator"].map((role) => ({ id: id("ca") + role, role, status: "pending", reviewed_frames: 0, revision: 0, assignee_email: user.email }));
 const campaign = { id: id("campaign"), name: long, template_id: template.id, frame_set_id: frameSet.id, policy_version_id: policy.id, frame_count: 1, status: "active", assignments, audit_events: [], created_at: date };
@@ -52,7 +54,14 @@ async function contextFor(role = "internals") {
     if (endpoint === "/overview") return json({ engines: { sampler: long, evaluator: long } });
     if (endpoint === "/runners") return json({ data: runners });
     if (endpoint === "/operations") return json({ data: { jobs: [job], expired_leases: [], artifacts: [{ kind: long, size_bytes: 1000 }] } });
+    if (endpoint === "/reference-benchmarks") return json({data:JSON.parse(fs.readFileSync("docs/verification/2026-10-18-reference-benchmarks.json","utf8"))});
     if (endpoint === "/operations/orphans") return json({ data: [{ key: "sampling/" + long.repeat(3) + ".jpg", size: 500, etag: digest }], pagination: { has_more: false, cursor: null } });
+    if (endpoint === "/operations/retention") return json({data:{policy:{stale_days:30,grace_days:7},candidates:[{id:id("frameset"),resource_type:"frame_set",reclaimable_bytes:123456789}]}});
+    if (endpoint === "/operations/retention/archives") return json({data:[{id:id("archive"),resource_id:id("frameset"),state:"scheduled",reason:long.repeat(8),delete_after:date,last_error:long.repeat(6)}]});
+    if (endpoint === "/operations/retention/pins") return json({data:[{resource_type:"frame_set",resource_id:id("frameset"),reason:long.repeat(8)}]});
+    if (endpoint === "/sample-library/select") { const value=request.postDataJSON(); const sources=sampleCatalog.sources.map(source=>({source,rank:createHash('sha256').update(JSON.stringify([sampleCatalog.version,value.seed,source.id])).digest('hex')})).sort((a,b)=>a.rank.localeCompare(b.rank)).slice(0,value.count).map(item=>item.source);return json({data:{catalog_version:sampleCatalog.version,seed:value.seed,source_ids:sources.map(source=>source.id),sources}}); }
+    if (endpoint === "/datasets/probe") return json({data:request.postDataJSON().urls.map(url=>({url,status:200,media_type:"video/mp4",size_bytes:1000,reachable:true}))});
+    if (endpoint === "/datasets" && request.method()==="POST") {submittedDatasets.push(request.postDataJSON());return json({data:dataset},201);}
     const resources = { datasets: dataset, "sampling-jobs": job, "frame-sets": frameSet, policies: policy, templates: template, "review-campaigns": campaign, "ground-truth": truth, pipelines: pipeline, models: model, releases: release, evaluations: evaluation, users: user, reviewers: user };
     const [collection, resourceId, action] = endpoint.replace(/^\//, "").split("/");
     if (resources[collection]) return json({ data: resourceId ? resources[collection] : [resources[collection], { ...resources[collection], id: resources[collection].id + "b" }], pagination: { has_more: false } });
@@ -113,13 +122,19 @@ async function audit(page, name) {
 }
 try {
   const internals = await contextFor();
+  await internals.page.locator('#dataset-dialog').evaluate(dialog=>dialog.showModal());
+  await internals.page.locator('#sample-count').fill('7');await internals.page.locator('#sample-seed').fill('reproducible-seed');await internals.page.locator('#sample-reproduce').click();await internals.page.waitForFunction(()=>document.querySelector('#dataset-sources').value.split('\n').length===7);
+  const originalSelection=await internals.page.locator('#dataset-sources').inputValue();await internals.page.locator('#sample-reproduce').click();await internals.page.waitForFunction(()=>!document.querySelector('#sample-reproduce').disabled);assert.equal(await internals.page.locator('#dataset-sources').inputValue(),originalSelection);
+  await internals.page.locator('#dataset-probe').click();await internals.page.getByText(/HTTP 200, video\/mp4/).first().waitFor();
+  await internals.page.locator('#dataset-name').fill('Reproduced sample selection');await internals.page.locator('#dataset-form [type="submit"]').click();await internals.page.locator('#dataset-dialog').waitFor({state:'hidden'});assert.equal(submittedDatasets.at(-1).selection.seed,'reproducible-seed');assert.equal(submittedDatasets.at(-1).sources.length,7);
+  await internals.page.locator('#dataset-dialog').evaluate(dialog=>dialog.showModal());await internals.page.locator('#sample-randomise').click();await internals.page.waitForFunction(()=>!document.querySelector('#sample-randomise').disabled);await internals.page.locator('#dataset-sources').fill('https://media.example/fresh.mp4');await internals.page.locator('#dataset-name').fill('Fresh links');await internals.page.locator('#dataset-form [type="submit"]').click();await internals.page.locator('#dataset-dialog').waitFor({state:'hidden'});assert.equal(submittedDatasets.at(-1).selection,undefined);assert.equal(submittedDatasets.at(-1).sources[0].url,'https://media.example/fresh.mp4');
   const pages = ["overview", "datasets", "pipelines", "sampling", "frame-sets", "policies", "templates", "reviews", "ground-truth", "models", "evaluations", "releases", "operations"];
   for (const theme of ["light", "dark"]) {
     await internals.page.getByLabel("Appearance", { exact: true }).selectOption(theme);
     for (const width of [320, 390, 520, 768, 1024, 1280, 1920]) {
       await internals.page.setViewportSize({ width, height: 800 });
       for (const name of pages) { await internals.page.evaluate((name) => { location.hash = name; }, name); await audit(internals.page, `internals/${name}/${width}/${theme}`); }
-      for (const [pageName, selector, dialog] of [["sampling", "[data-job-inspect]", "job-dialog"], ["frame-sets", "[data-frame-set-id]", "frame-set-dialog"], ["policies", "[data-policy-inspect]", "registry-dialog"], ["templates", "[data-template-inspect]", "registry-dialog"], ["reviews", "[data-campaign-inspect]", "campaign-dialog"], ["ground-truth", "[data-ground-truth-inspect]", "ground-truth-dialog"], ["pipelines", "[data-pipeline-inspect]", "pipeline-detail-dialog"]]) {
+      for (const [pageName, selector, dialog] of [["datasets", "[data-dataset-inspect]", "registry-dialog"], ["sampling", "[data-job-inspect]", "job-dialog"], ["frame-sets", "[data-frame-set-id]", "frame-set-dialog"], ["policies", "[data-policy-inspect]", "registry-dialog"], ["templates", "[data-template-inspect]", "registry-dialog"], ["reviews", "[data-campaign-inspect]", "campaign-dialog"], ["ground-truth", "[data-ground-truth-inspect]", "ground-truth-dialog"], ["pipelines", "[data-pipeline-inspect]", "pipeline-detail-dialog"]]) {
         await internals.page.evaluate((name) => { location.hash = name; }, pageName);
         const button = internals.page.locator(`.page[data-page="${pageName}"] ${selector}`).first();
         if (!await button.count()) throw new Error("Missing fixture/action " + selector);

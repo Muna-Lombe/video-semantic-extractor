@@ -26,29 +26,63 @@ cancelled lease still cannot finalize artifacts. Queues alternate preference.
 
 ## Retention and deletion
 
-- Retain all registered evidence, manifests, templates, submissions, ground truth,
-  model binaries, evaluation reports, decisions, and audit events. Supersession,
-  rejection, retirement, or cancellation does not authorize deleting lineage.
-- Audit events reject UPDATE/DELETE. Artifact identity and model/release inputs
-  reject mutation; changed inputs require another version.
-- Local media and frame files are temporary. Sampling candidates are limited to
-  2,000 per extraction pass and monitored against a 512 MiB intermediate JPEG
-  budget every 100 ms; exceeding it terminates FFmpeg and fails the attempt, with
-  no silently truncated successful frame set. Sources default to at most 900 seconds
-  and 3840×2160 pixels. Cancellation can terminate FFmpeg while it is running. Sampling deletes each source after
-  upload. Evaluation input storage is capped at 512 MiB by default, individually
-  streamed downloads at 16 MiB, and frame sets at 500 frames.
-- Only objects in the private Internals bucket, in owned artifact prefixes, older
-  than seven days, and unreferenced by artifact/validation metadata are eligible
-  for orphan cleanup. Queued/running upload owners and finalized uploads are kept.
-  REVIEW_BUCKET and unknown prefixes are excluded.
-- GET /api/internal/v1/operations/orphans is a paginated preview. POST requires
-  selected key/etag pairs and a reason. Age, etag, and references are rechecked.
-  A D1 tombstone prevents artifact registration racing deletion. Failed storage
-  deletion is safe to retry; tombstones remain as registration fences.
-- Registered lineage deletion requires a separate owner-reviewed retention/legal
-  process with a dependency inventory and export. The orphan API refuses it.
-  Do not cascade-delete production evidence to reclaim space.
+The scheduled retention task runs every six hours. Operations exposes a dry-run
+preview, reclaimable byte counts, archival history, pins, grace-period cancellation
+and configurable stale/grace ages. Defaults are 30 unused days and a seven-day
+grace period. Changes apply to new archives; an existing deletion deadline stays
+immutable.
+
+- Keep compact source/frame manifests, policy definitions, annotation and submission
+  JSON, comparisons, ground truth, validation/evaluation reports, licensing records,
+  decisions and append-only audit history. Their original artifact identities remain
+  registered even after a bulk payload is removed.
+- A stale frame set can retire only when every consumer is inactive: no unexpired
+  review, pending/approved ground truth, retained evaluation/release evidence or
+  explicit pin. Expired abandoned assignments are cancelled when archival wins.
+  Rejected/superseded ground truth does not free inputs used by a retained run.
+  Shared frame artifacts are conservatively protected.
+- Rejected/retired model binaries can retire after the stale age only when no
+  retained evaluation/release or explicit pin needs them. Model identity, provenance,
+  license and decisions remain readable. Pin reusable frame sets/model versions
+  before they become inactive; unpin them when reuse is no longer intended.
+- Archive creation verifies payload bytes against registered SHA-256 digests, writes
+  and verifies an immutable R2 JSON record, then atomically records its digest and
+  fences new references in D1. Automatic archival verifies at most 500 payloads
+  across at most five resources per pass. A racing pin or consumer aborts archival. The record
+  contains resource identity, source lineage, payload checksums/ETags/sizes and the
+  retained metadata references. Payloads above the current 16 MiB per-object
+  verification budget remain protected for investigation.
+- Scheduled archives may be cancelled before reclamation starts. After the grace
+  period, one leased sweeper removes at most 25 payloads per pass, rechecks archive
+  bytes and object ETags, and records deletion. A five-minute lease allows recovery
+  after a crashed sweeper. Database constraints prevent new consumers or retried
+  evaluations from adopting retiring inputs. Missing/corrupt archives or replaced
+  payloads stop deletion. Interrupted R2/DB operations resume without losing history.
+- Archived manifests and records remain downloadable. Frame evidence returns `410`
+  with the archive reference. An archived record preserves audit history, not a
+  promise that removed media can be replayed. Restore requires verified originals.
+- Old unregistered objects retain the seven-day orphan policy. Only owned Internals
+  prefixes are scanned; active uploads, finalized registrations, validation reports,
+  REVIEW_BUCKET and unknown prefixes remain excluded. The scheduled bounded scan
+  persists its cursor. Manual preview/apply remains available. Deletion intent is
+  audited before R2 removal; tombstones fence racing artifact registration.
+- Expired identity sessions and challenges are pruned in transactional batches of
+  100 after seven days. Compact identifying timestamps/state are archived as audit
+  events; token hashes are removed. Active sessions remain protected.
+- Public sample URLs are external references. This task removes application-owned
+  payloads and caches; it does not delete the supplied public media library.
+
+Local sampling still limits intermediate extraction to 2,000 candidates per pass
+and a 512 MiB JPEG budget, with no silently truncated successful frame sets. Source
+limits remain 900 seconds and 3840×2160 pixels by default. Evaluation input storage
+is bounded at 512 MiB and frame sets at 500 frames. Temporary source files are
+removed after verified upload.
+
+New APIs under `/api/internal/v1/operations/retention`:
+`GET /` (preview), `GET /archives`, `GET /archives/<id>`, `POST /archive`,
+`POST /archives/<id>/cancel`, `GET/POST/DELETE /pins`, and `PUT /settings`.
+All use existing owner/operator authorization. The Worker cron executes the same
+retention implementation; it does not bypass the dependency or integrity checks.
 
 ## Access and licensing
 
@@ -71,8 +105,8 @@ The executable contracts are frame-set-manifest.v1, object-annotations.v1,
 managed-ground-truth.v1, managed-evaluation-inputs.v1,
 managed-evaluation-report.v1, and pipeline-release.v1. Dataset versions are frozen
 in DATASET_DB. Policy versions freeze schema, instructions, validation profile,
-and optional annotation restrictions. Supported restrictions select subsets of
-COCO labels, live/composited/screen subsets, and a 1–200 object limit; they cannot
+and optional annotation restrictions. Supported restrictions select labels from the pinned COCO or `coco-extended.v1`
+taxonomy, live/composited/screen subsets, and a 1–200 object limit; they cannot
 weaken evidence integrity or diagnostic adequacy gates. Entirely new task shapes
 require a new supported contract, rather than arbitrary schema JSON.
 

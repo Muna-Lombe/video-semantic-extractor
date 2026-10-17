@@ -566,3 +566,17 @@ clipped/unreachable table columns, unreadable column widths, inaccessible scroll
 regions, controls outside the viewport, and save bars overlapping editor fields.
 Results and selected screenshots are saved under work/ui-layout/. These are layout
 regressions, not hosted workflow or human-review acceptance tests.
+
+## Expanded dataset and reference model comparisons
+
+See [the dataset evaluation guide](../docs/dataset-evaluation-expansion.md) for
+pinned COCO preparation, NanoDet/YOLOv10 comparison and the Grounding DINO trial.
+Use the optional `backend[benchmark]` dependencies in a separate research runtime;
+the production sampling image does not acquire PyTorch or open-vocabulary models.
+
+`operations/audit-sample-media.py` verifies all 17 sample URLs and full decoding.
+`diagnostics/prepare-video-benchmark.py` freezes blank review evidence and source
+splits using the shipped sampler. `operations/summarize-benchmarks.py` checks that
+reports share the frozen inputs and publishes compact provenance, class metrics,
+timings and prediction digests. None of these tools submits human reviews or
+approves ground truth. Frozen manifests/reports are not overwritten.

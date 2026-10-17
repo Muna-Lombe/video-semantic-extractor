@@ -1,0 +1,3716 @@
+{
+  "schema_version": "video-review-benchmark.v1",
+  "catalog_version": "2026-10-18.1",
+  "catalog_sha256": "fde429b92ccf6b1cf6ca0f728f1137deda6d687b2310b1874a665bdb10fa2bb4",
+  "implementation_sha256": "2afe6820030e567abb83a9b8f4d46eed99ddc4ef9118131b12314b1c5c6c44fd",
+  "split_seed": "vse-video-split-v1",
+  "grouping_status": "preview_inspected; related-footage grouping requires human confirmation before benchmark approval",
+  "configuration": {
+    "method": "hybrid",
+    "scene_threshold": 0.34,
+    "interval_seconds": 5,
+    "max_frames": 25,
+    "include_final_frame": true
+  },
+  "frame_count": 254,
+  "sources": [
+    {
+      "source": "sample_1",
+      "source_sha256": "bc14db678d642d02ae769c92a234ddd53c611a6bdf88ca93da97fb166bbfaa1b",
+      "group_id": "sample_1",
+      "split": "holdout",
+      "frames": [
+        {
+          "filename": "sample_1-0000.jpg",
+          "frame_id": "sample_1-0000",
+          "timestamp_sec": 0.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "ef30eb9a0abcbe27f622c23385b87a5f43e4f037ffee3355d39103456c0f5154",
+          "size_bytes": 33190,
+          "sampling_reasons": [
+            "first"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0001.jpg",
+          "frame_id": "sample_1-0001",
+          "timestamp_sec": 1.633333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "d0d675aced873f2063d6bb26d3192149a20e8f970997215d0fc78070e4a2218b",
+          "size_bytes": 41433,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0002.jpg",
+          "frame_id": "sample_1-0002",
+          "timestamp_sec": 5.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "5f7aefbf53f2ef9529cf2f67e9c31b31ea8794c8db06c1ce3bad30ca5efa8a61",
+          "size_bytes": 39598,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0003.jpg",
+          "frame_id": "sample_1-0003",
+          "timestamp_sec": 10.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "642924b8d401fc878f0075f758e958659fad4200980efcb3a28ec205cc55417e",
+          "size_bytes": 39048,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0004.jpg",
+          "frame_id": "sample_1-0004",
+          "timestamp_sec": 15.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "6490cbb7351580735b9113fcc202013308222215eb948a5fad12c6bc9e7694b9",
+          "size_bytes": 34115,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0005.jpg",
+          "frame_id": "sample_1-0005",
+          "timestamp_sec": 20.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "7f605a76909e615bfe40d772004698089a98441c889f2990902588fb719fcb40",
+          "size_bytes": 42406,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0006.jpg",
+          "frame_id": "sample_1-0006",
+          "timestamp_sec": 25.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "79003a0fe78c221d6a6481701a782b63ac7a2d77fa2f99eacc05a042e4cbfd56",
+          "size_bytes": 27275,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0007.jpg",
+          "frame_id": "sample_1-0007",
+          "timestamp_sec": 30.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "faadb8a8284c2325acb9b79d2a937e4eaa4d1d8324297ed1cae5db8eb95e6639",
+          "size_bytes": 24744,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0008.jpg",
+          "frame_id": "sample_1-0008",
+          "timestamp_sec": 35.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "a82c77fc5834babebf0e5a590c308d264e200558de77d06390eb47d73aae78ce",
+          "size_bytes": 26455,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0009.jpg",
+          "frame_id": "sample_1-0009",
+          "timestamp_sec": 37.066667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "faad3a86daef30fd5e6db7d6c7cfd488fd5a511bcfc020e64f29b95a556615f7",
+          "size_bytes": 46985,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0010.jpg",
+          "frame_id": "sample_1-0010",
+          "timestamp_sec": 37.766667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "61f290c1aca7a414e5af0ea67fa3d1534c6cbec565dd3c36e950c056ec6bb101",
+          "size_bytes": 55195,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0011.jpg",
+          "frame_id": "sample_1-0011",
+          "timestamp_sec": 39.1,
+          "width": 720,
+          "height": 1280,
+          "sha256": "a8339575f941c490b9f7cfa163d27f356c7a9114c694cfab904b722779c00848",
+          "size_bytes": 43997,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0012.jpg",
+          "frame_id": "sample_1-0012",
+          "timestamp_sec": 40.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "75a65aa647a74fd26d525f274c9124fb3e9e1ca33b70e5488cbe882efc80fce8",
+          "size_bytes": 35346,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0013.jpg",
+          "frame_id": "sample_1-0013",
+          "timestamp_sec": 44.433333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "1fe98c8022a067f2876f17c204b966ee2e6ca76571528ff463e03ccd53f38584",
+          "size_bytes": 26342,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0014.jpg",
+          "frame_id": "sample_1-0014",
+          "timestamp_sec": 45.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "8e6aaa07c690cb4c5ad157bab425f781d693c779ce399dd8902b56b96bf1124e",
+          "size_bytes": 26203,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0015.jpg",
+          "frame_id": "sample_1-0015",
+          "timestamp_sec": 47.966667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "13f0c433d3c3cef17e0365ade5308b3ed7ced810c6a7746bbf133d7148ccee69",
+          "size_bytes": 40004,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0016.jpg",
+          "frame_id": "sample_1-0016",
+          "timestamp_sec": 50.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "4267504b01c336f095fdeda97b4fb264ba15cffd767c97571ae143c6d2abfefa",
+          "size_bytes": 40224,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0017.jpg",
+          "frame_id": "sample_1-0017",
+          "timestamp_sec": 50.566667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "ee5e72a5363bc50ce61c3832d9b290cfbcfe9033cfb032b4fbe41f21d4d76c71",
+          "size_bytes": 16140,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0018.jpg",
+          "frame_id": "sample_1-0018",
+          "timestamp_sec": 55.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "2d8b7a31dd0514cb2116c4b4818a99331a13d1a22f25d984ac92a871c9df214c",
+          "size_bytes": 30133,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0019.jpg",
+          "frame_id": "sample_1-0019",
+          "timestamp_sec": 57.466667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "89eb38bbb00936335afa25b2c9006abe453bd3d0ba2ac4bc6a09f77551e5193d",
+          "size_bytes": 21946,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0020.jpg",
+          "frame_id": "sample_1-0020",
+          "timestamp_sec": 60.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "df1a065e87b4353ee72409625538ec08d8fdfa982265bbfc88759991d88e2251",
+          "size_bytes": 30025,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0021.jpg",
+          "frame_id": "sample_1-0021",
+          "timestamp_sec": 65.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "71a4b7d82f6d4f5dd393eb60e38d3978d49721233d70c6a7ad35c1e3cbd4c4be",
+          "size_bytes": 27738,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0022.jpg",
+          "frame_id": "sample_1-0022",
+          "timestamp_sec": 69.3,
+          "width": 720,
+          "height": 1280,
+          "sha256": "14c1bd881ae748d98fed7ae44260131a0e569389880d46e305ffe3e03fa5069d",
+          "size_bytes": 29768,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0023.jpg",
+          "frame_id": "sample_1-0023",
+          "timestamp_sec": 70.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "204c2153bbbfcb1738edfb263c56961f2eb4bc92e46a9b22411272bbb396db04",
+          "size_bytes": 33722,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_1-0024.jpg",
+          "frame_id": "sample_1-0024",
+          "timestamp_sec": 74.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "24445db24911f17e58dd0e392ad94d7fd6125014c38921abc9fbbabb4b06224b",
+          "size_bytes": 35404,
+          "sampling_reasons": [
+            "near_final"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        }
+      ]
+    },
+    {
+      "source": "sample_2",
+      "source_sha256": "434295f8f59b7cce995c6a5c6311922a13165ce726d760164a3878abe5ced5ef",
+      "group_id": "sample_2",
+      "split": "development",
+      "frames": [
+        {
+          "filename": "sample_2-0000.jpg",
+          "frame_id": "sample_2-0000",
+          "timestamp_sec": 0.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "7ae0099d5aec61f143657b69690a4408a1d334501c3d3eefd2e0fd436f0c327b",
+          "size_bytes": 43218,
+          "sampling_reasons": [
+            "first"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_2-0001.jpg",
+          "frame_id": "sample_2-0001",
+          "timestamp_sec": 0.066667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "c213c9c111b211989e1909124d06e3474f2570aaebaa3325f3103cb361b07cd5",
+          "size_bytes": 46212,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_2-0002.jpg",
+          "frame_id": "sample_2-0002",
+          "timestamp_sec": 5.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "c99c74064e1dd5a72b06e429e514610875f95e8d9c24579ee10aa2d7dd972cc4",
+          "size_bytes": 40025,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_2-0003.jpg",
+          "frame_id": "sample_2-0003",
+          "timestamp_sec": 5.433333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "5afb59526cdfec9a60489097ea0561fd2dd0a22c854153e0b16590005e678a50",
+          "size_bytes": 9262,
+          "sampling_reasons": [
+            "near_final"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        }
+      ]
+    },
+    {
+      "source": "sample_3",
+      "source_sha256": "461207be93539144fab5b6ba8ab87848bc73b26d902035806e8fbbf76040e0bc",
+      "group_id": "sample_3",
+      "split": "development",
+      "frames": [
+        {
+          "filename": "sample_3-0000.jpg",
+          "frame_id": "sample_3-0000",
+          "timestamp_sec": 0.0,
+          "width": 720,
+          "height": 960,
+          "sha256": "a1595b16c5e4d081afdc1f304128084d810c95665f8aeb687357dff0910908b0",
+          "size_bytes": 40196,
+          "sampling_reasons": [
+            "first"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0001.jpg",
+          "frame_id": "sample_3-0001",
+          "timestamp_sec": 1.4,
+          "width": 720,
+          "height": 960,
+          "sha256": "3b1ae8bff9df45d97ba158fad623c037dde2f6bcf8cc33c397d84c1166792e59",
+          "size_bytes": 38310,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0002.jpg",
+          "frame_id": "sample_3-0002",
+          "timestamp_sec": 5.0,
+          "width": 720,
+          "height": 960,
+          "sha256": "3570d1c2b7c0c3cd784951852ab62aa94ba800c52a8c17c6bea9b687179fa310",
+          "size_bytes": 38368,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0003.jpg",
+          "frame_id": "sample_3-0003",
+          "timestamp_sec": 10.0,
+          "width": 720,
+          "height": 960,
+          "sha256": "f1f7849218842802e3050ebbaf42d94b46ee2a119c459936e3ad22b87619180f",
+          "size_bytes": 38378,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0004.jpg",
+          "frame_id": "sample_3-0004",
+          "timestamp_sec": 10.3,
+          "width": 720,
+          "height": 960,
+          "sha256": "2f343f1f95a091464e4400c5547fce6d06660cfd486ac5b063df9d6a06352e29",
+          "size_bytes": 27267,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0005.jpg",
+          "frame_id": "sample_3-0005",
+          "timestamp_sec": 15.0,
+          "width": 720,
+          "height": 960,
+          "sha256": "9238ef84bfd6d36ea83947e9679e6399f485e4af400054b60e9bdeab7b54534c",
+          "size_bytes": 34568,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0006.jpg",
+          "frame_id": "sample_3-0006",
+          "timestamp_sec": 19.4,
+          "width": 720,
+          "height": 960,
+          "sha256": "4916239022311a7762e89433bcbc41dfd2894c2d9bced8e1c1cfbdcd4d5fb491",
+          "size_bytes": 20897,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0007.jpg",
+          "frame_id": "sample_3-0007",
+          "timestamp_sec": 20.0,
+          "width": 720,
+          "height": 960,
+          "sha256": "0dcbd69570e0e69e811fd37d22b59fa6e6602a96f852e4d2a1dda579b6e391d5",
+          "size_bytes": 26119,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0008.jpg",
+          "frame_id": "sample_3-0008",
+          "timestamp_sec": 24.2,
+          "width": 720,
+          "height": 960,
+          "sha256": "9dfbe972dafd86b645c8d921cb103835cfc8a02d3ba3f2ddc7ccb4bf67476e4c",
+          "size_bytes": 22034,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0009.jpg",
+          "frame_id": "sample_3-0009",
+          "timestamp_sec": 25.0,
+          "width": 720,
+          "height": 960,
+          "sha256": "029481a53d8c76b585c69d46a7047a552f4c1ee05571b3292642a19782aa5bda",
+          "size_bytes": 28126,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0010.jpg",
+          "frame_id": "sample_3-0010",
+          "timestamp_sec": 30.0,
+          "width": 720,
+          "height": 960,
+          "sha256": "9e8d9367b42bfdd1a507716e3941a39efeafde5ac1493c7e6ad864181a1045b5",
+          "size_bytes": 23733,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0011.jpg",
+          "frame_id": "sample_3-0011",
+          "timestamp_sec": 34.9,
+          "width": 720,
+          "height": 960,
+          "sha256": "c21f5b0b61c6ec9696fc6845562521937627278afc371b1113aa7b0e223aa107",
+          "size_bytes": 22249,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0012.jpg",
+          "frame_id": "sample_3-0012",
+          "timestamp_sec": 35.0,
+          "width": 720,
+          "height": 960,
+          "sha256": "bd6f66d8cfe46b1454303d9d03343bf732934f815eaeeb7ae02d31e993108c58",
+          "size_bytes": 22616,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0013.jpg",
+          "frame_id": "sample_3-0013",
+          "timestamp_sec": 40.0,
+          "width": 720,
+          "height": 960,
+          "sha256": "72e025da25fdc3aa605ff5848c140239105ac53e7a1a93283a3501aaf76e20df",
+          "size_bytes": 19162,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0014.jpg",
+          "frame_id": "sample_3-0014",
+          "timestamp_sec": 43.9,
+          "width": 720,
+          "height": 960,
+          "sha256": "06d9a27d7a8e7534e0d6372b787e354b9ceee2309898bd3582b8952df2c0bac8",
+          "size_bytes": 23093,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0015.jpg",
+          "frame_id": "sample_3-0015",
+          "timestamp_sec": 45.0,
+          "width": 720,
+          "height": 960,
+          "sha256": "ec41157283a538bddd72b7a12a2b240335da49eaab177b6d516c7618203f77d7",
+          "size_bytes": 25328,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0016.jpg",
+          "frame_id": "sample_3-0016",
+          "timestamp_sec": 50.0,
+          "width": 720,
+          "height": 960,
+          "sha256": "1d9346c41842e7a52a5661aef897ef6cae0538290607a0feb0c28d943ad4001c",
+          "size_bytes": 21906,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0017.jpg",
+          "frame_id": "sample_3-0017",
+          "timestamp_sec": 50.9,
+          "width": 720,
+          "height": 960,
+          "sha256": "c988924d4354bc944a4950f3091133c95fcb02bc19ddca57e87fff097d65a4c4",
+          "size_bytes": 23941,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0018.jpg",
+          "frame_id": "sample_3-0018",
+          "timestamp_sec": 55.0,
+          "width": 720,
+          "height": 960,
+          "sha256": "f77cb7c3b2da1d4ca68a543be05426c453ee9707e9b3d98bbea01f226e729f63",
+          "size_bytes": 19054,
+          "sampling_reasons": [
+            "scene_change",
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0019.jpg",
+          "frame_id": "sample_3-0019",
+          "timestamp_sec": 60.0,
+          "width": 720,
+          "height": 960,
+          "sha256": "a60fa86357a3383dddce531f09002bebb7d150fb1f200963ee9c2bb8db5ac367",
+          "size_bytes": 19974,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0020.jpg",
+          "frame_id": "sample_3-0020",
+          "timestamp_sec": 63.8,
+          "width": 720,
+          "height": 960,
+          "sha256": "c08c127630fdf1d03242b175831f1365dbf66737dd17d2e16325618e84a7a039",
+          "size_bytes": 15755,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0021.jpg",
+          "frame_id": "sample_3-0021",
+          "timestamp_sec": 65.0,
+          "width": 720,
+          "height": 960,
+          "sha256": "0d48bde713742efe561e35ad6fc251ac901189b22b3baf380234577a937c2ed7",
+          "size_bytes": 16982,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0022.jpg",
+          "frame_id": "sample_3-0022",
+          "timestamp_sec": 70.0,
+          "width": 720,
+          "height": 960,
+          "sha256": "065bb06d696773282929557462906ae764b7ae2087b5a5c14eaee85212d6a46e",
+          "size_bytes": 19553,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0023.jpg",
+          "frame_id": "sample_3-0023",
+          "timestamp_sec": 75.0,
+          "width": 720,
+          "height": 960,
+          "sha256": "f530d7a9913078bdac58aeab45753cc1bf6903cff8b2c65d17162ec4877f0bbc",
+          "size_bytes": 17993,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_3-0024.jpg",
+          "frame_id": "sample_3-0024",
+          "timestamp_sec": 76.55,
+          "width": 720,
+          "height": 960,
+          "sha256": "775e20c850a82ab3b3908db3cbfe8d86785121fd8f5aad0dd9b6783fd9eed3b5",
+          "size_bytes": 21576,
+          "sampling_reasons": [
+            "near_final"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        }
+      ]
+    },
+    {
+      "source": "sample_4",
+      "source_sha256": "2a5b97bc6f8e711c172c1d951896f51d9b9c215075610a0259651a40a65b5d34",
+      "group_id": "sample_4",
+      "split": "development",
+      "frames": [
+        {
+          "filename": "sample_4-0000.jpg",
+          "frame_id": "sample_4-0000",
+          "timestamp_sec": 0.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "c985e0008182c8b718425d0cb62c8ab6af49acfa85a239916a63fc301ce5de4c",
+          "size_bytes": 42985,
+          "sampling_reasons": [
+            "first"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0001.jpg",
+          "frame_id": "sample_4-0001",
+          "timestamp_sec": 5.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "07cfefbd5477061db1c1e3435a79dcd4f9ce79058411408e298f9cad974b86e3",
+          "size_bytes": 41612,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0002.jpg",
+          "frame_id": "sample_4-0002",
+          "timestamp_sec": 6.333333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "48c68064676ec960879569000f6496fd7fde89aa473883f05372d14b64502f0e",
+          "size_bytes": 42379,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0003.jpg",
+          "frame_id": "sample_4-0003",
+          "timestamp_sec": 7.583333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "843ec7d9bfe2774c4b16343e630840cb67dfe2e6aaf19f0d6881837ccd8fd82d",
+          "size_bytes": 35815,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0004.jpg",
+          "frame_id": "sample_4-0004",
+          "timestamp_sec": 10.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "54ef5c593089326d33dd7cc1829ca54ae8ad3f62d5f4a6b32f95ba72120aaaee",
+          "size_bytes": 37840,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0005.jpg",
+          "frame_id": "sample_4-0005",
+          "timestamp_sec": 12.958333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "64172e17f19d3fa8a25465c01e2230fde1d6db999c881029ea9defe685e32969",
+          "size_bytes": 36783,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0006.jpg",
+          "frame_id": "sample_4-0006",
+          "timestamp_sec": 15.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "ba2756e281e569a9fd4587843fb9a982280dfd041e59c5ab6e3555487b0cf89d",
+          "size_bytes": 39556,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0007.jpg",
+          "frame_id": "sample_4-0007",
+          "timestamp_sec": 17.708333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "8bea34cc8fcb40d34171db3788a6a6fff57edf15f4ca246fc0de0bb8a06f971b",
+          "size_bytes": 20787,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0008.jpg",
+          "frame_id": "sample_4-0008",
+          "timestamp_sec": 20.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "9bff006c2db0f1f70d263c6debdcf9b5db1c7632ca39b28f65f34d57803f2211",
+          "size_bytes": 37159,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0009.jpg",
+          "frame_id": "sample_4-0009",
+          "timestamp_sec": 25.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "90093f1981e16e3a017994d11769bd932b18423d34d123590732a178ca8ada79",
+          "size_bytes": 36785,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0010.jpg",
+          "frame_id": "sample_4-0010",
+          "timestamp_sec": 30.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "2d79a268965c032faeef79a40bfd93c1251a77cebb585a2a7b953145fc61da20",
+          "size_bytes": 30242,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0011.jpg",
+          "frame_id": "sample_4-0011",
+          "timestamp_sec": 35.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "90b9636b2b00b2b3437c327b1b81692a81a6a8233eb328e1a769c7ceaa5293b2",
+          "size_bytes": 27988,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0012.jpg",
+          "frame_id": "sample_4-0012",
+          "timestamp_sec": 39.916667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "c2db737536c1c7af8889676312b5f5f75515ef60d4f970b2c3902e504135c7de",
+          "size_bytes": 20676,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0013.jpg",
+          "frame_id": "sample_4-0013",
+          "timestamp_sec": 40.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "363e10877099c2026577afc9e7d2fe2c3bb1c7409452795449104d3f5925cfe4",
+          "size_bytes": 21375,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0014.jpg",
+          "frame_id": "sample_4-0014",
+          "timestamp_sec": 45.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "a94de9469be5ba1910e2818f76b3a53772597a1de34b0a8d2840a24d14d1d218",
+          "size_bytes": 20286,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0015.jpg",
+          "frame_id": "sample_4-0015",
+          "timestamp_sec": 50.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "e36061372c0a4d404aedb5be00499b005b795844992b2c652bef92fa06e39e19",
+          "size_bytes": 19689,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0016.jpg",
+          "frame_id": "sample_4-0016",
+          "timestamp_sec": 55.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "9c0ae4945dd859211612c8d0110dc3992fa7ac89f86226dac3a3f6cc4efcb4e6",
+          "size_bytes": 20560,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0017.jpg",
+          "frame_id": "sample_4-0017",
+          "timestamp_sec": 60.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "d7396cd3cea0cd37283f643b3b2a748ce65b0e1b9f6a79593b72e2e3ead734e1",
+          "size_bytes": 24521,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0018.jpg",
+          "frame_id": "sample_4-0018",
+          "timestamp_sec": 65.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "eec6520e43c9a1fedb59e318f47283e4b42fb895647492f34670112b9649e4ef",
+          "size_bytes": 23495,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0019.jpg",
+          "frame_id": "sample_4-0019",
+          "timestamp_sec": 70.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "34b2f7bba0233ffef0c7faf97b1f45b617871a6bfde34460dd462c853368e929",
+          "size_bytes": 23382,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0020.jpg",
+          "frame_id": "sample_4-0020",
+          "timestamp_sec": 75.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "5340a54d9c396226cc3b2d61eb650eb3e863e251e9a3bae763752154ff7c8cf8",
+          "size_bytes": 24140,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0021.jpg",
+          "frame_id": "sample_4-0021",
+          "timestamp_sec": 78.75,
+          "width": 720,
+          "height": 1280,
+          "sha256": "b3c1a478d486c3ec18140e8109d29d20206142b302461a4fd72a993546d8e8f3",
+          "size_bytes": 17947,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0022.jpg",
+          "frame_id": "sample_4-0022",
+          "timestamp_sec": 80.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "cc600f6534a689640b7029d6f925b204505bceb50d7bd2af0b6d995a8a672bc3",
+          "size_bytes": 17307,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0023.jpg",
+          "frame_id": "sample_4-0023",
+          "timestamp_sec": 85.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "e232a31f4c62d03eb5546daa86df67714374a1f1ead1da9757cd64bd67d795b2",
+          "size_bytes": 29977,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_4-0024.jpg",
+          "frame_id": "sample_4-0024",
+          "timestamp_sec": 87.25,
+          "width": 720,
+          "height": 1280,
+          "sha256": "6dd0b0637a3c59923f84e244d6c5303ad136ebfd1234afeb82f1b4449e78596d",
+          "size_bytes": 28653,
+          "sampling_reasons": [
+            "near_final"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        }
+      ]
+    },
+    {
+      "source": "sample_5",
+      "source_sha256": "1d442ef0cc26937da5662505af7307996c043658e8204630846c8a5cffa2d6d2",
+      "group_id": "sample_5",
+      "split": "holdout",
+      "frames": [
+        {
+          "filename": "sample_5-0000.jpg",
+          "frame_id": "sample_5-0000",
+          "timestamp_sec": 0.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "6d1e4228c7b592ce413c46be77ed5b37dfab899a434f81b4582a6b9df0ce211c",
+          "size_bytes": 33256,
+          "sampling_reasons": [
+            "first"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0001.jpg",
+          "frame_id": "sample_5-0001",
+          "timestamp_sec": 5.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "1ff32484579aca8766d00bb1b9b387c5c9b1623ba782059709dd546c6122f35a",
+          "size_bytes": 30860,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0002.jpg",
+          "frame_id": "sample_5-0002",
+          "timestamp_sec": 10.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "c6d66d51c13f2a463769511addae3b4afe58ed388e83b8fac035175a867c5ae1",
+          "size_bytes": 29780,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0003.jpg",
+          "frame_id": "sample_5-0003",
+          "timestamp_sec": 11.566667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "dffb8e09336b992e4946ef638d87b949ae953312472fa39f93519c062a40a901",
+          "size_bytes": 32094,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0004.jpg",
+          "frame_id": "sample_5-0004",
+          "timestamp_sec": 15.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "ae6551e2c7614131e04504fe34b8f4428d6543466f463363cf156a5da368777d",
+          "size_bytes": 29784,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0005.jpg",
+          "frame_id": "sample_5-0005",
+          "timestamp_sec": 20.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "710e41ab1886bcf4fae62d136a7f1c4d5f3f06175509e9dd091e67d610002937",
+          "size_bytes": 27107,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0006.jpg",
+          "frame_id": "sample_5-0006",
+          "timestamp_sec": 25.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "cdbb9b2569ccb2272178c70cc7a0b3b3f064ce5f1d1780dfcaea2646b97446eb",
+          "size_bytes": 25004,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0007.jpg",
+          "frame_id": "sample_5-0007",
+          "timestamp_sec": 30.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "5b59b92fe103e82ee88704b538b514e56b83a30294d1b787a210677c20ef18b0",
+          "size_bytes": 24367,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0008.jpg",
+          "frame_id": "sample_5-0008",
+          "timestamp_sec": 35.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "48304bee0d2c321a3ffd03d5d743e722e5a5aa0c700cb1dfc9a0a5621fb0a902",
+          "size_bytes": 22841,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0009.jpg",
+          "frame_id": "sample_5-0009",
+          "timestamp_sec": 40.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "dd10a51044eaa58b95fbc1444db0871e236368f78948975d379986c4b6e488bb",
+          "size_bytes": 22707,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0010.jpg",
+          "frame_id": "sample_5-0010",
+          "timestamp_sec": 45.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "f78ef288a3804d4490d587a488876e6b68813c5f6052562f4f4c2599ef11ada5",
+          "size_bytes": 19695,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0011.jpg",
+          "frame_id": "sample_5-0011",
+          "timestamp_sec": 50.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "e167b926f089fe4cf6ca7f34805a49a4936803335a23cfcd2f13fe423c15168a",
+          "size_bytes": 20989,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0012.jpg",
+          "frame_id": "sample_5-0012",
+          "timestamp_sec": 55.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "834bf3707fbb6c7bfdae2b6952ca5dd76454618a33c23ca3e3ce3d44c4e587f3",
+          "size_bytes": 20680,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0013.jpg",
+          "frame_id": "sample_5-0013",
+          "timestamp_sec": 60.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "e7533bc413297607ee60c98eefd8a935febcdd3f10327267ce916b71567ac130",
+          "size_bytes": 22264,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0014.jpg",
+          "frame_id": "sample_5-0014",
+          "timestamp_sec": 65.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "998e11dade1134141da132de545fe1961234fc285de8f4a177a3bd5e761c58b2",
+          "size_bytes": 24340,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0015.jpg",
+          "frame_id": "sample_5-0015",
+          "timestamp_sec": 70.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "d11bfb0f64f2aba9eebe86b8d3d09dce49f7305c7b5f3b41cc4b8fbe0d26ea73",
+          "size_bytes": 24430,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0016.jpg",
+          "frame_id": "sample_5-0016",
+          "timestamp_sec": 75.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "a9b04791b9fdc142cddb37f60cea3f516902502f23b3a1804f0d120661b3b8a6",
+          "size_bytes": 23093,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0017.jpg",
+          "frame_id": "sample_5-0017",
+          "timestamp_sec": 80.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "2dbebf241f8c64660edd75387deeba72e3926381fddc5eafc1cfc95d4b960e44",
+          "size_bytes": 23541,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0018.jpg",
+          "frame_id": "sample_5-0018",
+          "timestamp_sec": 85.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "0eb1aee53b2a476312e618d70a9a7c0bdf21c8b1597e5a670058d9dde7d3b866",
+          "size_bytes": 22218,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0019.jpg",
+          "frame_id": "sample_5-0019",
+          "timestamp_sec": 85.1,
+          "width": 720,
+          "height": 1280,
+          "sha256": "8a25ac1d2073e7830967f31c778350411d1db17efb6a4716a25ccc280a2408d5",
+          "size_bytes": 28532,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0020.jpg",
+          "frame_id": "sample_5-0020",
+          "timestamp_sec": 90.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "2f5990346e1c686410881adf5e4ea8617dba58fecb14410a47f84525fd4eac0b",
+          "size_bytes": 21089,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0021.jpg",
+          "frame_id": "sample_5-0021",
+          "timestamp_sec": 95.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "e832cd80c24582d3cc118c476535ccf70e1f994bc24736e50da92e78dc5a28d8",
+          "size_bytes": 19122,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_5-0022.jpg",
+          "frame_id": "sample_5-0022",
+          "timestamp_sec": 99.766667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "9131aae41ab87e8a41fdde88bfd591521477d38fd66dd5218caf0172ba3affd5",
+          "size_bytes": 18488,
+          "sampling_reasons": [
+            "near_final"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        }
+      ]
+    },
+    {
+      "source": "sample_6",
+      "source_sha256": "5eea5d3679e4524533f95eb363a23c41f35d6e691a8eb772a2df64f85b72fed3",
+      "group_id": "sample_6",
+      "split": "development",
+      "frames": [
+        {
+          "filename": "sample_6-0000.jpg",
+          "frame_id": "sample_6-0000",
+          "timestamp_sec": 0.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "d3d9eefa23a883d863c0c504316fbc65c7607ac1bd0ff3afabad974d0b27996f",
+          "size_bytes": 37062,
+          "sampling_reasons": [
+            "first"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0001.jpg",
+          "frame_id": "sample_6-0001",
+          "timestamp_sec": 4.4,
+          "width": 720,
+          "height": 1280,
+          "sha256": "12971ddaff83869b81bef123c0645d61ad26b3607316c2e21cbc528c5885246d",
+          "size_bytes": 31523,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0002.jpg",
+          "frame_id": "sample_6-0002",
+          "timestamp_sec": 5.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "e383f08c0f24746852cae31eb7b34df2c7f6f8893b4e13697f4416a656a865de",
+          "size_bytes": 32908,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0003.jpg",
+          "frame_id": "sample_6-0003",
+          "timestamp_sec": 8.766667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "016a6e4fe5fcd7567e9dae3e15b5eeb1578920e41ce4e196a0f5acd48aef54a5",
+          "size_bytes": 22889,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0004.jpg",
+          "frame_id": "sample_6-0004",
+          "timestamp_sec": 10.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "ad86cf1f2310e5ca65408f0647b9034eed4b8743c64110902418a638d4db40f1",
+          "size_bytes": 25919,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0005.jpg",
+          "frame_id": "sample_6-0005",
+          "timestamp_sec": 10.166667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "f84677c47d116459a007564cfcc42de41a0e4ff724b0b808bbd90c5a44403b58",
+          "size_bytes": 27541,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0006.jpg",
+          "frame_id": "sample_6-0006",
+          "timestamp_sec": 12.933333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "de1fa4567db14e33bb7c10baf5dcfbc07c5ec2e90e543eafcec846b5741f8631",
+          "size_bytes": 25054,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0007.jpg",
+          "frame_id": "sample_6-0007",
+          "timestamp_sec": 15.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "ed2f71a69b9eee6330b08985936b555ba5b617d625dcc98a8ad23407abed3d90",
+          "size_bytes": 26449,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0008.jpg",
+          "frame_id": "sample_6-0008",
+          "timestamp_sec": 16.933333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "f3181b4b13fd9561acdae3d2b157b9345968097cca6e3dd85086745243ed0efe",
+          "size_bytes": 24119,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0009.jpg",
+          "frame_id": "sample_6-0009",
+          "timestamp_sec": 18.366667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "14f61b876652b958d5a44a09b18d1b3a6212367c7aec6b15569ec1fc6d0220c6",
+          "size_bytes": 15567,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0010.jpg",
+          "frame_id": "sample_6-0010",
+          "timestamp_sec": 20.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "85eb7bebc65ebc1c3f0a5b1b00e0807bdc02413f0fbe7d85dc18375c73abb68d",
+          "size_bytes": 20276,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0011.jpg",
+          "frame_id": "sample_6-0011",
+          "timestamp_sec": 20.8,
+          "width": 720,
+          "height": 1280,
+          "sha256": "24b40678efc1bde2276e31c166441bc99fa0760741b6a018dae6da01be1a360c",
+          "size_bytes": 20871,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0012.jpg",
+          "frame_id": "sample_6-0012",
+          "timestamp_sec": 23.533333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "52463f668e81941028334afa9e64280ccf191b3f5c0cc9156afb90cc585373f1",
+          "size_bytes": 13954,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0013.jpg",
+          "frame_id": "sample_6-0013",
+          "timestamp_sec": 25.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "9a75d0ca9587e2ea824ea9a764a456cae61f7ca90c2fef57eaba1eeaca0b81bb",
+          "size_bytes": 17679,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0014.jpg",
+          "frame_id": "sample_6-0014",
+          "timestamp_sec": 25.3,
+          "width": 720,
+          "height": 1280,
+          "sha256": "63a44ab6a192d14bf621223fa93963451ce5f004578cd1887239d2b6585b9d00",
+          "size_bytes": 12954,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0015.jpg",
+          "frame_id": "sample_6-0015",
+          "timestamp_sec": 30.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "7dc3854afc361c3729ff162ceec0433565d56ada1274c2fed29667535f3bc4f6",
+          "size_bytes": 23997,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0016.jpg",
+          "frame_id": "sample_6-0016",
+          "timestamp_sec": 32.066667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "18da741fe705024c0a0672ccf46a0c03161b6e6543bc30dbf4fe46743697d834",
+          "size_bytes": 20770,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0017.jpg",
+          "frame_id": "sample_6-0017",
+          "timestamp_sec": 35.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "70bf5e9d2fcbc22b236adca4c851c58d9c305aeaf652c50b0c73457a70125e95",
+          "size_bytes": 20536,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0018.jpg",
+          "frame_id": "sample_6-0018",
+          "timestamp_sec": 35.066667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "b00ca22ad663517c6dc73a7905146478821a25d6474ba99e62bd77aa83ad564f",
+          "size_bytes": 16561,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0019.jpg",
+          "frame_id": "sample_6-0019",
+          "timestamp_sec": 39.233333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "4506fa21d69b90c578c00adbf8f9558bf4b187790f6fa1ca713c4dcd9de4452f",
+          "size_bytes": 18632,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0020.jpg",
+          "frame_id": "sample_6-0020",
+          "timestamp_sec": 40.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "70de2a38d33d5db9c98cf6a14b17bb88d3acc9e8511dda8e34f14c37b1153851",
+          "size_bytes": 20382,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0021.jpg",
+          "frame_id": "sample_6-0021",
+          "timestamp_sec": 45.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "ac618295912233eb8461bf6df2f390686f39db293070817ff28acab43dbd71ce",
+          "size_bytes": 22006,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0022.jpg",
+          "frame_id": "sample_6-0022",
+          "timestamp_sec": 48.6,
+          "width": 720,
+          "height": 1280,
+          "sha256": "5b0f0bdf0af5efb264e0014511e3bebeafc9e8159a927c6c5645bd553c1b5694",
+          "size_bytes": 21254,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0023.jpg",
+          "frame_id": "sample_6-0023",
+          "timestamp_sec": 50.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "ca1630c21d54444552ccbc35970eb4d19208421027cdb012800022c016d11393",
+          "size_bytes": 20400,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_6-0024.jpg",
+          "frame_id": "sample_6-0024",
+          "timestamp_sec": 52.066667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "11fcbd56320ee10bafb1d72b3ef93110a67094b878f6059e8ce386c605988eea",
+          "size_bytes": 21461,
+          "sampling_reasons": [
+            "near_final"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        }
+      ]
+    },
+    {
+      "source": "sample_7",
+      "source_sha256": "a5999634bd9ffa333b07e51ec413f390d6f7fb7444c8233223d3d191185cb731",
+      "group_id": "sample_7",
+      "split": "development",
+      "frames": [
+        {
+          "filename": "sample_7-0000.jpg",
+          "frame_id": "sample_7-0000",
+          "timestamp_sec": 0.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "830a4cc03c33c677b3ebf0577b7d24b05cc546843d5d866b64b06a17e1790bc8",
+          "size_bytes": 30737,
+          "sampling_reasons": [
+            "first"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_7-0001.jpg",
+          "frame_id": "sample_7-0001",
+          "timestamp_sec": 5.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "d788d870b017ec5a5ad6c3dd55b67656262d95750da613635fd048a1038a546d",
+          "size_bytes": 29865,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_7-0002.jpg",
+          "frame_id": "sample_7-0002",
+          "timestamp_sec": 10.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "a04daf35b8553c80bb05d3e2b168f3968b861d251deb2a99e9ca5e90b0dad6c1",
+          "size_bytes": 20453,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_7-0003.jpg",
+          "frame_id": "sample_7-0003",
+          "timestamp_sec": 15.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "123646ee977d9f63b3daab655941d724702412e5a6c6706ce2302e5ba879f65d",
+          "size_bytes": 16342,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_7-0004.jpg",
+          "frame_id": "sample_7-0004",
+          "timestamp_sec": 20.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "a0608fdb7f3adf527a3990844b1bb55963c4355145532e032ccb3a1d83195bf0",
+          "size_bytes": 18797,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_7-0005.jpg",
+          "frame_id": "sample_7-0005",
+          "timestamp_sec": 25.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "900f6a52e5d147fa5ae62df5a3804170b2b043914ace0f42a0c91daf0e4f049c",
+          "size_bytes": 18983,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_7-0006.jpg",
+          "frame_id": "sample_7-0006",
+          "timestamp_sec": 30.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "4c23f1b7895a03f3dbe1f131eccb7305d26d6ec241deab1c71a6030dd2e9f7df",
+          "size_bytes": 13526,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_7-0007.jpg",
+          "frame_id": "sample_7-0007",
+          "timestamp_sec": 35.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "9904f621f84a84037ddd9e00075fe2b40dcd34def271530dcd7c307ee1311807",
+          "size_bytes": 17992,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_7-0008.jpg",
+          "frame_id": "sample_7-0008",
+          "timestamp_sec": 40.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "57df723baa9c281159b5b3da994d5cafc3fe13655bf2057fbde89b15afbdbecb",
+          "size_bytes": 11914,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_7-0009.jpg",
+          "frame_id": "sample_7-0009",
+          "timestamp_sec": 45.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "a0b84420b08e239dd41b0b3887f2c1cbbaa4d1932010301dc0ec86f45e1982f8",
+          "size_bytes": 15701,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_7-0010.jpg",
+          "frame_id": "sample_7-0010",
+          "timestamp_sec": 50.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "8579bf58d6be29d78d94104ca58a668bd73d000684427e91d5ae0c0ed09e64f1",
+          "size_bytes": 16354,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_7-0011.jpg",
+          "frame_id": "sample_7-0011",
+          "timestamp_sec": 55.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "f06b8dae5a50b396b2bd70a40054c52a1fa1ab40d036c543b5507abb5fcce1fc",
+          "size_bytes": 17512,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_7-0012.jpg",
+          "frame_id": "sample_7-0012",
+          "timestamp_sec": 60.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "8d7806d5d960b2970f931a5942b8b700a97729287bceccc8cd7f1825fa62243b",
+          "size_bytes": 13215,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_7-0013.jpg",
+          "frame_id": "sample_7-0013",
+          "timestamp_sec": 65.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "03b6a36c31d600ea39e2761675c9257c9a2d134fa310d708453cac77d2b749f4",
+          "size_bytes": 18704,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_7-0014.jpg",
+          "frame_id": "sample_7-0014",
+          "timestamp_sec": 65.566667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "380d5700e3d5af7b01d4779bd46427e9ee1e87a2f1574b0c790847f32fc5c227",
+          "size_bytes": 18802,
+          "sampling_reasons": [
+            "near_final"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        }
+      ]
+    },
+    {
+      "source": "sample_8",
+      "source_sha256": "85f77fd41b8df296addb2e56b2a15d5ac321db5ba6a73867449a555ceeb1c142",
+      "group_id": "sample_8",
+      "split": "development",
+      "frames": [
+        {
+          "filename": "sample_8-0000.jpg",
+          "frame_id": "sample_8-0000",
+          "timestamp_sec": 0.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "0523bfc2a9f215403d96bcc7f90640e980397ae1b328f28633df0e8c3551477d",
+          "size_bytes": 41399,
+          "sampling_reasons": [
+            "first"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_8-0001.jpg",
+          "frame_id": "sample_8-0001",
+          "timestamp_sec": 1.533333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "c165e0a8b5608117be19cbdd0c62de24b9faf61cfcbb56203111fc6d9ecb6fba",
+          "size_bytes": 46253,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_8-0002.jpg",
+          "frame_id": "sample_8-0002",
+          "timestamp_sec": 3.9,
+          "width": 720,
+          "height": 1280,
+          "sha256": "771a3dbe6cb85687c093f6a4e3f7ee1419150e8fa263439e97f3e34564e2986e",
+          "size_bytes": 36044,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_8-0003.jpg",
+          "frame_id": "sample_8-0003",
+          "timestamp_sec": 5.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "96776b9a1b851b47c8e231373230f01c78c1c6ed94dd15a483bd5bcd0bdd8a14",
+          "size_bytes": 40894,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_8-0004.jpg",
+          "frame_id": "sample_8-0004",
+          "timestamp_sec": 6.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "8e315881fe2a91cbe97607d84223706f6909ccd472f01fb9db7c284672d653db",
+          "size_bytes": 33961,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_8-0005.jpg",
+          "frame_id": "sample_8-0005",
+          "timestamp_sec": 8.266667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "584086a9ca13cfffd4df7c5afe9d35073ba2f1f8e6b7257a9c4f0f805320337b",
+          "size_bytes": 22917,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_8-0006.jpg",
+          "frame_id": "sample_8-0006",
+          "timestamp_sec": 10.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "ea41b6d8b35b63a37cfa8ffe529df708baf50c736eb5e8850a88de74d7cd4722",
+          "size_bytes": 39501,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_8-0007.jpg",
+          "frame_id": "sample_8-0007",
+          "timestamp_sec": 12.966667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "f7ca4c8db28ca577ab0dd6e8adfb12ab1ee8a53d71bd49b218441dfc785fd5ac",
+          "size_bytes": 18384,
+          "sampling_reasons": [
+            "near_final"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        }
+      ]
+    },
+    {
+      "source": "sample_9",
+      "source_sha256": "1facc2f7ecf41c6e5b945a3f07764b690586955a255bc525e96ebf48d7e8a7a6",
+      "group_id": "sample_9",
+      "split": "development",
+      "frames": [
+        {
+          "filename": "sample_9-0000.jpg",
+          "frame_id": "sample_9-0000",
+          "timestamp_sec": 0.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "87ca1e2c416919695b24d32acd5ce718197e46e73ba1c4d1f250ea353be83e2a",
+          "size_bytes": 57011,
+          "sampling_reasons": [
+            "first"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_9-0001.jpg",
+          "frame_id": "sample_9-0001",
+          "timestamp_sec": 4.333333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "bab6531d70e71b6dc7435e6938f67bb0e664bceb46973fb1989e7d55ba7a4500",
+          "size_bytes": 45704,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_9-0002.jpg",
+          "frame_id": "sample_9-0002",
+          "timestamp_sec": 5.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "51c2a5322e655cf7ad774401a67d305ebf532333c709498f937291e253d18967",
+          "size_bytes": 37539,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_9-0003.jpg",
+          "frame_id": "sample_9-0003",
+          "timestamp_sec": 10.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "67dda4f5b017a9221f72e80d7cd413304984e0dedc7c705b484e0885bfd787ec",
+          "size_bytes": 39243,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_9-0004.jpg",
+          "frame_id": "sample_9-0004",
+          "timestamp_sec": 10.033333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "5668c26ab0d7f844cd0d6ae8baec624c4a21e6109e1de83d551b0d045172e092",
+          "size_bytes": 21533,
+          "sampling_reasons": [
+            "near_final"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        }
+      ]
+    },
+    {
+      "source": "sample_10",
+      "source_sha256": "e4a1e4c4a27ac91582f7b1180f95415c1e94d4d1425d2f20bc0ea9341694975b",
+      "group_id": "sample_10",
+      "split": "development",
+      "frames": [
+        {
+          "filename": "sample_10-0000.jpg",
+          "frame_id": "sample_10-0000",
+          "timestamp_sec": 0.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "869223dff4982abac74918c352714df772ad870fbcdc517ea2d8663db2204693",
+          "size_bytes": 41810,
+          "sampling_reasons": [
+            "first"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_10-0001.jpg",
+          "frame_id": "sample_10-0001",
+          "timestamp_sec": 0.68,
+          "width": 720,
+          "height": 1280,
+          "sha256": "112062d02192817251fbdba4af796a98f93b5a671c75d45fbe8dc4aa8cae9a68",
+          "size_bytes": 35209,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_10-0002.jpg",
+          "frame_id": "sample_10-0002",
+          "timestamp_sec": 1.4,
+          "width": 720,
+          "height": 1280,
+          "sha256": "5a7b07cca15190e28bbb3e401645780b6e6f1da9e5d3c2104f01a0fb8013f8ce",
+          "size_bytes": 33540,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_10-0003.jpg",
+          "frame_id": "sample_10-0003",
+          "timestamp_sec": 2.08,
+          "width": 720,
+          "height": 1280,
+          "sha256": "e66ad759019d4d039e989c13dc77077df817ca7cfaaacc9fcf25e4b5d56bbeab",
+          "size_bytes": 30497,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_10-0004.jpg",
+          "frame_id": "sample_10-0004",
+          "timestamp_sec": 2.76,
+          "width": 720,
+          "height": 1280,
+          "sha256": "d08ea54f3af00667bdc359947a33d0d0061dd0c17705e938c94ad92f88ecb0b0",
+          "size_bytes": 28571,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_10-0005.jpg",
+          "frame_id": "sample_10-0005",
+          "timestamp_sec": 4.12,
+          "width": 720,
+          "height": 1280,
+          "sha256": "68284d846f784df44b3c7ec9a3c15a0498bc8ce8bf0b98b92675bff43e609c6f",
+          "size_bytes": 25022,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_10-0006.jpg",
+          "frame_id": "sample_10-0006",
+          "timestamp_sec": 5.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "4569e510fba3e44ee66a3cbcacda02d0b1e35d196757235f42d3f241582b6992",
+          "size_bytes": 37660,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_10-0007.jpg",
+          "frame_id": "sample_10-0007",
+          "timestamp_sec": 5.52,
+          "width": 720,
+          "height": 1280,
+          "sha256": "ca9ea35b18fc5be35d137fb98c8e3c726b88e3a76200d8cd72181c0970b5fdf1",
+          "size_bytes": 20651,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_10-0008.jpg",
+          "frame_id": "sample_10-0008",
+          "timestamp_sec": 6.88,
+          "width": 720,
+          "height": 1280,
+          "sha256": "0456fe01f106e2ab666650342bbe39c1ec774bc4e61d693f7d9ee58319d11dcb",
+          "size_bytes": 22955,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_10-0009.jpg",
+          "frame_id": "sample_10-0009",
+          "timestamp_sec": 8.28,
+          "width": 720,
+          "height": 1280,
+          "sha256": "3b92a59c230621198413125e57464afb4b503479be1a80baf65f5e957e458d06",
+          "size_bytes": 21897,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_10-0010.jpg",
+          "frame_id": "sample_10-0010",
+          "timestamp_sec": 9.64,
+          "width": 720,
+          "height": 1280,
+          "sha256": "cdcd48409d4fabe23764e06936f86db3b7148c6c423544beab48d02484b22a46",
+          "size_bytes": 25822,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_10-0011.jpg",
+          "frame_id": "sample_10-0011",
+          "timestamp_sec": 10.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "8b62cada9a9c757095c52e4d9e214b046014aa8269ec303e7d09b7d2d4205651",
+          "size_bytes": 42295,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_10-0012.jpg",
+          "frame_id": "sample_10-0012",
+          "timestamp_sec": 13.72,
+          "width": 720,
+          "height": 1280,
+          "sha256": "472be101d474d6038f341c886fe89ca8af3338ed03bd8cf889592cac12b8dc18",
+          "size_bytes": 25680,
+          "sampling_reasons": [
+            "near_final"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        }
+      ]
+    },
+    {
+      "source": "sample_11",
+      "source_sha256": "cb83be010f6772a55873f4d3c931d91420344a95c7405229bce8df8f2d0eb526",
+      "group_id": "sample_11",
+      "split": "holdout",
+      "frames": [
+        {
+          "filename": "sample_11-0000.jpg",
+          "frame_id": "sample_11-0000",
+          "timestamp_sec": 0.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "000286a7bdc1409dbbda498b0eff14ee40cf079426796e011fd220ad664d918c",
+          "size_bytes": 60578,
+          "sampling_reasons": [
+            "first"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_11-0001.jpg",
+          "frame_id": "sample_11-0001",
+          "timestamp_sec": 5.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "802cefed3fd2bbaa2d1b9d00f6f76dc2d07363ee437bef182aaade624ee6387c",
+          "size_bytes": 48098,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_11-0002.jpg",
+          "frame_id": "sample_11-0002",
+          "timestamp_sec": 10.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "760e837098290c808199d3d93941354150973fdda5ec3e4df4782a41d409b568",
+          "size_bytes": 52301,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_11-0003.jpg",
+          "frame_id": "sample_11-0003",
+          "timestamp_sec": 15.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "e07cefc602a5b75e9516ef54e426e4dc933767ebe1feb9eb941cdeab53c68866",
+          "size_bytes": 30839,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_11-0004.jpg",
+          "frame_id": "sample_11-0004",
+          "timestamp_sec": 15.8,
+          "width": 720,
+          "height": 1280,
+          "sha256": "4929894f5b026fc969c23521e1b25b14c18f91d281c4cdb8f1cde950f7b4d1f8",
+          "size_bytes": 42219,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_11-0005.jpg",
+          "frame_id": "sample_11-0005",
+          "timestamp_sec": 16.466667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "cd57466782102a6c522dfbd4f9b19f837505b6abe446fad7dac037e79e0077f9",
+          "size_bytes": 28629,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_11-0006.jpg",
+          "frame_id": "sample_11-0006",
+          "timestamp_sec": 17.666667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "29efd087639e295b65b92f8bc30e7314c47f96691779a5f3b13f5324be12495d",
+          "size_bytes": 20597,
+          "sampling_reasons": [
+            "near_final"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        }
+      ]
+    },
+    {
+      "source": "sample_12",
+      "source_sha256": "8e8a3e619626a48f90da0718a03fc8e8a5e55f1d0396cad6fca0f8a724c80108",
+      "group_id": "sample_12",
+      "split": "development",
+      "frames": [
+        {
+          "filename": "sample_12-0000.jpg",
+          "frame_id": "sample_12-0000",
+          "timestamp_sec": 0.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "640cb727451c3ba5e266eae7a69c4b4cab3e3c9b4c347604def77edef3f262d9",
+          "size_bytes": 30506,
+          "sampling_reasons": [
+            "first"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0001.jpg",
+          "frame_id": "sample_12-0001",
+          "timestamp_sec": 5.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "0d39f0be3df9bfe25e350da122e007f89c7275094369be6963db2ef01635332b",
+          "size_bytes": 41017,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0002.jpg",
+          "frame_id": "sample_12-0002",
+          "timestamp_sec": 5.083333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "87d2ceff1e710d5ea85349f165833d414ff2b78f3ec4942b031f9186e7f4efaa",
+          "size_bytes": 44547,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0003.jpg",
+          "frame_id": "sample_12-0003",
+          "timestamp_sec": 5.708333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "ab21757cfcde677d2af3672fa5a47b2b1bd0fe4d82cc2a7a26c6d68e19ad2cc4",
+          "size_bytes": 22371,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0004.jpg",
+          "frame_id": "sample_12-0004",
+          "timestamp_sec": 7.875,
+          "width": 720,
+          "height": 1280,
+          "sha256": "c30edbe31f529fdbc3894cbb019f76a5e8984d6c9ccd91358fa5994f958f8222",
+          "size_bytes": 11882,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0005.jpg",
+          "frame_id": "sample_12-0005",
+          "timestamp_sec": 10.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "b6622e0108e727ee10b7c451147a01169a04a444645697d0d3f3c6644e984c46",
+          "size_bytes": 37074,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0006.jpg",
+          "frame_id": "sample_12-0006",
+          "timestamp_sec": 13.875,
+          "width": 720,
+          "height": 1280,
+          "sha256": "6eaeece5fe3005f31b38e8d419eafcce796f4c03986293b004469256694ce46f",
+          "size_bytes": 17316,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0007.jpg",
+          "frame_id": "sample_12-0007",
+          "timestamp_sec": 15.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "97a08672f9675ff934033e436d0841b7e5e06ac31544da75656af41632764763",
+          "size_bytes": 22317,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0008.jpg",
+          "frame_id": "sample_12-0008",
+          "timestamp_sec": 18.125,
+          "width": 720,
+          "height": 1280,
+          "sha256": "dc388ac03ba8e1c9bdfdca4f3bf1bb3f334e5e55ac09e21e3b65e95975d1ab5e",
+          "size_bytes": 21124,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0009.jpg",
+          "frame_id": "sample_12-0009",
+          "timestamp_sec": 20.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "9dcb5c0ea051b526d560ebc68c57be7fcbb77b8eb27c445f693d08ee6eeb483a",
+          "size_bytes": 23857,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0010.jpg",
+          "frame_id": "sample_12-0010",
+          "timestamp_sec": 23.75,
+          "width": 720,
+          "height": 1280,
+          "sha256": "67ede826c66d3de7216e069ee1dee76c1918424c82f7d509eaf502e59e00dc2a",
+          "size_bytes": 20596,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0011.jpg",
+          "frame_id": "sample_12-0011",
+          "timestamp_sec": 25.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "208f954393c48268feb2375a9c7a74110c498478d2042451fbb4bb2af11b3641",
+          "size_bytes": 22836,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0012.jpg",
+          "frame_id": "sample_12-0012",
+          "timestamp_sec": 27.208333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "242805afed5071d9a9de5e65251a7bfb5ba442f192b8b93d2a175fdbd7a7da9e",
+          "size_bytes": 20139,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0013.jpg",
+          "frame_id": "sample_12-0013",
+          "timestamp_sec": 30.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "eaf7fd4641e1124aa4c6b9bdff2f2bb8665cdd4e075b192732a4dd7d205a8008",
+          "size_bytes": 22089,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0014.jpg",
+          "frame_id": "sample_12-0014",
+          "timestamp_sec": 33.541667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "588142dbbe6f7e45f01d780b5ff8d8d72fe67c56d290505cf22152bc2a090065",
+          "size_bytes": 15492,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0015.jpg",
+          "frame_id": "sample_12-0015",
+          "timestamp_sec": 35.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "9e837d9e96c1bedd81e24d1d791df6416c10bfca824ad65d8e1894c7238e026c",
+          "size_bytes": 20229,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0016.jpg",
+          "frame_id": "sample_12-0016",
+          "timestamp_sec": 39.166667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "be0ee2ffbf0b0cdcfd7bba2b53a0034ec86e2a3dc46385c8c4b3cfb538aadf4e",
+          "size_bytes": 23885,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0017.jpg",
+          "frame_id": "sample_12-0017",
+          "timestamp_sec": 40.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "5c29bacd0a5ef1a430e7870dcf8c97952cf690491f21d4c61b8643a44cb437b6",
+          "size_bytes": 20529,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0018.jpg",
+          "frame_id": "sample_12-0018",
+          "timestamp_sec": 43.416667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "42ca5c592025e3eec762e55d26aa0a47b59f9ab10376b2df82e9486fdb028a37",
+          "size_bytes": 20308,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0019.jpg",
+          "frame_id": "sample_12-0019",
+          "timestamp_sec": 45.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "3345a9631cfaa367512bb5fd9b41dd728ddc4d941509d75bd2ed3ca4140dc2b7",
+          "size_bytes": 19629,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0020.jpg",
+          "frame_id": "sample_12-0020",
+          "timestamp_sec": 50.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "94b06c1e6813ef1cb4743ca3cad936f1d0679efc46c542f6a73866c5683f4a87",
+          "size_bytes": 22441,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0021.jpg",
+          "frame_id": "sample_12-0021",
+          "timestamp_sec": 50.458333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "dee2a9a7bafee35c508b4b826f89288987669901182f1e47f392b41e81825158",
+          "size_bytes": 15043,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0022.jpg",
+          "frame_id": "sample_12-0022",
+          "timestamp_sec": 55.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "984d66fa490593d91b0f433ba283ce7230336c79f4481fcab98a752e682f7119",
+          "size_bytes": 20316,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0023.jpg",
+          "frame_id": "sample_12-0023",
+          "timestamp_sec": 55.416667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "49b2dc90bf75f0fc335a0fea30a8e7d90aa1e793b2df5e07da5180a79831d015",
+          "size_bytes": 14998,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_12-0024.jpg",
+          "frame_id": "sample_12-0024",
+          "timestamp_sec": 56.833333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "b4a367400381e8622fd46a296a137ef66dd613f9092ceeb0a8a51198162f702a",
+          "size_bytes": 16412,
+          "sampling_reasons": [
+            "near_final"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        }
+      ]
+    },
+    {
+      "source": "sample_13",
+      "source_sha256": "b9459524e4e7bf82e8427894181f1b9b61becb9e37af30e714124d5f1d530525",
+      "group_id": "sample_13",
+      "split": "holdout",
+      "frames": [
+        {
+          "filename": "sample_13-0000.jpg",
+          "frame_id": "sample_13-0000",
+          "timestamp_sec": 0.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "1fff213e9d2394876a6534632b22dee7f95215287b8bec7ec40d3223b6c6a56e",
+          "size_bytes": 46063,
+          "sampling_reasons": [
+            "first"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_13-0001.jpg",
+          "frame_id": "sample_13-0001",
+          "timestamp_sec": 1.466667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "80cbf0d8ec94dcde1dab43add088e9766beda183a34d9604860c2d490ef57b49",
+          "size_bytes": 54929,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_13-0002.jpg",
+          "frame_id": "sample_13-0002",
+          "timestamp_sec": 3.933333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "bc2abae13aed71ca596557fd1565a484fdfbb8c7003be240f552eba85d73b0c5",
+          "size_bytes": 53193,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_13-0003.jpg",
+          "frame_id": "sample_13-0003",
+          "timestamp_sec": 5.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "d273ada9391617409e2d4ae7cad2aa9a2938bb25155466f758e56b1d158cb513",
+          "size_bytes": 59023,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_13-0004.jpg",
+          "frame_id": "sample_13-0004",
+          "timestamp_sec": 5.4,
+          "width": 720,
+          "height": 1280,
+          "sha256": "078e0c8bbaaa958cec38f47a7907399fa6a96fd7a81cce3e9c3f9eaf212c3280",
+          "size_bytes": 26742,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_13-0005.jpg",
+          "frame_id": "sample_13-0005",
+          "timestamp_sec": 6.633333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "1cb7df8a483891e4dcd6eb0d03525df051d17856d1341233d33ef08af938fa6b",
+          "size_bytes": 22882,
+          "sampling_reasons": [
+            "near_final"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        }
+      ]
+    },
+    {
+      "source": "sample_14",
+      "source_sha256": "734400d78b7b6217d252b724f12dac88635b21385516222799c1a80e942cdd2b",
+      "group_id": "sample_14",
+      "split": "development",
+      "frames": [
+        {
+          "filename": "sample_14-0000.jpg",
+          "frame_id": "sample_14-0000",
+          "timestamp_sec": 0.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "3b12db1bd0efc3cf63b1acd694236a860f692ff1e4e9d901575d909d9ba10660",
+          "size_bytes": 38296,
+          "sampling_reasons": [
+            "first"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_14-0001.jpg",
+          "frame_id": "sample_14-0001",
+          "timestamp_sec": 1.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "17cfaed1b06900a0df692832923680a8629bbf86903d93ee7ecfdf8d846ef382",
+          "size_bytes": 29419,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_14-0002.jpg",
+          "frame_id": "sample_14-0002",
+          "timestamp_sec": 3.6,
+          "width": 720,
+          "height": 1280,
+          "sha256": "1613a73c525493d3cf4ba10dfa997c027bf9230daa9c3225a45bc35b6a052ee5",
+          "size_bytes": 29208,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_14-0003.jpg",
+          "frame_id": "sample_14-0003",
+          "timestamp_sec": 4.266667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "db7aaa4b98348dcd7618c80b9d354e29d2d432f5466dbc7338d44acc536dc152",
+          "size_bytes": 24825,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_14-0004.jpg",
+          "frame_id": "sample_14-0004",
+          "timestamp_sec": 5.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "df4a658619f8395ab8841e9aea2046bb421e87a96b6afb5407ed238550015651",
+          "size_bytes": 32266,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_14-0005.jpg",
+          "frame_id": "sample_14-0005",
+          "timestamp_sec": 6.1,
+          "width": 720,
+          "height": 1280,
+          "sha256": "aaa768940ebe42c6276e74f0ce4524f237d9d1cbb6505ca2e8e497afcaf997a8",
+          "size_bytes": 23090,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_14-0006.jpg",
+          "frame_id": "sample_14-0006",
+          "timestamp_sec": 7.266667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "6b918a410f5928335288d49785744afe07865939c403c0bef22cc3c172ad15a7",
+          "size_bytes": 21818,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_14-0007.jpg",
+          "frame_id": "sample_14-0007",
+          "timestamp_sec": 8.233333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "9457b37ad40d0ff8a4f9edc45db02a520cf66e8f53f5eeb548e3523f636e67c7",
+          "size_bytes": 18479,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_14-0008.jpg",
+          "frame_id": "sample_14-0008",
+          "timestamp_sec": 9.766667,
+          "width": 720,
+          "height": 1280,
+          "sha256": "8ac4ed3731241081a8ae58e4e7086c9b4aeac3a89b56209d78620ff1cf50ccc1",
+          "size_bytes": 18320,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_14-0009.jpg",
+          "frame_id": "sample_14-0009",
+          "timestamp_sec": 10.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "b8b977967a3636a6ce6076b34ff7f873319179a32d8b175fa1c7c4503810596c",
+          "size_bytes": 25835,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_14-0010.jpg",
+          "frame_id": "sample_14-0010",
+          "timestamp_sec": 10.4,
+          "width": 720,
+          "height": 1280,
+          "sha256": "80e78e5d876654bf543bc9f1204ab6b3a066fb7d59b858c888a111d49184d5b3",
+          "size_bytes": 20189,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_14-0011.jpg",
+          "frame_id": "sample_14-0011",
+          "timestamp_sec": 11.1,
+          "width": 720,
+          "height": 1280,
+          "sha256": "e6460ddfdc3f77b329c9568f9564f3714448945be5c55e9bc7629c27bb9560ab",
+          "size_bytes": 20638,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_14-0012.jpg",
+          "frame_id": "sample_14-0012",
+          "timestamp_sec": 11.733333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "0170526c60b82cf048d02810e12c96a322153fa41545cc2842e4cd79a32479d7",
+          "size_bytes": 20914,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_14-0013.jpg",
+          "frame_id": "sample_14-0013",
+          "timestamp_sec": 12.9,
+          "width": 720,
+          "height": 1280,
+          "sha256": "35401b2bace48957a54ee1e8789358791b2abec2782dad3cd240fa6ab203a021",
+          "size_bytes": 21353,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_14-0014.jpg",
+          "frame_id": "sample_14-0014",
+          "timestamp_sec": 13.5,
+          "width": 720,
+          "height": 1280,
+          "sha256": "96a867948d317bfbe2b4ed91a4eefb2e305a2de99f684f6580eed3c2d4bd47b9",
+          "size_bytes": 22323,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_14-0015.jpg",
+          "frame_id": "sample_14-0015",
+          "timestamp_sec": 14.1,
+          "width": 720,
+          "height": 1280,
+          "sha256": "4ee72f080e9257efde46f96d0c855306d2e1d4649ad48496542b854178ec16cb",
+          "size_bytes": 22233,
+          "sampling_reasons": [
+            "near_final"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        }
+      ]
+    },
+    {
+      "source": "sample_15",
+      "source_sha256": "1bc2c6e9e2f995f9bf7490b9093f81767ba5dd3d149e109acc95065e102e9ada",
+      "group_id": "sample_15",
+      "split": "development",
+      "frames": [
+        {
+          "filename": "sample_15-0000.jpg",
+          "frame_id": "sample_15-0000",
+          "timestamp_sec": 0.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "37b8c689214be272bebb943e3249b4242984886bf38be9805334ab506f7534fe",
+          "size_bytes": 90650,
+          "sampling_reasons": [
+            "first"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_15-0001.jpg",
+          "frame_id": "sample_15-0001",
+          "timestamp_sec": 5.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "7571bf652ea8cfc7f32188ca10187554111658a40e7d1b93499e3fa43c1b9427",
+          "size_bytes": 65928,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_15-0002.jpg",
+          "frame_id": "sample_15-0002",
+          "timestamp_sec": 7.433333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "0e8f81207eded1eb5c964384773e38b59d3b04691ff545cb92f647876fd19f38",
+          "size_bytes": 32666,
+          "sampling_reasons": [
+            "near_final"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        }
+      ]
+    },
+    {
+      "source": "sample_16",
+      "source_sha256": "36dcc3c86410518e6c5612843fcf350c2ae2f9b9c97232689826a6d5de543b9e",
+      "group_id": "sample_16",
+      "split": "development",
+      "frames": [
+        {
+          "filename": "sample_16-0000.jpg",
+          "frame_id": "sample_16-0000",
+          "timestamp_sec": 0.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "d3cf22170ef94169c0478b732890ec29dbe36968747bbd7bb589bd937fb11fa0",
+          "size_bytes": 62944,
+          "sampling_reasons": [
+            "first"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_16-0001.jpg",
+          "frame_id": "sample_16-0001",
+          "timestamp_sec": 5.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "6f617f97d824172bc30a260701c445759c7f57a575a48585a4c59bd6fb6c1c0b",
+          "size_bytes": 53304,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_16-0002.jpg",
+          "frame_id": "sample_16-0002",
+          "timestamp_sec": 10.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "fb7ff5e7807a396a441072a88eb076dff6bccacb1578f9b73af8a3ee68f06e21",
+          "size_bytes": 45371,
+          "sampling_reasons": [
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_16-0003.jpg",
+          "frame_id": "sample_16-0003",
+          "timestamp_sec": 10.133333,
+          "width": 720,
+          "height": 1280,
+          "sha256": "c5131e121fd33c9ea501636d545406b3452a8fcaa5064ccdbf4622212076f7c2",
+          "size_bytes": 30901,
+          "sampling_reasons": [
+            "near_final"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        }
+      ]
+    },
+    {
+      "source": "sample_17",
+      "source_sha256": "21a762b11411009df1c223bbf3c1f878c52be46815e8b4454ceb97b4a4ef2d93",
+      "group_id": "sample_17",
+      "split": "holdout",
+      "frames": [
+        {
+          "filename": "sample_17-0000.jpg",
+          "frame_id": "sample_17-0000",
+          "timestamp_sec": 0.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "21b4d3432b48c0ae058b329c3c5fbed56f2c4684bb6f08361b280bce08178dba",
+          "size_bytes": 37669,
+          "sampling_reasons": [
+            "first"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0001.jpg",
+          "frame_id": "sample_17-0001",
+          "timestamp_sec": 0.1,
+          "width": 720,
+          "height": 1280,
+          "sha256": "40013f32a206f849134f4e5f2a1956fa1783c80f26c470affadd8e082c76b986",
+          "size_bytes": 16558,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0002.jpg",
+          "frame_id": "sample_17-0002",
+          "timestamp_sec": 0.6,
+          "width": 720,
+          "height": 1280,
+          "sha256": "a011346338dd5201f4109006e4d953e4a4dca761b6a0ddb6ac752f042ba30c17",
+          "size_bytes": 21658,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0003.jpg",
+          "frame_id": "sample_17-0003",
+          "timestamp_sec": 1.1,
+          "width": 720,
+          "height": 1280,
+          "sha256": "eb67d9f1f925bb7e04b65ac551606370d84c5c18c3bf398e63c61ebd35665515",
+          "size_bytes": 20801,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0004.jpg",
+          "frame_id": "sample_17-0004",
+          "timestamp_sec": 1.6,
+          "width": 720,
+          "height": 1280,
+          "sha256": "be8e667375301ea1fb971ca9a60864608cfc9f99bdff741aca2fded897f960eb",
+          "size_bytes": 17912,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0005.jpg",
+          "frame_id": "sample_17-0005",
+          "timestamp_sec": 2.1,
+          "width": 720,
+          "height": 1280,
+          "sha256": "4ffa616409ed0753a6fd828af1316399d69bbd2c3db6b49cfe54830184dba0f7",
+          "size_bytes": 16977,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0006.jpg",
+          "frame_id": "sample_17-0006",
+          "timestamp_sec": 2.6,
+          "width": 720,
+          "height": 1280,
+          "sha256": "0ec4e6eeb17544bece8e01ee8756bb9e6f96c6c99fdf94f40818d48d6367528a",
+          "size_bytes": 19872,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0007.jpg",
+          "frame_id": "sample_17-0007",
+          "timestamp_sec": 3.1,
+          "width": 720,
+          "height": 1280,
+          "sha256": "c6b5eaa5c5a0c630e2bf427f048af9befbdc9138a6209b452a247ec93939e020",
+          "size_bytes": 16987,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0008.jpg",
+          "frame_id": "sample_17-0008",
+          "timestamp_sec": 3.7,
+          "width": 720,
+          "height": 1280,
+          "sha256": "468c28f4bf48f3fdf7609e2e8d7aaa1da4c40167df6527376f7c9c15448eb6d2",
+          "size_bytes": 21045,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0009.jpg",
+          "frame_id": "sample_17-0009",
+          "timestamp_sec": 4.2,
+          "width": 720,
+          "height": 1280,
+          "sha256": "95ac65fc811a6b22b5eaed7501377119e3c4068b7034c486cf853f9fbf2355d9",
+          "size_bytes": 16396,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0010.jpg",
+          "frame_id": "sample_17-0010",
+          "timestamp_sec": 4.7,
+          "width": 720,
+          "height": 1280,
+          "sha256": "8d7f4f58db4eba1384d57ae36378bc4f9c4869ec97e6517ab7b93d7092124f71",
+          "size_bytes": 18151,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0011.jpg",
+          "frame_id": "sample_17-0011",
+          "timestamp_sec": 5.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "ff1c5e638214bcfa9e46fa3c48c4b6aa61241df66900e22f4f7d48ebeaf100bb",
+          "size_bytes": 22267,
+          "sampling_reasons": [
+            "scene_change",
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0012.jpg",
+          "frame_id": "sample_17-0012",
+          "timestamp_sec": 5.3,
+          "width": 720,
+          "height": 1280,
+          "sha256": "375ce3fda930d72456a4cb671ad73746a42fd82a1975a68d362700ffe69da19d",
+          "size_bytes": 21282,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0013.jpg",
+          "frame_id": "sample_17-0013",
+          "timestamp_sec": 6.1,
+          "width": 720,
+          "height": 1280,
+          "sha256": "d26098404c2dccd6900af3637c30996f6810d432bb8af44fbae508436a9ad2da",
+          "size_bytes": 17270,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0014.jpg",
+          "frame_id": "sample_17-0014",
+          "timestamp_sec": 6.6,
+          "width": 720,
+          "height": 1280,
+          "sha256": "c29426c6ba8ff657a962fb0ed07c768269c2bd09e3bdf60b46a04a3c60c63d86",
+          "size_bytes": 19100,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0015.jpg",
+          "frame_id": "sample_17-0015",
+          "timestamp_sec": 7.6,
+          "width": 720,
+          "height": 1280,
+          "sha256": "00ffb80e91b9cc5870091f9eca1d897acae17c160ba4c70ddd47b797a20869cc",
+          "size_bytes": 22107,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0016.jpg",
+          "frame_id": "sample_17-0016",
+          "timestamp_sec": 8.7,
+          "width": 720,
+          "height": 1280,
+          "sha256": "2f6553a4b1364264e9bca399e1d174523dd2c14362977a498135bb95f9765c54",
+          "size_bytes": 22048,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0017.jpg",
+          "frame_id": "sample_17-0017",
+          "timestamp_sec": 9.3,
+          "width": 720,
+          "height": 1280,
+          "sha256": "468f4744e76fd1127311986fdb0b1e88b7eb7f5143f177bb0700bddddbceed40",
+          "size_bytes": 24103,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0018.jpg",
+          "frame_id": "sample_17-0018",
+          "timestamp_sec": 10.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "1432d2d9426ff288a3c0f2f1ceda6644052b1b739abc88b7401f4e6c4fdf4958",
+          "size_bytes": 19045,
+          "sampling_reasons": [
+            "scene_change",
+            "interval"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0019.jpg",
+          "frame_id": "sample_17-0019",
+          "timestamp_sec": 10.1,
+          "width": 720,
+          "height": 1280,
+          "sha256": "a8ed535c32aea252909f4a5adf92dcc81f5f3f01e6d61ca961d687bb0648d976",
+          "size_bytes": 15766,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0020.jpg",
+          "frame_id": "sample_17-0020",
+          "timestamp_sec": 11.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "9fbf3b2f7ee588620881c6ab0fa23c1d198dc9e8674d2a2bc9e99e93c53a3376",
+          "size_bytes": 19074,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0021.jpg",
+          "frame_id": "sample_17-0021",
+          "timestamp_sec": 11.5,
+          "width": 720,
+          "height": 1280,
+          "sha256": "35094b75b6f6b51fe0011b1078a756896e4f5df4bd44bf30a6a65a09d96e5414",
+          "size_bytes": 28714,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0022.jpg",
+          "frame_id": "sample_17-0022",
+          "timestamp_sec": 12.0,
+          "width": 720,
+          "height": 1280,
+          "sha256": "3f9c4b749966cf8ee9b779bfe42bf6a7ede80e11b74d69b2d4c7c9615a9a9161",
+          "size_bytes": 25652,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0023.jpg",
+          "frame_id": "sample_17-0023",
+          "timestamp_sec": 12.7,
+          "width": 720,
+          "height": 1280,
+          "sha256": "2cf4259993fda07e4fbd19846d8e20e71d23066e8770d5dc5516c213372ae478",
+          "size_bytes": 22971,
+          "sampling_reasons": [
+            "scene_change"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        },
+        {
+          "filename": "sample_17-0024.jpg",
+          "frame_id": "sample_17-0024",
+          "timestamp_sec": 12.8,
+          "width": 720,
+          "height": 1280,
+          "sha256": "f25e1cf01c6c068debdfb5c998298bd80c33588a425ec6766fed020334d1081b",
+          "size_bytes": 22877,
+          "sampling_reasons": [
+            "near_final"
+          ],
+          "objects": [],
+          "out_of_taxonomy": []
+        }
+      ]
+    }
+  ],
+  "status": "awaiting_independent_review",
+  "approval_status": "pending",
+  "ffmpeg": "ffmpeg version 7.1.5-0+deb13u1 Copyright (c) 2000-2026 the FFmpeg developers"
+}

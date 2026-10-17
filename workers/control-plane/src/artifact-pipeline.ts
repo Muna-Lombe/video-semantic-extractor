@@ -132,13 +132,17 @@ async function finalize(request: Request, env: AdjudicationEnv, jobId: string, l
   if (!exactKeys(value, ["manifest"]) || !value.manifest || typeof value.manifest !== "object" || Array.isArray(value.manifest)) return error("invalid_request", "manifest must be an object", 400);
   const input = JSON.parse(String(job.input_json)) as JsonRecord;
   const datasetVersionId = String(input.dataset_version_id ?? "");
-  const sourceRows = await env.DATASET_DB.prepare("SELECT id FROM dataset_sources WHERE dataset_version_id = ? ORDER BY ordinal").bind(datasetVersionId).all<{ id: string }>();
+  const sourceRows = await env.DATASET_DB.prepare("SELECT id, expected_sha256 FROM dataset_sources WHERE dataset_version_id = ? ORDER BY ordinal").bind(datasetVersionId).all<{ id: string; expected_sha256?: string }>();
   const datasetSourceIds = (sourceRows.results ?? []).map((source) => source.id);
   if (datasetSourceIds.length === 0) return error("dataset_unavailable", "dataset version has no registered sources", 409);
   const expectedFrameSetId = frameSetId(jobId);
   const validation = validateFrameSetManifest(value.manifest, { frameSetId: expectedFrameSetId, samplingJobId: jobId, datasetVersionId, datasetSourceIds });
   if (!validation.valid) return error("invalid_manifest", "frame-set manifest validation failed", 422, { errors: validation.errors });
   const manifest = value.manifest as unknown as FrameSetManifestV1;
+  if (manifest.sources.some((source) => {
+    const expected = sourceRows.results.find((row) => row.id === source.dataset_source_id)?.expected_sha256;
+    return expected && expected !== source.source_sha256;
+  })) return error("source_content_changed", "source bytes differ from the frozen sample catalog", 422);
   const frames = manifest.sources.flatMap((source) => source.frames.map((frame, ordinal) => ({ source, frame, ordinal })));
 
   const uploads = new Map<string, JsonRecord>();

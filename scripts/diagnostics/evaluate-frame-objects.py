@@ -501,6 +501,8 @@ def evaluate_managed_ground_truth(
         raise ValueError("managed ground truth must contain sources")
 
     labels_by_key: dict[tuple[str, str], list[ObjectLabel]] = {}
+    unsupported_by_key: dict[tuple[str, str], list[dict]] = {}
+    unsupported_classes: Counter[str] = Counter()
     source_ids: list[str] = []
     for source in ground_truth["sources"]:
         if not isinstance(source, dict) or not isinstance(source.get("source"), str) or not isinstance(source.get("frames"), list):
@@ -517,8 +519,10 @@ def evaluate_managed_ground_truth(
                 raise ValueError("managed ground-truth frame IDs must be unique per source")
             labels_by_key[key] = [
                 ObjectLabel(str(item["label"]), tuple(item["region"]))
-                for item in frame["objects"]
+                for item in frame["objects"] if item["label"] in COCO_CLASSES
             ]
+            unsupported_by_key[key] = [item for item in frame["objects"] if item["label"] not in COCO_CLASSES]
+            unsupported_classes.update(item["label"] for item in unsupported_by_key[key])
     if not labels_by_key:
         raise ValueError("managed ground truth contains no frames")
 
@@ -574,6 +578,7 @@ def evaluate_managed_ground_truth(
                 "artifact_sha256": record.get("sha256"),
                 "inference_ms": round(latency_ms, 3),
                 "expected_objects": [asdict(item) for item in expected],
+                "unsupported_objects": unsupported_by_key[key],
                 "score": {"true_positives": matched, "false_positives": unsupported, "false_negatives": missed},
                 "errors": {
                     "false_positive_observations": [asdict(item) for index, item in enumerate(observations) if index not in matched_predictions],
@@ -613,6 +618,9 @@ def evaluate_managed_ground_truth(
         "object_recall": round(recall, 4) if recall is not None else None,
         "object_f1": round(f1, 4) if f1 is not None else None,
         "class_counts": dict(sorted(class_counts.items())),
+        "supported_taxonomy": "coco-80",
+        "unsupported_ground_truth_classes": dict(sorted(unsupported_classes.items())),
+        "unsupported_ground_truth_objects": sum(unsupported_classes.values()),
         "mean_inference_ms": round(float(np.mean(latencies)), 3),
         "p95_inference_ms": round(ordered[percentile_index], 3),
         "sources": source_results,
