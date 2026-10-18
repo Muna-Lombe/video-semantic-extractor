@@ -90,7 +90,7 @@
 
     <div id="adjudicator" hidden>
       <header class="adjudication-header">
-        <div><p class="eyebrow">Independent resolution</p><h1>Adjudicate reviews</h1><p class="hint">Compare both passes, then save one decision for each disagreement.</p></div>
+        <div><p class="eyebrow">Independent resolution</p><h1>Adjudicate reviews</h1><p class="hint">Inspect every frame for shared omissions and save a decision for each disagreement.</p></div>
         <div class="completion-controls">
           <button id="refresh-adjudication" class="secondary">Refresh assignment</button>
           <span id="adjudication-progress"></span>
@@ -101,10 +101,10 @@
       </header>
       <p id="adjudication-status" class="workspace-status" role="status" aria-live="polite"></p>
       <main class="adjudication-layout" id="adjudication-content" tabindex="-1">
-        <aside class="frame-sidebar adjudication-sidebar" aria-label="Disagreement navigation">
-          <h2>Disagreements</h2>
+        <aside class="frame-sidebar adjudication-sidebar" aria-label="Adjudication frame navigation">
+          <h2>Frames</h2>
           <label for="disagreement-filter">Show frames</label>
-          <select id="disagreement-filter"><option value="all">All disagreements</option><option value="pending">Needs a decision</option><option value="resolved">Resolved</option></select>
+          <select id="disagreement-filter"><option value="all">All frames</option><option value="disagreements">Reviewer disagreements</option><option value="agreed">Reviewer agreement</option><option value="pending">Needs a decision</option><option value="resolved">Saved decisions</option></select>
           <label for="disagreement-search">Find a frame</label>
           <input id="disagreement-search" type="search" placeholder="Source or filename">
           <p id="disagreement-count" class="hint"></p>
@@ -112,11 +112,11 @@
           <p id="no-matching-frames" class="hint" hidden>No frames match this filter.</p>
         </aside>
         <section class="workspace adjudication-workspace">
-          <div id="adjudication-empty" class="empty-state" hidden><h2>No disagreements to resolve</h2><p>Both reviewers agree on every frame. You can complete adjudication after checking the instructions.</p></div>
+          <div id="adjudication-empty" class="empty-state" hidden><h2>No frames available</h2><p>This assignment has no registered frames to inspect.</p></div>
           <div id="adjudication-frame" hidden>
             <div class="frame-heading">
               <div><p id="adjudication-position" class="eyebrow"></p><h2 id="adjudication-title" tabindex="-1"></h2><p id="disagreement-summary" class="hint"></p></div>
-              <div class="frame-navigation"><button id="previous-frame" class="secondary" aria-label="Previous disagreement">Previous</button><button id="next-frame" class="secondary" aria-label="Next disagreement">Next</button><button id="next-unresolved" class="secondary">Next unresolved</button></div>
+              <div class="frame-navigation"><button id="previous-frame" class="secondary" aria-label="Previous frame">Previous</button><button id="next-frame" class="secondary" aria-label="Next frame">Next</button><button id="next-unresolved" class="secondary">Next unresolved</button></div>
             </div>
             <div class="comparison-toolbar"><label><input id="show-regions" type="checkbox" checked> Show object boxes and labels</label><span id="adjudication-evidence-status" class="hint" role="status"></span></div>
             <div class="comparison-grid">

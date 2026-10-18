@@ -246,7 +246,9 @@ async function writeAdjudication(request: Request, env: AdjudicationEnv, actor: 
     const value = await body(request);
     if (Object.keys(value).some((key) => !["frame", "resolution"].includes(key)) || !["reviewer_a", "reviewer_b", "edited", "ambiguous"].includes(value.resolution)) fail("frame and a valid resolution are required");
     const target = merged.sources.find((item: JsonRecord) => item.source === source)?.frames.find((frame: JsonRecord) => frame.filename === filename);
-    if (!target || !comparison.disagreements.some((item: JsonRecord) => item.source === source && item.filename === filename)) fail("unknown disagreement frame", 404);
+    // Agreement can include shared omissions. Adjudicators may correct any pinned
+    // frame; identity, policy, revision and assignment checks still apply below.
+    if (!target) fail("unknown frame", 404);
     validateFrameAnnotations(value.frame, target, new Set(), template.validation?.annotation_rules);
     if (value.resolution === "reviewer_a" || value.resolution === "reviewer_b") {
       const selected = JSON.parse(state.reviewers[value.resolution === "reviewer_a" ? 0 : 1].submission_json).sources.find((item: JsonRecord) => item.source === source).frames.find((frame: JsonRecord) => frame.filename === filename);

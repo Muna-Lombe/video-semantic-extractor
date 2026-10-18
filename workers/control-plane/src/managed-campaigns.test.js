@@ -250,6 +250,32 @@ describe("managed review campaigns", () => {
     expect((await call(env, `${adjudicatorPath(invitation)}/complete`, "POST", {}, invitation.api_token, initial.revision)).status).toBe(200);
   });
 
+  it("corrects a shared omission in an agreed empty frame without rewriting either reviewer pass", async () => {
+    const { env, template } = await fixture(), created = await campaign(env, template), invitation = created.invitations.adjudicator;
+    const initial = await ready(env, created, null, null), frame = clone(initial.merged.sources[0].frames[0]);
+    expect(initial.comparison.disagreements).toEqual([]);
+    frame.objects = [{ id: "missed-ball", label: "sports ball", subset: "live", region: [1, 2, 20, 30] }];
+    const path = `${adjudicatorPath(invitation)}/frames/src_test/frame_test.jpg`;
+    expect((await call(env, path, "PUT", { frame, resolution: "edited" }, invitation.api_token)).status).toBe(428);
+    expect((await call(env, path.replace("frame_test.jpg", "unknown.jpg"), "PUT", { frame, resolution: "edited" }, invitation.api_token, initial.revision)).status).toBe(404);
+    const moved = clone(frame); moved.timestamp_sec += 1;
+    expect((await call(env, path, "PUT", { frame: moved, resolution: "edited" }, invitation.api_token, initial.revision)).status).toBe(400);
+    const outside = clone(frame); outside.objects[0].region[0] = 10000;
+    expect((await call(env, path, "PUT", { frame: outside, resolution: "edited" }, invitation.api_token, initial.revision)).status).toBe(400);
+    expect((await call(env, path, "PUT", { frame, resolution: "reviewer_b" }, invitation.api_token, initial.revision)).status).toBe(400);
+    expect((await call(env, path, "PUT", { frame, resolution: "edited" }, invitation.api_token, initial.revision)).status).toBe(200);
+    const saved = await state(env, invitation);
+    expect(saved.merged.sources[0].frames[0].objects).toEqual(frame.objects);
+    expect(saved.reviewer_a.sources[0].frames[0].objects).toEqual([]);
+    expect(saved.reviewer_b.sources[0].frames[0].objects).toEqual([]);
+    expect(saved.comparison.disagreements).toEqual([]);
+    expect(saved.merged.review.adjudication_log).toEqual([expect.objectContaining({ source: "src_test", filename: "frame_test.jpg", resolution: "edited" })]);
+    expect((await call(env, path, "PUT", { frame, resolution: "edited" }, invitation.api_token, initial.revision)).status).toBe(412);
+    expect((await call(env, `${adjudicatorPath(invitation)}/complete`, "POST", {}, invitation.api_token, saved.revision)).status).toBe(200);
+    const result = await (await call(env, `/api/v1/campaigns/${created.data.id}/result`, "GET", undefined, invitation.api_token)).json();
+    expect(result.sources[0].frames[0].objects).toEqual(frame.objects);
+  });
+
   it("deduplicates simultaneous finalization without overwriting the candidate artifact", async () => {
     const { env, template } = await fixture(), created = await campaign(env, template), invitation = created.invitations.adjudicator;
     const initial = await ready(env, created, null, null);

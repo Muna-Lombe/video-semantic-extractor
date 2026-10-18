@@ -279,7 +279,7 @@ function openApi(origin: string): JsonRecord {
       },
       "/api/v1/assignments/{id}/complete": { post: { summary: "Complete a reviewer pass", security: [{ bearerAuth: [] }], responses: { "200": { description: "Completed" } } } },
       "/api/v1/adjudications/{id}": { get: { summary: "Read an adjudication assignment", security: [{ bearerAuth: [] }], responses: { "200": { description: "Adjudication state" } } } },
-      "/api/v1/adjudications/{id}/frames/{source}/{filename}": { put: { summary: "Resolve one disagreement frame", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/AdjudicationResolution" } } } }, responses: { "200": { description: "Saved" } } } },
+      "/api/v1/adjudications/{id}/frames/{source}/{filename}": { put: { summary: "Save an adjudication decision for any registered frame, including reviewer agreement", security: [{ bearerAuth: [] }], requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/AdjudicationResolution" } } } }, responses: { "200": { description: "Saved" } } } },
       "/api/v1/adjudications/{id}/complete": { post: { summary: "Complete adjudication", security: [{ bearerAuth: [] }], responses: { "200": { description: "Completed" } } } },
       "/api/v1/admin/reviews": {
         get: { summary: "List reviews without invitation secrets", security: [{ bearerAuth: [] }], responses: { "200": { description: "Review summaries" } } },

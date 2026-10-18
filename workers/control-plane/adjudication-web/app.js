@@ -422,7 +422,7 @@ let decisionDrawing = false, decisionDrawingStart;
 const cloneDecision = (value) => structuredClone(value);
 const adjudicationKey = (item) => `${item.source}/${item.filename}`;
 const resolvedDecisions = () => new Map((state?.merged?.review?.adjudication_log || []).map((item) => [adjudicationKey(item), item]));
-const remainingDecisions = () => adjudicationItems.filter((item) => !resolvedDecisions().has(adjudicationKey(item)));
+const remainingDecisions = () => adjudicationItems.filter((item) => item.types.size > 0 && !resolvedDecisions().has(adjudicationKey(item)));
 const decisionEditable = () => Boolean(selected && state?.assignment.status !== "complete" && !adjudicationBusy);
 function resolutionMessage(message, error = false) {
   $("resolution-status").textContent = message;
@@ -448,14 +448,14 @@ function updateAdjudicationControls() {
   $("previous-frame").disabled = adjudicationBusy || index <= 0;
   $("next-frame").disabled = adjudicationBusy || index < 0 || index >= adjudicationItems.length - 1;
   $("next-unresolved").disabled = adjudicationBusy || !remainingDecisions().some((item) => !selected || adjudicationKey(item) !== adjudicationKey(selected));
-  $("decision-state").textContent = complete ? "Read only" : adjudicationDirty ? "Unsaved" : selected && resolvedDecisions().has(adjudicationKey(selected)) ? "Saved" : "Needs decision";
+  $("decision-state").textContent = complete ? "Read only" : adjudicationDirty ? "Unsaved" : selected && resolvedDecisions().has(adjudicationKey(selected)) ? "Saved" : selected?.types.size ? "Needs decision" : "Reviewers agree";
   $("decision-origin").textContent = { reviewer_a: "Based on reviewer A", reviewer_b: "Based on reviewer B", edited: "Custom decision", ambiguous: "Recorded as ambiguous" }[decisionMode] || "Custom decision";
 }
 function renderAdjudicationSidebar() {
   const resolved = resolvedDecisions(), filter = $("disagreement-filter").value, query = $("disagreement-search").value.trim().toLowerCase();
   const visible = adjudicationItems.filter((item) => {
     const saved = resolved.has(adjudicationKey(item));
-    return (filter === "all" || (filter === "resolved" ? saved : !saved)) && adjudicationKey(item).toLowerCase().includes(query);
+    return (filter === "all" || (filter === "disagreements" && item.types.size > 0) || (filter === "agreed" && item.types.size === 0) || (filter === "resolved" && saved) || (filter === "pending" && item.types.size > 0 && !saved)) && adjudicationKey(item).toLowerCase().includes(query);
   });
   $("disagreement-frames").replaceChildren(...visible.map((item) => {
     const saved = resolved.has(adjudicationKey(item)), button = document.createElement("button");
@@ -464,7 +464,7 @@ function renderAdjudicationSidebar() {
     button.setAttribute("aria-current", String(Boolean(selected && adjudicationKey(item) === adjudicationKey(selected))));
     button.disabled = adjudicationBusy;
     const title = document.createElement("strong"), detail = document.createElement("small");
-    title.textContent = item.filename; detail.textContent = `${saved ? "Resolved" : "Needs decision"} · ${item.source}`;
+    title.textContent = item.filename; detail.textContent = `${saved ? "Decision saved" : item.types.size ? "Needs decision" : "Reviewers agree · inspect for omissions"} · ${item.source}`;
     button.append(title, detail); button.onclick = () => selectAdjudicationFrame(item);
     return button;
   }));
@@ -487,30 +487,35 @@ async function loadAdjudication(preferred = selected, advance = false) {
     renderAdjudicationSidebar(); updateAdjudicationControls(); return;
   }
   state = loaded; adjudicationNeedsReload = false;
-  $("adjudication-empty").querySelector("h2").textContent = "No disagreements to resolve";
-  $("adjudication-empty").querySelector("p").textContent = "Both reviewers agree on every frame. You can complete adjudication after checking the instructions.";
+  $("adjudication-empty").querySelector("h2").textContent = "No frames available";
+  $("adjudication-empty").querySelector("p").textContent = "This assignment has no registered frames to inspect.";
   renderPolicy(state.policy);
   $("reviewer").hidden = true; $("adjudicator").hidden = false;
   const grouped = new Map();
+  for (const source of state.merged.sources) for (const frame of source.frames) {
+    const item = { source: source.source, filename: frame.filename, types: new Set() };
+    grouped.set(adjudicationKey(item), item);
+  }
   for (const item of state.comparison.disagreements) {
     if (!item.source || !item.filename) continue;
     const key = adjudicationKey(item);
-    if (!grouped.has(key)) grouped.set(key, { ...item, types: new Set() });
-    grouped.get(key).types.add(item.type);
+    grouped.get(key)?.types.add(item.type);
   }
   adjudicationItems = [...grouped.values()];
   const pending = remainingDecisions(), complete = state.assignment.status === "complete";
-  $("adjudication-progress").textContent = `${adjudicationItems.length - pending.length} of ${adjudicationItems.length} resolved`;
-  $("adjudication-progress-bar").max = adjudicationItems.length || 1;
-  $("adjudication-progress-bar").value = adjudicationItems.length ? adjudicationItems.length - pending.length : 1;
-  $("adjudication-status").textContent = complete ? "Adjudication complete. Your decisions have been saved." : pending.length ? `${pending.length} disagreement frame${pending.length === 1 ? " needs" : "s need"} a decision before you can complete adjudication.` : "All decisions are saved. Review them or complete adjudication.";
+  const required = adjudicationItems.filter((item) => item.types.size > 0).length;
+  $("adjudication-progress").textContent = `${required - pending.length} of ${required} disagreements resolved · ${adjudicationItems.length} frames available`;
+  $("adjudication-progress-bar").max = required || 1;
+  $("adjudication-progress-bar").value = required ? required - pending.length : 1;
+  $("adjudication-status").textContent = complete ? "Adjudication complete. Your decisions have been saved." : pending.length ? `${pending.length} disagreement frame${pending.length === 1 ? " needs" : "s need"} a decision before you can complete adjudication. Inspect agreed frames for shared omissions too.` : "All disagreements are resolved. Inspect agreed frames for shared omissions before completing adjudication.";
   $("adjudication-status").classList.remove("error");
   $("adjudication-empty").hidden = adjudicationItems.length > 0;
   $("adjudication-frame").hidden = !adjudicationItems.length;
   let target = preferred && adjudicationItems.find((item) => adjudicationKey(item) === adjudicationKey(preferred));
   if (advance && target) {
     const index = adjudicationItems.indexOf(target);
-    target = [...adjudicationItems.slice(index + 1), ...adjudicationItems.slice(0, index)].find((item) => !resolvedDecisions().has(adjudicationKey(item))) || target;
+    const pendingKeys = new Set(pending.map(adjudicationKey));
+    target = [...adjudicationItems.slice(index + 1), ...adjudicationItems.slice(0, index)].find((item) => pendingKeys.has(adjudicationKey(item))) || target;
   }
   target ||= pending[0] || adjudicationItems[0];
   adjudicationDirty = false; rawDecisionDirty = false;
@@ -527,7 +532,7 @@ function selectAdjudicationFrame(item, force = false) {
   $("adjudication-title").textContent = item.filename; $("adjudication-title").title = adjudicationKey(item);
   $("adjudication-position").textContent = `Frame ${adjudicationItems.indexOf(item) + 1} of ${adjudicationItems.length}`;
   const reasons = { left_unmatched: "Objects differ in reviewer A", right_unmatched: "Objects differ in reviewer B", out_of_taxonomy: "Out-of-taxonomy concepts differ", frame_coverage: "Frame coverage differs" };
-  $("disagreement-summary").textContent = [...item.types].map((type) => reasons[type] || "Review annotations differ").join(" · ");
+  $("disagreement-summary").textContent = item.types.size ? [...item.types].map((type) => reasons[type] || "Review annotations differ").join(" · ") : "Both reviewers agree. Check the evidence for shared omissions or errors; you can correct this frame.";
   $("advanced-decision").open = false;
   renderComparisonObjects("left", frameOf(state.reviewer_a, item.source, item.filename));
   renderComparisonObjects("right", frameOf(state.reviewer_b, item.source, item.filename));
@@ -671,7 +676,7 @@ async function saveAdjudicationDecision() {
     state.revision = result.revision; adjudicationDirty = false; saved = true;
     await loadAdjudication(current, true);
     $("adjudication-title").focus();
-    resolutionMessage(remainingDecisions().length ? "Decision saved. The next unresolved frame is ready." : "All disagreement frames have saved decisions. You can complete adjudication.");
+    resolutionMessage(remainingDecisions().length ? "Decision saved. The next unresolved frame is ready." : "Decision saved. Inspect agreed frames for shared omissions before completing adjudication.");
   } catch (error) {
     if (saved || error.status === 412) adjudicationNeedsReload = true;
     resolutionMessage(saved ? "Decision saved, but the latest state could not be loaded. Reload saved decisions before continuing." : `${error.message}${error.status === 412 ? " Reload saved decisions before trying again." : ""}`, true);
@@ -685,7 +690,8 @@ $("previous-frame").onclick = () => { const index = adjudicationItems.indexOf(se
 $("next-frame").onclick = () => { const index = adjudicationItems.indexOf(selected); if (index >= 0 && index < adjudicationItems.length - 1) selectAdjudicationFrame(adjudicationItems[index + 1]); };
 $("next-unresolved").onclick = () => {
   const index = adjudicationItems.indexOf(selected);
-  const next = [...adjudicationItems.slice(index + 1), ...adjudicationItems.slice(0, index)].find((item) => !resolvedDecisions().has(adjudicationKey(item)));
+  const pendingKeys = new Set(remainingDecisions().map(adjudicationKey));
+  const next = [...adjudicationItems.slice(index + 1), ...adjudicationItems.slice(0, index)].find((item) => pendingKeys.has(adjudicationKey(item)));
   if (next) selectAdjudicationFrame(next);
 };
 $("use-a").onclick = () => chooseReviewer("a");
