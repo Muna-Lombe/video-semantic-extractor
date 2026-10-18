@@ -94,7 +94,11 @@ previously issued values.
   and the Hugging Face model repository; inference runs locally on the reviewer device.
 - `/api/v1/adjudications/<id>` exposes both frozen submissions only after both
   complete. PUT `/frames/<source>/<filename>` saves a decision; POST `/complete`
-  requires resolution of every disagreement. Agreement needs no artificial entry.
+  requires resolution of every disagreement. Adjudicators can inspect and correct
+  any registered frame, including agreed empty frames with shared omissions. The
+  UI lists all frames and filters agreement, disagreement and saved decisions.
+  Agreement needs no artificial entry; correcting it still records an audited
+  decision without changing either frozen reviewer submission.
 
 Managed edits and completion require `If-Match` with the state endpoint's `revision`,
 for example `If-Match: 0`. Missing revisions return `428`; stale edits or revoked
