@@ -64,15 +64,41 @@ def test_video_holdout_is_separate_and_no_human_approval_is_fabricated():
 
 
 def test_sample_catalog_is_bound_to_the_successful_media_audit():
-    audit = read("sample-media-audit")
     catalog = json.loads((ROOT / "scripts/fixtures/sample-library.v1.json").read_text())
-    assert len(catalog["sources"]) == len(audit["sources"]) == 17
-    assert not audit["duplicate_groups"]
-    assert read("video-review-manifest")["catalog_sha256"] == sha(
-        ROOT / "scripts/fixtures/sample-library.v1.json"
-    )
-    by_id = {source["id"]: source for source in audit["sources"]}
+    assert catalog["audit_reports"]
+    by_id = {}
+    for report in catalog["audit_reports"]:
+        audit = json.loads((ROOT / report).read_text())
+        assert audit["schema_version"] == "sample-media-audit.v1"
+        assert not audit["duplicate_groups"]
+        for source in audit["sources"]:
+            assert source["id"] not in by_id
+            assert source["status"] == "available"
+            assert source["full_decode_passed"]
+            by_id[source["id"]] = source
+    assert len({source["id"] for source in catalog["sources"]}) == len(catalog["sources"])
+    assert len({source["sha256"] for source in catalog["sources"]}) == len(catalog["sources"])
+    assert {source["id"] for source in catalog["sources"]} == set(by_id)
     for source in catalog["sources"]:
-        assert by_id[source["id"]]["full_decode_passed"]
-        assert by_id[source["id"]]["sha256"] == source["sha256"]
+        for field in (
+            "url", "sha256", "size_bytes", "duration_seconds", "width", "height",
+            "full_decode_passed",
+        ):
+            assert by_id[source["id"]][field] == source[field]
         assert source["coverage_status"] == "preview_inspected"
+
+
+def test_frozen_video_benchmark_retains_its_original_audited_catalog():
+    frozen_path = VERIFICATION / "2026-10-18-sample-library.json"
+    frozen_catalog = json.loads(frozen_path.read_text())
+    video = read("video-review-manifest")
+    audit = read("sample-media-audit")
+    assert video["catalog_sha256"] == sha(frozen_path)
+    assert video["catalog_version"] == frozen_catalog["version"]
+    assert len(frozen_catalog["sources"]) == len(audit["sources"]) == 17
+    assert {source["id"]: source["sha256"] for source in frozen_catalog["sources"]} == {
+        source["id"]: source["sha256"] for source in audit["sources"]
+    }
+    assert {source["source"]: source["source_sha256"] for source in video["sources"]} == {
+        source["id"]: source["sha256"] for source in frozen_catalog["sources"]
+    }

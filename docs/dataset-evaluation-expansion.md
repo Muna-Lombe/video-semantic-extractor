@@ -58,10 +58,62 @@ Model cards list Apache-2.0 for Grounding DINO and AGPL-3.0 for the supplied YOL
 
 ## Operator workflow
 
-1. Open Create dataset. Randomise 1–17 sample videos, or reproduce a selection with its saved seed. A selection records the catalog version, source IDs and expected content hashes. Editing links clears selection provenance; custom URLs can be checked with bounded public HTTPS header probes. Decoding is verified during sampling. Click a dataset name to inspect saved provenance.
+1. Open Create dataset. Randomise 1–27 sample videos, or reproduce a selection with its saved seed. A selection records the catalog version, source IDs and expected content hashes. Editing links clears selection provenance; custom URLs can be checked with bounded public HTTPS header probes. Decoding is verified during sampling. Click a dataset name to inspect saved provenance.
 2. Sample and create an extended policy/template as needed. Pin frame sets that must remain as reusable benchmarks in Operations. Register the correct frozen source hashes, then collect real independent reviews and adjudication.
 3. Use Evaluations to inspect the recorded reference comparison and download provenance/class results. The queued managed evaluation/release path continues to support NanoDet ONNX; YOLOv10 and Grounding DINO are research CLI adapters, not silently registered production engines.
 4. Approve only genuinely eligible, reviewed evidence. Model selection and release acceptance remain explicit decisions.
+
+## Catalog addition — 2026-10-19
+
+Catalog `2026-10-19.1` adds samples 18–27 to the original 17-source library.
+All ten URLs were downloaded, SHA-256 pinned, probed, fully decoded, and previewed
+at four timestamps each. They add 277.276 seconds and 76,341,460 bytes; all 27
+catalog entries have distinct content hashes. See the
+[new-source audit](verification/2026-10-19-samples-18-27-audit.json).
+The earlier benchmark manifests and results above remain frozen at their original
+17 sources; this addition does not extend those benchmark claims. Their exact
+[original catalog](verification/2026-10-18-sample-library.json) is retained with the
+SHA-256 already pinned by the frozen video manifest. Current-catalog provenance
+tests cover both audits; historical benchmark tests use that frozen snapshot.
+
+| Source | Seconds | Preview index | Potential coverage |
+| --- | ---: | --- | --- |
+| sample_18 | 10.054 | Burger and drink cutout advert | composited sandwich/cup candidates |
+| sample_19 | 10.217 | Perfume product animation | bottle appearance; rendered/photographic eligibility unresolved |
+| sample_20 | 14.861 | Filmed televisions showing people | live televisions/bag; photographic screen people |
+| sample_21 | 13.560 | Phone displays with city/car imagery | live phones; verify photographic versus rendered screen imagery |
+| sample_22 | 31.927 | Presenter inset over article | composited person candidate |
+| sample_23 | 56.587 | Presenter inset with photographic examples | composited presenter; screen people in embedded photographs |
+| sample_24 | 12.957 | Desk tour and software displays | live person, furniture, devices and plants |
+| sample_25 | 59.490 | Presenter and picture-in-picture explainer | live and composited presenter candidates |
+| sample_26 | 10.890 | Dual-monitor desk setup | live person, furniture, devices and plants |
+| sample_27 | 56.733 | Presenter and monitor demonstration | live person and computer setup |
+
+These are provisional observations, not reviewed instance counts or proof of
+diagnostic adequacy. Software graphics, diagrams, logos, illustrations and rendered
+content must not be counted as photographic objects to fill subset quotas.
+Samples 22, 23 and 25 share a conservative presenter group for split planning;
+review related footage before freezing a holdout. The picker displays per-source
+coverage notes, including unresolved eligibility in samples 19 and 21.
+
+The catalog version changes seeded rankings and rejects unsubmitted selections
+from the previous catalog; operators should select again. Existing frozen dataset
+versions, campaign policies, annotations and benchmarks are unchanged. A new
+evaluation corpus still needs its exact final hashes registered in a new policy
+version and independent review of its sampled frames.
+
+Catalog-addition verification passed: 108 backend tests, 158 Worker tests,
+TypeScript, 522 responsive
+layout cases with no runtime errors, JavaScript/Python syntax checks, and a Worker
+dry build (450.07 KiB / gzip 94.79 KiB). Selection tests include all 27 videos,
+persisted source hashes and rejection of stale catalog selections. Deployment
+remains through branch merge.
+
+To audit only this addition:
+
+```bash
+python scripts/operations/audit-sample-media.py --start-index 18 --count 10 --output-dir work/sample-index-18-27
+```
 
 ## Reproduce locally
 

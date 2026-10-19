@@ -10,7 +10,7 @@ import { probeMedia } from './media-preflight';
 describe('sample library and extended annotations',()=>{
   it('reproduces unique selections, changes with seed, and freezes content hashes in actual SQLite', async()=>{
     const env=environment(), selected=await selectSamples(7,'fixed-seed');
-    expect(SAMPLE_LIBRARY.sources).toHaveLength(17);
+    expect(SAMPLE_LIBRARY.sources).toHaveLength(27);
     expect(await selectSamples(7,'fixed-seed')).toEqual(selected);
     expect(new Set(selected.source_ids).size).toBe(7);
     expect((await selectSamples(7,'another-seed')).source_ids).not.toEqual(selected.source_ids);
@@ -25,13 +25,31 @@ describe('sample library and extended annotations',()=>{
     expect(env.DATASET_DB.db.prepare('SELECT expected_sha256 FROM dataset_sources ORDER BY ordinal').all().map(s=>s.expected_sha256)).toEqual(stored.source_sha256);
     expect((await call(env,'/datasets','POST',{name:'Tampered',sources:[{url:'https://media.example/new.mp4'}],selection})).status).toBe(400);
     expect((await call(env,'/datasets','POST',{name:'Fresh links',sources:[{url:'https://media.example/new.mp4'}]})).status).toBe(201);
-    await expect(selectSamples(18,'seed')).rejects.toThrow();
+    await expect(selectSamples(SAMPLE_LIBRARY.sources.length+1,'seed')).rejects.toThrow();
     await expect(selectSamples(2,'')).rejects.toThrow();
     expect((await call(env,'/sample-library','GET',undefined,'wrong')).status).toBe(401);
     expect((await call(env,'/reference-benchmarks','GET',undefined,'wrong')).status).toBe(401);
     const evidence=(await (await call(env,'/reference-benchmarks')).json()).data;
     expect(evidence.video.status).toBe('awaiting_independent_review');
     expect(evidence.coco.models.map(model=>model.engine)).toEqual(['nanodet','yolov10']);
+  });
+  it('indexes the new media, selects the entire catalog, and rejects selections from the previous catalog',async()=>{
+    const env=environment(),all=await selectSamples(27,'all-samples');
+    expect(new Set(all.source_ids).size).toBe(27);
+    expect(all.source_ids.slice().sort()).toEqual(SAMPLE_LIBRARY.sources.map(source=>source.id).sort());
+    for(let index=18;index<=27;index++){
+      const source=all.sources.find(source=>source.id===`sample_${index}`);
+      expect(source).toMatchObject({full_decode_passed:true,coverage_status:'preview_inspected'});
+      expect(source.url).toBe(`https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_${index}.mp4`);
+      expect(source.sha256).toMatch(/^[a-f0-9]{64}$/);
+    }
+    const {sources,...selection}=all;
+    const payload={name:'All audited media',sources:sources.map(({url})=>({url})),selection};
+    expect((await call(env,'/datasets','POST',payload)).status).toBe(201);
+    expect(env.DATASET_DB.db.prepare('SELECT expected_sha256 FROM dataset_sources ORDER BY ordinal').all().map(row=>row.expected_sha256)).toEqual(sources.map(source=>source.sha256));
+    const stale={...payload,selection:{...selection,catalog_version:'2026-10-18.1'}};
+    expect((await call(env,'/datasets','POST',stale)).status).toBe(400);
+    expect((await (await call(env,'/sample-library')).json()).data.sources).toHaveLength(27);
   });
   it('keeps legacy taxonomy strict and requires descriptions for other',()=>{
     const frame={filename:'f.jpg',width:100,height:100,objects:[],out_of_taxonomy:[]};
@@ -51,7 +69,7 @@ describe('sample library and extended annotations',()=>{
   });
   it('versions variable source counts without permitting gate overrides or changing v1',()=>{
     const hashes=SAMPLE_LIBRARY.sources.map(s=>s.sha256);
-    expect(parseValidationProfile({id:'video-object-diagnostic.v2',source_sha256:hashes}).source_sha256).toHaveLength(17);
+    expect(parseValidationProfile({id:'video-object-diagnostic.v2',source_sha256:hashes}).source_sha256).toHaveLength(27);
     expect(()=>parseValidationProfile({id:'coco-object-diagnostic.v1',source_sha256:hashes})).toThrow();
     expect(()=>parseValidationProfile({id:'video-object-diagnostic.v2',source_sha256:hashes,minimum_screen:0})).toThrow();
     expect(()=>parseValidationProfile({id:'video-object-diagnostic.v2',source_sha256:[...hashes.slice(1),hashes[1]]})).toThrow();

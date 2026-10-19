@@ -574,7 +574,8 @@ pinned COCO preparation, NanoDet/YOLOv10 comparison and the Grounding DINO trial
 Use the optional `backend[benchmark]` dependencies in a separate research runtime;
 the production sampling image does not acquire PyTorch or open-vocabulary models.
 
-`operations/audit-sample-media.py` verifies all 17 sample URLs and full decoding.
+`operations/audit-sample-media.py` verifies all 27 sample URLs and full decoding.
+Use `--start-index 18 --count 10` to audit only the latest additions.
 `diagnostics/prepare-video-benchmark.py` freezes blank review evidence and source
 splits using the shipped sampler. `operations/summarize-benchmarks.py` checks that
 reports share the frozen inputs and publishes compact provenance, class metrics,

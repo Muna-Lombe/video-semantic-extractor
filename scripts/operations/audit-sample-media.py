@@ -142,18 +142,23 @@ def main() -> None:
         "--base-url",
         default="https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos",
     )
-    parser.add_argument("--count", type=int, default=17)
+    parser.add_argument("--start-index", type=int, default=1)
+    parser.add_argument("--count", type=int, default=27)
     parser.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
-    if not 1 <= args.count <= 100:
-        parser.error("count must be 1-100")
+    if (
+        not 1 <= args.start_index <= 100
+        or not 1 <= args.count <= 100
+        or args.start_index + args.count - 1 > 100
+    ):
+        parser.error("start-index and count must select samples within 1-100")
     root = args.output_dir
     root.mkdir(parents=True, exist_ok=True)
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
         rows = list(
             pool.map(
                 lambda index: audit(index, args.base_url, root),
-                range(1, args.count + 1),
+                range(args.start_index, args.start_index + args.count),
             )
         )
     by_hash: dict[str, list[str]] = {}
