@@ -1,0 +1,327 @@
+{
+  "schema_version": "sample-media-audit.v1",
+  "created_at": "2026-10-19T12:39:05.147087+00:00",
+  "sources": [
+    {
+      "id": "sample_18",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_18.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "896bf7cd0c278b076b6771fb84b8a0d9d540cc3120e187e06f282105676e7155",
+      "size_bytes": 442727,
+      "duration_seconds": 10.05424,
+      "width": 720,
+      "height": 720,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_18-0.jpg",
+          "timestamp_seconds": 1.005
+        },
+        {
+          "filename": "sample_18-1.jpg",
+          "timestamp_seconds": 3.519
+        },
+        {
+          "filename": "sample_18-2.jpg",
+          "timestamp_seconds": 6.033
+        },
+        {
+          "filename": "sample_18-3.jpg",
+          "timestamp_seconds": 8.546
+        }
+      ]
+    },
+    {
+      "id": "sample_19",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_19.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "e0b9a88a5f0fa606801919f6397af9c1f7f6ecae69d23bd19b419677cf69f0d2",
+      "size_bytes": 592654,
+      "duration_seconds": 10.21678,
+      "width": 360,
+      "height": 640,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_19-0.jpg",
+          "timestamp_seconds": 1.022
+        },
+        {
+          "filename": "sample_19-1.jpg",
+          "timestamp_seconds": 3.576
+        },
+        {
+          "filename": "sample_19-2.jpg",
+          "timestamp_seconds": 6.13
+        },
+        {
+          "filename": "sample_19-3.jpg",
+          "timestamp_seconds": 8.684
+        }
+      ]
+    },
+    {
+      "id": "sample_20",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_20.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "5da33952e258ffe625c22aa9f6b4634faa3ef8edf8f09b2b1b3b10434af91898",
+      "size_bytes": 798636,
+      "duration_seconds": 14.860771,
+      "width": 360,
+      "height": 640,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_20-0.jpg",
+          "timestamp_seconds": 1.486
+        },
+        {
+          "filename": "sample_20-1.jpg",
+          "timestamp_seconds": 5.201
+        },
+        {
+          "filename": "sample_20-2.jpg",
+          "timestamp_seconds": 8.916
+        },
+        {
+          "filename": "sample_20-3.jpg",
+          "timestamp_seconds": 12.632
+        }
+      ]
+    },
+    {
+      "id": "sample_21",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_21.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "60202c74d1ed63607d24b85b218c683129d9b563a1f3cd663372584489541708",
+      "size_bytes": 815650,
+      "duration_seconds": 13.560454,
+      "width": 360,
+      "height": 640,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_21-0.jpg",
+          "timestamp_seconds": 1.356
+        },
+        {
+          "filename": "sample_21-1.jpg",
+          "timestamp_seconds": 4.746
+        },
+        {
+          "filename": "sample_21-2.jpg",
+          "timestamp_seconds": 8.136
+        },
+        {
+          "filename": "sample_21-3.jpg",
+          "timestamp_seconds": 11.526
+        }
+      ]
+    },
+    {
+      "id": "sample_22",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_22.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "4814aa1d031b1e0b0539e731ead562433536725df6d791f0c0c32b2ac0d28799",
+      "size_bytes": 1171477,
+      "duration_seconds": 31.927438,
+      "width": 360,
+      "height": 640,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_22-0.jpg",
+          "timestamp_seconds": 3.193
+        },
+        {
+          "filename": "sample_22-1.jpg",
+          "timestamp_seconds": 11.175
+        },
+        {
+          "filename": "sample_22-2.jpg",
+          "timestamp_seconds": 19.156
+        },
+        {
+          "filename": "sample_22-3.jpg",
+          "timestamp_seconds": 27.138
+        }
+      ]
+    },
+    {
+      "id": "sample_23",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_23.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "7398b04a217075def6b611446941fd20b1f82f4d33ff006c62b76ce314123fb5",
+      "size_bytes": 2407832,
+      "duration_seconds": 56.587029,
+      "width": 360,
+      "height": 640,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_23-0.jpg",
+          "timestamp_seconds": 5.659
+        },
+        {
+          "filename": "sample_23-1.jpg",
+          "timestamp_seconds": 19.805
+        },
+        {
+          "filename": "sample_23-2.jpg",
+          "timestamp_seconds": 33.952
+        },
+        {
+          "filename": "sample_23-3.jpg",
+          "timestamp_seconds": 48.099
+        }
+      ]
+    },
+    {
+      "id": "sample_24",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_24.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "ee3526bcb23cbe38aa7d87575da77c4d05905f31801dc48e0eba4db5afd5a458",
+      "size_bytes": 2546243,
+      "duration_seconds": 12.956735,
+      "width": 720,
+      "height": 1280,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_24-0.jpg",
+          "timestamp_seconds": 1.296
+        },
+        {
+          "filename": "sample_24-1.jpg",
+          "timestamp_seconds": 4.535
+        },
+        {
+          "filename": "sample_24-2.jpg",
+          "timestamp_seconds": 7.774
+        },
+        {
+          "filename": "sample_24-3.jpg",
+          "timestamp_seconds": 11.013
+        }
+      ]
+    },
+    {
+      "id": "sample_25",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_25.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "5c2e5c8a3b6ccb3e348483fd181c98054a1d180533e7ab3d724f97dd8bc6ad23",
+      "size_bytes": 2703779,
+      "duration_seconds": 59.489524,
+      "width": 360,
+      "height": 640,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_25-0.jpg",
+          "timestamp_seconds": 5.949
+        },
+        {
+          "filename": "sample_25-1.jpg",
+          "timestamp_seconds": 20.821
+        },
+        {
+          "filename": "sample_25-2.jpg",
+          "timestamp_seconds": 35.694
+        },
+        {
+          "filename": "sample_25-3.jpg",
+          "timestamp_seconds": 50.566
+        }
+      ]
+    },
+    {
+      "id": "sample_26",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_26.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "02cb08df60b2b761d7d87d2d5c23231ce95bd107c8c04f930f9dcb8d28c61da8",
+      "size_bytes": 2898660,
+      "duration_seconds": 10.890159,
+      "width": 1080,
+      "height": 1920,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_26-0.jpg",
+          "timestamp_seconds": 1.089
+        },
+        {
+          "filename": "sample_26-1.jpg",
+          "timestamp_seconds": 3.812
+        },
+        {
+          "filename": "sample_26-2.jpg",
+          "timestamp_seconds": 6.534
+        },
+        {
+          "filename": "sample_26-3.jpg",
+          "timestamp_seconds": 9.257
+        }
+      ]
+    },
+    {
+      "id": "sample_27",
+      "url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_27.mp4",
+      "coverage_status": "unreviewed",
+      "status": "available",
+      "sha256": "ab50c9e6aba18e06394a82298ad62dc0328b30a07b79cdd07dd0951e5ab4b80a",
+      "size_bytes": 61963802,
+      "duration_seconds": 56.733333,
+      "width": 1280,
+      "height": 720,
+      "full_decode_passed": true,
+      "previews": [
+        {
+          "filename": "sample_27-0.jpg",
+          "timestamp_seconds": 5.673
+        },
+        {
+          "filename": "sample_27-1.jpg",
+          "timestamp_seconds": 19.857
+        },
+        {
+          "filename": "sample_27-2.jpg",
+          "timestamp_seconds": 34.04
+        },
+        {
+          "filename": "sample_27-3.jpg",
+          "timestamp_seconds": 48.223
+        }
+      ]
+    }
+  ],
+  "duplicate_groups": [],
+  "coverage_note": "Preview inspection is provisional; only independent reviewed annotations establish class support.",
+  "preview_inspection": {
+    "completed": true,
+    "frames_inspected": 40,
+    "status": "provisional_not_ground_truth",
+    "notes": {
+      "sample_18": "Photographic burger and drink cutouts are composited candidates. Fries/tray need descriptive other labels if included; logos and captions are excluded.",
+      "sample_19": "Rendered/animated perfume spot. Verify photographic eligibility and subset before counting it toward the diagnostic quotas.",
+      "sample_20": "Physical televisions and bag are live; photographic people within their displays are screen candidates.",
+      "sample_21": "Physical phones are live. Verify that the depicted city/car imagery is photographic rather than rendered before counting screen instances; isolated hands are not person.",
+      "sample_22": "Photographic presenter inset is a composited candidate. Article text and logos are excluded. Group with samples 23 and 25 when considering related-footage splits.",
+      "sample_23": "Photographic presenter inset is composited; people in the embedded example photographs are screen candidates. Diagrams, icons and text are excluded. Group with samples 22 and 25.",
+      "sample_24": "Desk hardware, plants and filmed person are live. Software interfaces and illustrated stickers do not automatically supply photographic screen objects.",
+      "sample_25": "Full-scene presenter is live; photographic presenter insets are composited candidates. Text and diagrams are excluded. Group with samples 22 and 23.",
+      "sample_26": "Physical desk setup is live. Wallpapers, app windows and interface controls do not establish photographic screen-object coverage.",
+      "sample_27": "Primary filmed presenter and physical computer setup are live. Inspect any embedded photographic content independently; ordinary editing does not make the presenter composited."
+    }
+  },
+  "cross_catalog_duplicate_groups": [],
+  "catalog_version": "2026-10-19.1"
+}

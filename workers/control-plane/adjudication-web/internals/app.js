@@ -864,7 +864,7 @@ async function pickSamples(randomise) {
     status.textContent = `${selected.sources.length} unique samples selected. Seed recorded with the dataset. Edit the links to make a custom selection.`;
     $("sample-selection-preview").replaceChildren(...selected.sources.map((source) => {
       const row = document.createElement("p"); row.className = "field-help";
-      row.textContent = `${source.display_name}: ${source.provisional_labels.join(", ") || "negative examples"} (${source.provisional_subsets.join(", ") || "no confirmed subset"}; preview observations)`;
+      row.textContent = `${source.display_name}: ${source.provisional_labels.join(", ") || "negative examples"} (${source.provisional_subsets.join(", ") || "no confirmed subset"}; preview observations)${source.coverage_note ? `. ${source.coverage_note}` : ""}`;
       return row;
     }));
   } catch (error) { status.textContent = error.message; }
