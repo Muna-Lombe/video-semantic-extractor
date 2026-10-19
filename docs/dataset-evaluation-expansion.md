@@ -71,7 +71,10 @@ at four timestamps each. They add 277.276 seconds and 76,341,460 bytes; all 27
 catalog entries have distinct content hashes. See the
 [new-source audit](verification/2026-10-19-samples-18-27-audit.json).
 The earlier benchmark manifests and results above remain frozen at their original
-17 sources; this addition does not extend those benchmark claims.
+17 sources; this addition does not extend those benchmark claims. Their exact
+[original catalog](verification/2026-10-18-sample-library.json) is retained with the
+SHA-256 already pinned by the frozen video manifest. Current-catalog provenance
+tests cover both audits; historical benchmark tests use that frozen snapshot.
 
 | Source | Seconds | Preview index | Potential coverage |
 | --- | ---: | --- | --- |
@@ -99,7 +102,8 @@ versions, campaign policies, annotations and benchmarks are unchanged. A new
 evaluation corpus still needs its exact final hashes registered in a new policy
 version and independent review of its sampled frames.
 
-Catalog-addition verification passed: 158 Worker tests, TypeScript, 522 responsive
+Catalog-addition verification passed: 108 backend tests, 158 Worker tests,
+TypeScript, 522 responsive
 layout cases with no runtime errors, JavaScript/Python syntax checks, and a Worker
 dry build (450.07 KiB / gzip 94.79 KiB). Selection tests include all 27 videos,
 persisted source hashes and rejection of stale catalog selections. Deployment
