@@ -5,7 +5,7 @@
 import argparse
 from pathlib import Path
 
-from .pipeline import CapsuleBuilder
+from .product_execution import configured_builder
 
 
 def main() -> None:
@@ -16,9 +16,10 @@ def main() -> None:
     parser.add_argument("--scene-threshold", type=float, default=0.3)
     parser.add_argument("--max-keyframes", type=int, default=80)
     args = parser.parse_args()
-    capsule = CapsuleBuilder(
+    with configured_builder(
         scene_threshold=args.scene_threshold, max_keyframes=args.max_keyframes
-    ).build(args.input_video)
+    ) as builder:
+        capsule = builder.build(args.input_video)
     args.output.write_text(capsule.model_dump_json(indent=2), encoding="utf-8")
     print(f"Saved VideoCapsule to {args.output}")
 

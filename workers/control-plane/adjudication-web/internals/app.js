@@ -153,7 +153,7 @@ function renderRegistry() {
   $("templates-table").innerHTML = templates.length ? `<table><thead><tr><th>Template</th><th>Inputs</th><th>Frames</th><th>Status</th><th>Actions</th></tr></thead><tbody>${templates.map((item) => `<tr><td><strong>${escapeHtml(item.id)}</strong><small>${escapeHtml(item.schema_version)}</small></td><td><strong>${escapeHtml(item.frame_set_id)}</strong><small>${escapeHtml(policies.find((policy) => policy.id === item.policy_version_id)?.name || item.policy_version_id)}</small></td><td>${escapeHtml(item.frame_count)}</td><td>${statusBadge(item.status)}</td><td><button class="secondary" type="button" data-template-inspect="${escapeHtml(item.id)}">Inspect</button> <button class="secondary" type="button" data-template-download="${escapeHtml(item.id)}">Download</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty-state"><strong>No registered templates</strong><p>Select a ready frame set and an active policy to prepare review inputs.</p></div>';
   const ready = frameSets.filter((item) => item.status === "ready");
   const selectedCorpus = $("policy-corpus-frame-set").value;
-  $("policy-corpus-frame-set").innerHTML = '<option value="">Enter checksums manually</option>' + ready.filter((item) => item.source_count === 5).map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.id)} · 5 sources</option>`).join("");
+  $("policy-corpus-frame-set").innerHTML = '<option value="">Enter checksums manually</option>' + ready.filter((item) => item.source_count >= 5 && item.source_count <= 100).map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.id)} · ${escapeHtml(item.source_count)} sources</option>`).join("");
   $("policy-corpus-frame-set").value = selectedCorpus;
   const active = policies.filter((item) => item.status === "active" && item.annotation_schema_version === "object-annotations.v1");
   $("template-frame-set").innerHTML = ready.length ? ready.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.id)} · ${escapeHtml(item.frame_count)} frames</option>`).join("") : '<option value="">No ready frame sets</option>';
@@ -168,7 +168,7 @@ async function inspectRegistry(collection, id) {
   try {
     const payload = await api(`/${collection}/${encodeURIComponent(id)}${collection === "templates" ? "/artifact" : ""}`);
     const item = payload.data || payload;
-    $("registry-detail").innerHTML = `<pre>${escapeHtml(collection === "policies" ? `${item.name} · ${item.version}\n\n${item.document}` : prettyJson(item))}</pre>`;
+    $("registry-detail").innerHTML = `<pre>${escapeHtml(collection === "policies" ? `${item.name} · ${item.version}\nEffective taxonomy: ${item.annotation_rules?.taxonomy_version || "coco-80"}\nValidation profile: ${item.validation_profile?.id || "None — annotation only"}\nFrozen sources: ${item.validation_profile?.source_sha256?.length || 0}\n\n${item.document}` : prettyJson(item))}</pre>`;
     if (collection === "policies" && ["active", "deprecated"].includes(item.status)) {
       const form = document.createElement("form");
       form.innerHTML = `<label>Policy lifecycle<select name="action">${item.status === "active" ? '<option value="deprecate">Deprecate</option>' : ''}<option value="retire">Retire</option></select></label><label>Reason<textarea name="reason" maxlength="2000" required></textarea></label><p class="form-status" role="status"></p><button type="submit">Record transition</button>`;
@@ -210,7 +210,26 @@ function renderCampaigns() {
   const available = templates.filter((item) => item.status === "ready");
   $("campaign-template").innerHTML = available.length ? available.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.id)} · ${escapeHtml(item.frame_count)} frames</option>`).join("") : '<option value="">No ready templates</option>';
   $("campaign-form").querySelector('[type="submit"]').disabled = !available.length;
+  updateCampaignReadiness();
 }
+
+let campaignReadinessSequence = 0;
+async function updateCampaignReadiness() {
+  const sequence = ++campaignReadinessSequence, id = $("campaign-template").value;
+  const submit = $("campaign-form").querySelector('[type="submit"]'), target = $("campaign-readiness");
+  submit.disabled = true;
+  if (!id) { target.textContent = "Choose a ready template."; return; }
+  target.textContent = "Checking policy and frozen sources…";
+  try {
+    const result = (await api(`/templates/${encodeURIComponent(id)}/readiness`)).data;
+    if (sequence !== campaignReadinessSequence) return;
+    const diagnostic = $("campaign-purpose").value === "diagnostic";
+    target.textContent = `Taxonomy: ${result.effective_taxonomy}. ${result.diagnostic_ready ? "Policy configuration is ready for diagnostic review. " : result.blockers.join(" ") + " "}${diagnostic ? result.notice : "Annotation-only review does not establish diagnostic eligibility."}`;
+    submit.disabled = diagnostic && !result.diagnostic_ready;
+  } catch (error) { if (sequence === campaignReadinessSequence) target.textContent = error.message; }
+}
+$("campaign-template").addEventListener("change", updateCampaignReadiness);
+$("campaign-purpose").addEventListener("change", updateCampaignReadiness);
 
 function renderPipelines() {
   $("pipeline-create-button").hidden = Array.isArray(currentUser?.roles) && !currentUser.roles.some((role) => ["owner", "operator", "researcher", "review_coordinator"].includes(role));
@@ -806,7 +825,7 @@ $("campaign-form").addEventListener("submit", async (event) => {
     await inspectCampaign(payload.data.id);
     toast(payload.meta?.deduplicated ? payload.warning : "Campaign created. Generate job tokens from the assignment section.");
   } catch (error) { status.textContent = error.message; }
-  finally { submit.disabled = !$("campaign-template").value; }
+  finally { updateCampaignReadiness(); }
 });
 $("policies-table").addEventListener("click", (event) => {
   const button = event.target.closest("[data-policy-inspect]");

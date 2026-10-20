@@ -19,6 +19,7 @@ class Metadata(StrictModel):
     height: int = Field(gt=0)
     source_file: str
     has_audio: bool
+    source_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
 
 
 class TranscriptSegment(StrictModel):
@@ -45,6 +46,13 @@ class Transcript(StrictModel):
 class ObjectObservation(StrictModel):
     label: str
     confidence: float = Field(ge=0, le=1)
+    region: list[int] | None = Field(default=None, min_length=4, max_length=4)
+
+
+class TextObservation(StrictModel):
+    text: str
+    confidence: float = Field(ge=0, le=1)
+    region: list[int] = Field(min_length=4, max_length=4)
 
 
 class VisualFeatures(StrictModel):
@@ -55,10 +63,14 @@ class VisualFeatures(StrictModel):
 class Keyframe(StrictModel):
     id: int = Field(ge=0)
     timestamp_sec: float = Field(ge=0)
+    width: int | None = Field(default=None, gt=0)
+    height: int | None = Field(default=None, gt=0)
+    sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     features: VisualFeatures
     objects: list[ObjectObservation] = Field(default_factory=list)
     actions: list[str] = Field(default_factory=list)
     text_in_frame: list[str] = Field(default_factory=list)
+    text_observations: list[TextObservation] = Field(default_factory=list)
     analyzer: str = "basic_cv"
     embedding_int8: list[int] | None = None
     sampling_reasons: list[Literal["first", "scene_change", "interval", "near_final"]] = Field(
@@ -101,3 +113,4 @@ class VideoCapsule(StrictModel):
     timeline: list[TimelineEvent]
     scene_graph: SceneGraph = Field(default_factory=SceneGraph)
     warnings: list[str] = Field(default_factory=list)
+    execution: dict[str, str | int | float | bool] = Field(default_factory=dict)

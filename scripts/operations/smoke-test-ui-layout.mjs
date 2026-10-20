@@ -46,6 +46,7 @@ async function contextFor(role = "internals") {
   await page.route("**/api/**", (route) => {
     const request = route.request(), url = new URL(request.url()), endpoint = url.pathname.replace("/api/internal/v1", "");
     const json = (value, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(value) });
+    if (endpoint.endsWith("/readiness")) return json({ data: { diagnostic_ready: false, effective_taxonomy: "coco-80", blockers: ["Register a frozen diagnostic profile before review."], notice: "Configuration checks do not establish annotation accuracy." } });
     if (url.pathname === "/api/v1/me") return json({ assignment_id: "assignment", actor: { role }, links: { state: role === "adjudicator" ? "/api/v1/adjudications/assignment" : "/api/v1/assignments/assignment" } });
     if (url.pathname.includes("/frames/") || url.pathname.endsWith("/evidence")) return route.fulfill({ contentType: "image/svg+xml", body: image });
     if (url.pathname.startsWith("/api/v1/")) return json(role === "adjudicator" ? { assignment: { status: "in_progress" }, revision: 0, policy, reviewer_a: annotations, reviewer_b: annotations, merged: annotations, comparison: { disagreements: [{ source: annotations.sources[0].source, filename: annotationFrame.filename, type: "out_of_taxonomy" }] } } : { assignment: { status: "in_progress" }, revision: 0, policy, annotations, frame_count: 1 });
@@ -122,6 +123,14 @@ async function audit(page, name) {
 }
 try {
   const internals = await contextFor();
+  await internals.page.locator('#campaign-create-dialog').evaluate(dialog=>dialog.showModal());
+  await internals.page.waitForFunction(()=>document.querySelector('#campaign-readiness').textContent.includes('Register a frozen diagnostic profile'));
+  assert.equal(await internals.page.locator('#campaign-form [type="submit"]').isDisabled(),true);
+  await internals.page.locator('#campaign-purpose').selectOption('annotation');
+  await internals.page.waitForFunction(()=>!document.querySelector('#campaign-form [type="submit"]').disabled);
+  await internals.page.locator('#campaign-purpose').selectOption('diagnostic');
+  await internals.page.waitForFunction(()=>document.querySelector('#campaign-form [type="submit"]').disabled);
+  await internals.page.locator('#campaign-create-dialog').evaluate(dialog=>dialog.close());
   await internals.page.locator('#dataset-dialog').evaluate(dialog=>dialog.showModal());
   assert.equal(await internals.page.locator('#sample-count').getAttribute('max'),String(sampleCatalog.sources.length));
   await internals.page.locator('#sample-count').fill(String(sampleCatalog.sources.length));await internals.page.locator('#sample-seed').fill('reproducible-seed');await internals.page.locator('#sample-reproduce').click();await internals.page.waitForFunction(count=>document.querySelector('#dataset-sources').value.split('\n').length===count,sampleCatalog.sources.length);

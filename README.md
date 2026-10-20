@@ -21,10 +21,14 @@ video URL -> Cloudflare Worker -> FastAPI -> extractor -> VideoCapsule JSON
                                          `-> Whisper transcript
 ```
 
-The initial implementation intentionally keeps visual inference local and cheap:
-keyframes contain brightness and edge-density measurements. Object detection,
-OCR, embeddings, and an external summarizer are represented by stable schema
-fields and extension points rather than pretend model output.
+Product extraction supports explicit `basic`, `ocr`, and `governed` modes.
+`basic` retains inexpensive frame features and marks visual semantics unknown.
+`ocr` adds timestamped Tesseract text with confidence and source-pixel boxes.
+`governed` also runs the shared NanoDet engine using a checksum-verified approved
+active Internals release. It refuses extraction when compatible eligible evidence
+is unavailable. New capsules use version `1.1`, retain source/frame hashes, and
+link visual timeline entries to their observations. No actions or relationships
+are invented. See [Product integration and acceptance](docs/product-capsule-roadmap.md).
 
 The Product extraction path is separate from an authenticated **Internals**
 workspace at `/internals`, with APIs under `/api/internal/v1`. The supported v1
@@ -36,12 +40,12 @@ supported. See [the roadmap](docs/internals-roadmap.md),
 [managed evaluations](docs/managed-evaluations.md), and
 [model/release governance](docs/model-release-governance.md).
 
-The 2026-10-15 branch is implemented and build-tested; deployment and hosted
-operational acceptance are deferred to merge. Email sender onboarding is excluded,
-and production retains administrator-token compatibility. Named sessions, role
-checks, verified assignment binding, and named decision attribution are implemented.
-Training and wiring Product execution to the active Internals release registry are
-separate future projects.
+Email sender onboarding remains excluded; production retains administrator-token
+compatibility. Named sessions, role checks, verified assignment binding, and named
+decision attribution are implemented. The current hosted verification and remaining
+Product/operational acceptance are recorded in the linked roadmaps. Training is a
+separate project. Implementation and build completion do not establish corpus or
+Product quality.
 
 ## Repository layout
 
@@ -163,7 +167,8 @@ API-discovery, and result-retrieval examples.
 
 ## Capsule contract
 
-The contract is versioned as `1.0`. Times are seconds from the beginning of the
+New capsules use contract version `1.1`; existing `1.0` capsules remain readable.
+Times are seconds from the beginning of the
 video. Visual observations clearly identify the analyzer that generated them;
 empty `objects`, `actions`, or `text_in_frame` values mean “not analyzed,” not
 “confirmed absent.” Keyframes also record whether they were selected as the first

@@ -328,7 +328,8 @@ class SamplingRunner:
             script_path = next((path for path in script_candidates if path.is_file()), None)
             if script_path is None:
                 raise RunnerError("managed object evaluation engine is not installed")
-            implementation = "managed-object-evaluation.v1@sha256:" + hashlib.sha256(script_path.read_bytes()).hexdigest()
+            from .engine_identity import evaluation_implementation
+            implementation = evaluation_implementation(script_path)
             if plan["implementation_version"] != implementation:
                 raise RunnerError("runner engine source does not match the frozen evaluation implementation")
             spec = importlib.util.spec_from_file_location("managed_object_evaluation_engine", script_path)

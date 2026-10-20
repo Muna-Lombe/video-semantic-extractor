@@ -66,6 +66,9 @@ describe("evidence-backed model/release governance", () => {
     await complete(env, arun);
     const aApproved = await data(await decide(env, "releases", a, "approve", { evaluation_run_id: arun.id }));
     await data(await decide(env, "releases", aApproved, "activate", {}));
+    const execution = await data(await call(env, `${base}/releases/active/execution`));
+    expect(execution).toMatchObject({ schema_version: "product-execution.v1", release_id: a.id, model: { id: mv.id, download_path: `${base}/models/${mv.id}/artifact` } });
+    expect(JSON.parse(execution.configuration_json).components.evaluator).toBe(EVALUATION_IMPLEMENTATION_VERSION);
     const b = await release(env, mv.id, "2"), brun = await run(env, truth.id, mv.id, b);
     await complete(env, brun);
     const bApproved = await data(await decide(env, "releases", b, "approve", { evaluation_run_id: brun.id }));
@@ -78,10 +81,14 @@ describe("evidence-backed model/release governance", () => {
     expect(history.history.map((entry) => entry.action)).toContain("release.rollback");
     expect(() => env.CONTROL_DB.db.prepare("UPDATE pipeline_releases SET configuration_json = '{}' WHERE id = ?").run(a.id)).toThrow(/immutable/);
     expect(() => env.CONTROL_DB.db.prepare("UPDATE model_versions SET license = 'changed' WHERE id = ?").run(mv.id)).toThrow(/immutable/);
+    env.CONTROL_DB.db.prepare("UPDATE ground_truth_versions SET status = 'invalid', approval_status = 'rejected' WHERE id = ?").run(truth.id);
+    expect((await call(env, `${base}/releases/active/execution`)).status).toBe(409);
   });
   it("rejects missing evidence, unapproved activation, stale decisions and retirement of active models", async () => {
     const prepared = await candidate(), { env, truth } = prepared; await approved(prepared);
     const mv = await model(env);
+    expect((await call(env, `${base}/releases/active/execution`)).status).toBe(409);
+    expect((await call(env, `${base}/releases/active/execution`, "GET", undefined, "wrong-token")).status).toBe(401);
     expect((await decide(env, "models", mv, "approve", {})).status).toBe(400);
     const evaluation = await run(env, truth.id, mv.id);
     expect((await decide(env, "models", mv, "approve", { evaluation_run_id: evaluation.id })).status).toBe(409);

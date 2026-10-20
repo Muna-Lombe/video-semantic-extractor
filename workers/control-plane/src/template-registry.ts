@@ -5,6 +5,7 @@ import { validateFrameSetManifest, type FrameSetManifestV1 } from "./frame-set-m
 import { parseValidationProfile } from "./ground-truth-validation";
 import type { InternalActor } from "./internal-auth";
 import { parseAnnotationRules, type AnnotationRules } from "./managed-annotations";
+import { diagnosticReadiness } from "./diagnostic-readiness";
 
 export const ANNOTATION_SCHEMA_VERSION = "object-annotations.v1";
 const GENERATOR_VERSION = "object-template.v1";
@@ -59,6 +60,15 @@ function policyRow(row: Row, includeDocument = false) {
 }
 
 const POLICY_SELECT = "SELECT pv.*, p.name, p.task_type FROM policy_versions pv JOIN policies p ON p.id = pv.policy_id";
+
+export async function templateReadiness(env: AdjudicationEnv, template: Record<string, unknown>) {
+  const policy = await env.CONTROL_DB.prepare("SELECT * FROM policy_versions WHERE id = ?").bind((template.provenance as Record<string, string>).policy_version_id).first<Row>();
+  if (!policy || policy.sha256 !== (template.provenance as Record<string, string>).policy_sha256 || await sha256Hex(String(policy.definition_json)) !== policy.sha256) return error("policy_verification_failed", "pinned policy is missing or its checksum has changed", 422);
+  const result = diagnosticReadiness(JSON.parse(String(policy.definition_json)), template.sources as { source_sha256: string }[]);
+  if (policy.status !== "active") result.blockers.push("Select an active policy version for a new campaign.");
+  result.diagnostic_ready = result.blockers.length === 0;
+  return result;
+}
 
 async function registerPolicy(request: Request, env: AdjudicationEnv, actor?: InternalActor): Promise<Response> {
   const value = await body(request);
@@ -137,6 +147,10 @@ async function generateTemplate(request: Request, env: AdjudicationEnv, actor?: 
   const validation = validateFrameSetManifest(candidate, { frameSetId: String(frameSet.id), samplingJobId: String(frameSet.sampling_job_id), datasetVersionId: String(frameSet.dataset_version_id), datasetSourceIds: sourceRows.map((row) => String(row.dataset_source_id)) });
   if (!validation.valid) return error("invalid_manifest", "stored manifest validation failed", 422, { errors: validation.errors });
   const manifest = candidate as FrameSetManifestV1;
+  if (definition.validation_profile) {
+    const readiness = diagnosticReadiness(definition, manifest.sources);
+    if (!readiness.diagnostic_ready) return error("diagnostic_policy_incompatible", "the diagnostic policy cannot qualify this frame set", 422, readiness);
+  }
   if (manifest.frame_count !== Number(frameSet.frame_count) || manifest.source_count !== Number(frameSet.source_count)) return error("manifest_verification_failed", "manifest coverage differs from registered coverage", 422);
   const frames = (await env.CONTROL_DB.prepare("SELECT f.*, a.storage_key, a.sha256, a.size_bytes, a.media_type FROM frame_set_frames f JOIN artifacts a ON a.id = f.artifact_id WHERE f.frame_set_id = ? ORDER BY f.dataset_source_id, f.ordinal").bind(frameSet.id).all<Row>()).results;
   if (frames.length !== manifest.frame_count) return error("evidence_mismatch", "registered frame coverage differs from the manifest", 422);
@@ -174,6 +188,14 @@ async function generateTemplate(request: Request, env: AdjudicationEnv, actor?: 
 /** Called only after the Internals administrator guard. */
 export async function handleTemplateRegistry(request: Request, env: AdjudicationEnv, actor?: InternalActor): Promise<Response | null> {
   const url = new URL(request.url), path = url.pathname.replace(/\/$/, "");
+  const readinessPath = path.match(/^\/api\/internal\/v1\/templates\/(tpl_[a-f0-9]{32})\/readiness$/);
+  if (readinessPath) {
+    if (request.method !== "GET") return error("method_not_allowed", "method not allowed", 405);
+    const loaded = await readRegisteredTemplate(env, readinessPath[1], true);
+    if (loaded instanceof Response) return loaded;
+    const result = await templateReadiness(env, loaded.template);
+    return result instanceof Response ? result : json({ data: result });
+  }
   const lifecycle = path.match(/^\/api\/internal\/v1\/policies\/([a-z][a-z0-9_]{1,99})\/(deprecate|retire)$/);
   if (lifecycle) {
     if (request.method !== "POST") return error("method_not_allowed", "method not allowed", 405);

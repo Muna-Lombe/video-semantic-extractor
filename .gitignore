@@ -9,6 +9,7 @@ __pycache__/
 node_modules/
 .wrangler/
 dist/
+backend/build/
 *.wav
 *.mp4
 video_capsule.json

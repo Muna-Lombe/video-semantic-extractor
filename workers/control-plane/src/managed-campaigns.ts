@@ -1,7 +1,7 @@
 /** @type implementation @purpose Run template-referenced campaigns with D1-isolated assignments and private evidence. */
 import type { AdjudicationEnv } from "./types";
 import { canAccessInternals, resolveInternalActor, resolveInternalUser, type InternalActor } from "./internal-auth";
-import { readRegisteredTemplate } from "./template-registry";
+import { readRegisteredTemplate, templateReadiness } from "./template-registry";
 import { sha256Hex } from "./artifact-pipeline";
 import { compareReviews, type JsonRecord } from "./review-comparison";
 import { assertManagedCoverage, sameJson, validateFrameAnnotations, validateManagedSubmission } from "./managed-annotations";
@@ -77,12 +77,14 @@ function invitation(origin: string, assignmentId: string, role: Role, secret: st
 
 async function createCampaign(request: Request, env: AdjudicationEnv, actor: InternalActor): Promise<Response> {
   const value = await body(request, 64 * 1024), hours = value.expires_in_hours ?? 168;
-  if (Object.keys(value).some((key) => !["name", "template_id", "expires_in_hours", "idempotency_key", "issue_tokens"].includes(key)) || (value.issue_tokens !== undefined && typeof value.issue_tokens !== "boolean") || typeof value.name !== "string" || !value.name.trim() || value.name.trim().length > 120 || typeof value.template_id !== "string" || !/^tpl_[a-f0-9]{32}$/.test(value.template_id)) fail("name, a registered template_id, and an optional boolean issue_tokens are required; embedded templates and frame URLs are not accepted");
+  if (Object.keys(value).some((key) => !["name", "template_id", "expires_in_hours", "idempotency_key", "issue_tokens", "purpose"].includes(key)) || (value.purpose !== undefined && !["diagnostic", "annotation"].includes(value.purpose)) || (value.issue_tokens !== undefined && typeof value.issue_tokens !== "boolean") || typeof value.name !== "string" || !value.name.trim() || value.name.trim().length > 120 || typeof value.template_id !== "string" || !/^tpl_[a-f0-9]{32}$/.test(value.template_id)) fail("name, a registered template_id, and optional purpose (diagnostic or annotation) are required; embedded templates and frame URLs are not accepted");
   const issueTokens = value.issue_tokens !== false;
   if (!Number.isInteger(hours) || hours < 1 || hours > 720) fail("expires_in_hours must be an integer from 1 through 720");
   if (value.idempotency_key !== undefined && (typeof value.idempotency_key !== "string" || !/^[a-zA-Z0-9._:-]{1,200}$/.test(value.idempotency_key))) fail("idempotency_key must contain 1-200 safe characters");
   const duplicate = async (row: JsonRecord) => {
     if (row.template_id !== value.template_id || row.name !== value.name.trim() || row.invitation_hours !== hours) fail("idempotency_key is already associated with a different campaign", 409);
+    const creation = await env.CONTROL_DB.prepare("SELECT details_json FROM internal_audit_events WHERE resource_id = ? AND action = 'campaign.create' ORDER BY id LIMIT 1").bind(row.id).first<JsonRecord>();
+    if ((creation ? JSON.parse(creation.details_json).review_purpose ?? "annotation" : "annotation") !== (value.purpose ?? "annotation")) fail("idempotency_key is already associated with a different review purpose", 409);
     return json({ data: await summary(env, row), meta: { deduplicated: true }, warning: "Job token secrets cannot be retrieved again. Generate or rotate a token from the assignment details." });
   };
   if (value.idempotency_key) {
@@ -93,6 +95,9 @@ async function createCampaign(request: Request, env: AdjudicationEnv, actor: Int
   if (loaded instanceof Response) return loaded;
   if (!bounded(loaded.template)) fail("template is too large for the managed review workflow", 422);
   await pinnedPolicy(env, loaded.template, true);
+  const readiness = await templateReadiness(env, loaded.template);
+  if (readiness instanceof Response) return readiness;
+  if (value.purpose === "diagnostic" && !readiness.diagnostic_ready) return json({ error: { code: "diagnostic_not_ready", message: "Fix the policy before starting a diagnostic review.", details: readiness } }, 422);
   // Validate the initializer contract before granting any assignment access.
   validateManagedSubmission(loaded.template, loaded.template);
   const campaignId = id("campaign"), timestamp = now();
@@ -105,7 +110,7 @@ async function createCampaign(request: Request, env: AdjudicationEnv, actor: Int
     await env.CONTROL_DB.batch([
       env.CONTROL_DB.prepare("INSERT INTO review_campaigns (id, name, template_id, template_sha256, status, idempotency_key, invitation_hours, created_at, updated_at) VALUES (?, ?, ?, ?, 'ready', ?, ?, ?, ?)").bind(campaignId, value.name.trim(), value.template_id, loaded.registration.sha256, value.idempotency_key ?? null, hours, timestamp, timestamp),
       ...records.map((record) => env.CONTROL_DB.prepare("INSERT INTO campaign_assignments (id, campaign_id, role, token_hash, token_issued_at, created_at, updated_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").bind(record.id, campaignId, record.role, record.hash, issueTokens ? timestamp : null, timestamp, timestamp, expires)),
-      env.CONTROL_DB.prepare("INSERT INTO internal_audit_events (actor_user_id, action, resource_type, resource_id, details_json, created_at) VALUES (?, 'campaign.create', 'review_campaign', ?, ?, ?)").bind(actor.kind === "user" ? actor.user.id : null, campaignId, JSON.stringify({ authentication: actor.kind === "user" ? "email_link_session" : "legacy_administrator_token", template_id: value.template_id, template_sha256: loaded.registration.sha256, job_tokens_issued: issueTokens }), timestamp),
+      env.CONTROL_DB.prepare("INSERT INTO internal_audit_events (actor_user_id, action, resource_type, resource_id, details_json, created_at) VALUES (?, 'campaign.create', 'review_campaign', ?, ?, ?)").bind(actor.kind === "user" ? actor.user.id : null, campaignId, JSON.stringify({ authentication: actor.kind === "user" ? "email_link_session" : "legacy_administrator_token", template_id: value.template_id, template_sha256: loaded.registration.sha256, job_tokens_issued: issueTokens, review_purpose: value.purpose ?? "annotation" }), timestamp),
     ]);
   } catch (cause) {
     if (value.idempotency_key) {

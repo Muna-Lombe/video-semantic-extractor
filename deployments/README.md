@@ -5,6 +5,11 @@ package. This ordering is intentional: the extractor requires both `ffmpeg` and
 `ffprobe`, and a deployment must fail during image creation rather than later on a
 request.
 
+The Product image also includes Tesseract and the shared object-evaluation source.
+Product visual modes, release resolution and remaining hosted acceptance are
+documented in [the Product roadmap](../docs/product-capsule-roadmap.md). The current
+optional Container configuration keeps basic mode as its compatibility default.
+
 ## Prerequisites
 
 For a local Docker deployment, install Docker Engine or Docker Desktop and run:
