@@ -4,7 +4,7 @@ import { fixture, campaign, call, callWithHeaders, state, save, reviewerPath, ad
 import { getEligibleGroundTruth } from "./ground-truth";
 import { sha256Hex } from "./artifact-pipeline";
 import { parseValidationProfile, validateGroundTruthContent } from "./ground-truth-validation";
-import { call as registryCall, policyInput, templateInput } from "./registry-test-support";
+import { call as registryCall, policyInput, templateInput, environment, frameSet, policy } from "./registry-test-support";
 const base = "/api/internal/v1/ground-truth";
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const approveBody = { actor_reference: "test-data-custodian", reason: "Checked frozen policy, independent review, and diagnostic licensing scope.", scope: "diagnostic", attestations: { policy_reviewed: true, independent_humans_confirmed: true, predictions_unseen_confirmed: true, licensing_scope_confirmed: true } };
@@ -127,13 +127,19 @@ describe("ground-truth validation and diagnostic approval", () => {
 
   it("binds frozen corpus checksums and cannot infer a missing machine profile from prose", async () => {
     const otherProfile = { id: "coco-object-diagnostic.v1", source_sha256: ["6", "7", "8", "9", "a"].map((character) => character.repeat(64)) };
-    const wrong = await candidate(await fixture({ sourceCount: 5, validation_profile: otherProfile }));
-    const wrongReport = await (await validate(wrong)).json();
-    expect(wrongReport.validation.annotation_validation.corpus_adequacy_gates.frozen_five_sources).toBe(false);
+    const env = environment(); await frameSet(env, 5);
+    const registered = await policy(env, { ...policyInput, validation_profile: otherProfile });
+    const wrong = await registryCall(env, "/templates", "POST", templateInput(registered.id));
+    expect(wrong.status).toBe(422);
+    expect((await wrong.json()).error.code).toBe("diagnostic_policy_incompatible");
+    expect(env.CONTROL_DB.db.prepare("SELECT COUNT(*) AS n FROM templates").get().n).toBe(0);
     const noProfile = await candidate(await fixture({ sourceCount: 5 }));
     const missingReport = await (await validate(noProfile)).json();
     expect(missingReport.validation.passed).toBe(false);
     expect(missingReport.validation.annotation_validation.errors).toContain("a frozen compatible validation profile is required for diagnostic approval");
+    const candidateBytes = await (await call(noProfile.env, `${base}/${noProfile.truth.id}/artifact`)).json();
+    const legacyCheck = validateGroundTruthContent(candidateBytes, candidateBytes, parseValidationProfile(otherProfile));
+    expect(legacyCheck.corpus_adequacy_gates.frozen_five_sources).toBe(false);
   });
 
   it("rejects arbitrary threshold overrides, duplicate corpus digests, and non-versioned profiles", () => {

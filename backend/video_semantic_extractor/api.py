@@ -9,6 +9,7 @@ import ipaddress
 import os
 import socket
 import tempfile
+from contextlib import nullcontext
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -16,8 +17,9 @@ import requests
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
-from .pipeline import CapsuleBuilder, ExtractionError
+from .pipeline import CapsuleBuilder, ExtractionError, whisper_transcriber
 from .schema import VideoCapsule
+from .product_execution import configured_builder, ProductNotReady
 
 
 class CapsuleRequest(BaseModel):
@@ -82,7 +84,7 @@ def download_video(url: str, destination: Path, max_bytes: int, timeout_sec: int
 def create_app(builder: CapsuleBuilder | None = None) -> FastAPI:
     """Create an API application, optionally injecting an extractor for tests."""
     app = FastAPI(title="Video Semantic Capsule API", version="1.0.0")
-    capsule_builder = builder or CapsuleBuilder()
+    transcriber = whisper_transcriber("tiny")
 
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -93,10 +95,12 @@ def create_app(builder: CapsuleBuilder | None = None) -> FastAPI:
         max_bytes = _setting_int("CAPSULE_MAX_DOWNLOAD_BYTES", 500_000_000)
         timeout_sec = _setting_int("CAPSULE_DOWNLOAD_TIMEOUT_SEC", 120)
         try:
-            with tempfile.TemporaryDirectory(prefix="capsule-download-") as directory:
+            with (nullcontext(builder) if builder is not None else configured_builder(transcriber=transcriber)) as capsule_builder, tempfile.TemporaryDirectory(prefix="capsule-download-") as directory:
                 local_path = Path(directory) / "input.video"
                 download_video(payload.video_url, local_path, max_bytes, timeout_sec)
                 return capsule_builder.build(local_path)
+        except ProductNotReady as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
         except (ValueError, requests.RequestException) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         except ExtractionError as exc:

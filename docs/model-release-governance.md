@@ -90,5 +90,12 @@ undo D1 migrations, delete artifacts, or silently select a target.
 
 All decisions append authenticated actor IDs where available, state transitions,
 reasons, and evidence references. Stale requests fail without creating a second
-winning decision. The active registry is an Internals governance resource; wiring
-Product execution to it is a separate Product integration project.
+winning decision.
+
+Product can resolve `GET /releases/active/execution` through the authenticated
+Internals API. The read rechecks current truth eligibility, release-specific
+evaluation/acceptance, compatible engine versions and model bytes. It returns a
+checksum-bound `product-execution.v1` snapshot and an authenticated model download
+path; missing eligible releases produce HTTP 409. Product records the exact snapshot
+and stops with HTTP 503 when it cannot verify execution inputs. This is a governed
+object-inference bridge; complete capsule usefulness remains separate acceptance.

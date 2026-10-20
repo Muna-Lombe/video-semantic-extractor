@@ -210,6 +210,8 @@
         <div class="dialog-heading"><div><p class="eyebrow">Independent annotation</p><h2>Create review campaign</h2></div><button class="icon-button" type="button" data-dialog-close aria-label="Close">×</button></div>
         <label for="campaign-name">Name</label><input id="campaign-name" name="name" required maxlength="120">
         <label for="campaign-template">Registered template</label><select id="campaign-template" name="template_id" required></select>
+        <label for="campaign-purpose">Review purpose</label><select id="campaign-purpose" name="purpose"><option value="diagnostic">Diagnostic evaluation</option><option value="annotation">Annotation only</option></select>
+        <p id="campaign-readiness" class="field-help" role="status">Choose a template to check its policy and frozen sources.</p>
         <label for="campaign-expiry">Assignment token lifetime (hours)</label><input id="campaign-expiry" name="expires_in_hours" type="number" min="1" max="720" value="168" required>
         <p class="field-help">A campaign creates two independent reviewer assignments and one adjudicator assignment. Generate each separate, role-scoped job token from the campaign's Assignments section. Tokens are independent of Internals sign-in and are shown only once.</p>
         <p class="form-status" role="status"></p><div class="dialog-actions"><button class="secondary" type="button" data-dialog-close>Cancel</button><button type="submit">Create campaign</button></div>

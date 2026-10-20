@@ -124,10 +124,29 @@ async function createRelease(request: Request, env: AdjudicationEnv, actor: Inte
 }
 export async function handleReleaseGovernance(request: Request, env: AdjudicationEnv, actor: InternalActor): Promise<Response | null> {
   const url = new URL(request.url), path = url.pathname.replace(/\/$/, "");
-  const match = path.match(/^\/api\/internal\/v1\/(models|releases)(?:\/([a-z][a-z0-9_]{1,99})(?:\/(approve|reject|activate|rollback|retire|artifact))?)?$/);
+  const match = path.match(/^\/api\/internal\/v1\/(models|releases)(?:\/([a-z][a-z0-9_]{1,99})(?:\/(approve|reject|activate|rollback|retire|artifact|execution))?)?$/);
   if (!match) return null;
   try {
     const [, collection, resourceId, action] = match;
+    if (collection === "releases" && resourceId === "active" && action === "execution") {
+      if (request.method !== "GET") fail("method not allowed", 405);
+      const release = await env.CONTROL_DB.prepare("SELECT * FROM pipeline_releases WHERE status = 'active' AND approval_status = 'approved'").first<Row>();
+      if (!release) return fail("No approved active release is available for Product extraction.", 409);
+      const config = JSON.parse(release.configuration_json);
+      if (config.components.sampler !== SAMPLING_IMPLEMENTATION_VERSION || config.components.evaluator !== EVALUATION_IMPLEMENTATION_VERSION) fail("Active release requires a different engine build; evaluate and approve a compatible release.", 409);
+      const model = await env.CONTROL_DB.prepare("SELECT * FROM model_versions WHERE id = ? AND status IN ('approved','production')").bind(config.model_version_id).first<Row>();
+      if (!model || JSON.parse(model.configuration_json).architecture !== "nanodet-plus-1.5x-416") return fail("Active release model is not approved or supported.", 409);
+      const linked = await env.CONTROL_DB.prepare("SELECT evaluation_run_id FROM pipeline_release_evaluations WHERE pipeline_release_id = ? ORDER BY evaluation_run_id LIMIT 1").bind(release.id).first<Row>();
+      if (!linked) return fail("Active release has no evaluation evidence.", 409);
+      await evidence(env, linked.evaluation_run_id, model.id, release);
+      const artifact = await verifiedArtifact(env, model.artifact_id);
+      return json({ data: {
+        schema_version: "product-execution.v1", release_id: release.id, release_revision: release.revision,
+        configuration_json: release.configuration_json, configuration_sha256: await sha256Hex(release.configuration_json),
+        evaluation_run_id: linked.evaluation_run_id,
+        model: { id: model.id, architecture: "nanodet-plus-1.5x-416", sha256: artifact.row.sha256, size_bytes: artifact.row.size_bytes, download_path: `/api/internal/v1/models/${model.id}/artifact` },
+      } });
+    }
     const table = collection === "models" ? "model_versions" : "pipeline_releases", type = collection === "models" ? "model_version" : "pipeline_release";
     if (!resourceId) {
       if (request.method === "POST") return collection === "models" ? await createModel(request, env, actor) : await createRelease(request, env, actor);

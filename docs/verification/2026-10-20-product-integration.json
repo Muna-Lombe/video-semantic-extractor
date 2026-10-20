@@ -1,0 +1,61 @@
+{
+  "scope": "real-media local integration; audio deliberately removed, no speech-quality or model-accuracy claim",
+  "source_original_sha256": "5da33952e258ffe625c22aa9f6b4634faa3ef8edf8f09b2b1b3b10434af91898",
+  "processed_source_sha256": "1285762e820d4f3906a2f8f222155fc6d1ebb551634e63c3143ea63f9296ffeb",
+  "model_sha256": "4b82da9944b88577175ee23a459dce2e26e6e4be573def65b1055dc2d9720186",
+  "parity_frames": 62,
+  "detector_outputs_identical_to_main": true,
+  "keyframes": 4,
+  "object_observations": 15,
+  "ocr_words": 7,
+  "visual_timeline_events": 7,
+  "capsule_bytes": 4524,
+  "source_bytes": 549261,
+  "schema_version": "product-integration-verification.v1",
+  "container_runtime": {
+    "status": "passed",
+    "scope": "local Product image with a 128 MiB temporary filesystem, real silent media; no hosted or accuracy claim",
+    "version": "1.1",
+    "execution": {
+      "mode": "ocr",
+      "ocr_engine": "tesseract 5.5.0",
+      "ocr_psm": 11,
+      "ocr_minimum_confidence": 0.5
+    },
+    "source_sha256": "1285762e820d4f3906a2f8f222155fc6d1ebb551634e63c3143ea63f9296ffeb",
+    "keyframes": 4,
+    "ocr_words": 7,
+    "timeline_events": 3,
+    "initial_attempt": "Default local container scratch filesystem returned ENOSPC; successful rerun used an explicit 128 MiB tmpfs. This does not qualify hosted storage limits."
+  },
+  "verification": {
+    "backend_tests": 123,
+    "worker_tests": 167,
+    "browser_interaction_checks": 46,
+    "layout_cases": 522,
+    "layout_failures": 0,
+    "browser_runtime_errors": 0,
+    "diagnostic_gate_browser_assertions": 3,
+    "typescript": "passed",
+    "python_syntax_and_new_module_lint": "passed",
+    "engine_fingerprints": "passed",
+    "fresh_wheel_install_and_import": "passed",
+    "runner_image": "built",
+    "product_image": "built",
+    "control_plane_worker_dry_build": {
+      "upload_kib": 456.19,
+      "gzip_kib": 96.1
+    },
+    "product_worker_dry_build": {
+      "upload_kib": 57.58,
+      "gzip_kib": 14.12
+    }
+  },
+  "source_digests": {
+    "backend/video_semantic_extractor/object_detector.py": "c34282457a04d9b78dcfdb5ea4fe8c0dff2e51bc0da63a4ddea67d479141fdcb",
+    "backend/video_semantic_extractor/product_execution.py": "584182af24e3d61d0f93d5cb8f1028f1a241395a6d89f4e71a760b6fb3ced929",
+    "backend/video_semantic_extractor/visual.py": "77554f5781c1c1c69e3db7febb70baf73e1f1765d6fcdd7fd06e56800aedea5b",
+    "backend/video_semantic_extractor/pipeline.py": "e994c234001300cd5612f6f52585399ac649915f1adea7026e6b8f43e82cf1e3",
+    "scripts/diagnostics/evaluate-frame-objects.py": "8ae2cb71c14792b98b6e733be600cf391222a7ad88a00c0162def83c7b3b3287"
+  }
+}

@@ -1,6 +1,28 @@
 <!-- @type documentation @purpose Track Internals implementation and separate build acceptance from production acceptance. -->
 # Internals implementation roadmap
 
+## Current verification — 2026-10-20
+
+Checks used the latest merged main (`80ede23`); the hosted catalog matches all 27
+sample sources and their checksums. Hosted
+API/authentication reads passed, and a fresh real-media sampling job succeeded on
+its first attempt with four frames and verified private evidence. Retention preview
+is available. There are four invalid ground-truth candidates, one candidate model,
+no pipeline releases, and the latest review campaign remains in adjudication.
+No approvals or adjudication drafts were changed by these checks. See
+[the hosted report](verification/2026-10-20-hosted-readiness.json).
+
+The next branch adds diagnostic policy readiness before campaign creation, an
+explicit Product execution path through approved releases, and source-bound capsule
+question scoring. These are implementation/build changes pending merge deployment;
+they do not turn invalid evidence into an approved corpus. The current Product
+delivery boundary and remaining acceptance are in
+[the Product roadmap](product-capsule-roadmap.md).
+
+The dated sections below preserve earlier delivery evidence. Statements about
+deployment, the 17-source catalog and hosted ground truth describe those dates;
+use this section and newer verification reports for current state.
+
 ## Delivery boundary
 
 The version-one implementation now covers:

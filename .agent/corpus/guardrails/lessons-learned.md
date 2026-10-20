@@ -5,6 +5,20 @@
 
 # Lessons learned
 
+### Check diagnostic policy readiness before spending human review effort
+
+**Date learned:** 2026-10-20
+**Category:** Annotation and Product acceptance
+
+A policy document can describe extended labels and diagnostic review while its
+registered rules still select legacy COCO and omit frozen source identities.
+Display effective structured settings and block explicitly diagnostic campaigns
+when their policy cannot qualify the frame set. Keep annotation-only compatibility
+explicit. Passing preflight establishes configuration readiness only; real review,
+photographic eligibility, coverage and approval still require separate evidence.
+Product must resolve eligible approved releases and preserve exact execution
+identity rather than silently selecting a different model when evidence is absent.
+
 ### Measure sampling gaps against video boundaries
 
 **Date learned:** 2026-09-16

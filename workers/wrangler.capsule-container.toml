@@ -4,6 +4,13 @@ name = "video-semantic-extractor-container"
 main = "capsule-container/src/container.ts"
 compatibility_date = "2026-09-01"
 
+[vars]
+CAPSULE_VISUAL_MODE = "basic"
+
+[[services]]
+binding = "CONTROL_PLANE"
+service = "video-semantic-extractor"
+
 # Wrangler builds the shared Product API image using the repository root so
 # backend/ is available to the Dockerfile's COPY instructions.
 [[containers]]

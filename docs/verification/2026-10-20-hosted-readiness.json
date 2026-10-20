@@ -1,0 +1,203 @@
+{
+  "schema_version": "hosted-readiness-report.v1",
+  "checked_at": "2026-10-20T14:38:49.611344+00:00",
+  "origin": "https://video-semantic-extractor.lombemuna.workers.dev",
+  "repository_base": "80ede23",
+  "scope": "Existing hosted state and isolated real-media sampling; new implementation is not deployed. No human review/approval, fault injection or destructive cleanup performed.",
+  "checks": [
+    {
+      "path": "/api/v1",
+      "status": 200,
+      "content_type": "application/json; charset=utf-8",
+      "keys": [
+        "name",
+        "version",
+        "documentation",
+        "openapi",
+        "authentication",
+        "endpoints"
+      ]
+    },
+    {
+      "path": "/health",
+      "status": 200,
+      "content_type": "application/json; charset=utf-8",
+      "keys": [
+        "status"
+      ]
+    },
+    {
+      "path": "/api/internal/v1/overview",
+      "status": 200,
+      "content_type": "application/json; charset=utf-8",
+      "keys": [
+        "name",
+        "engines",
+        "maturity",
+        "notice",
+        "authentication",
+        "control_plane",
+        "invitation_experiences",
+        "areas"
+      ]
+    },
+    {
+      "path": "/api/internal/v1/sample-library",
+      "status": 200,
+      "content_type": "application/json",
+      "keys": [
+        "data"
+      ]
+    },
+    {
+      "path": "/api/internal/v1/ground-truth",
+      "status": 200,
+      "content_type": "application/json",
+      "keys": [
+        "data",
+        "pagination"
+      ]
+    },
+    {
+      "path": "/api/internal/v1/models",
+      "status": 200,
+      "content_type": "application/json",
+      "keys": [
+        "data",
+        "pagination"
+      ]
+    },
+    {
+      "path": "/api/internal/v1/releases",
+      "status": 200,
+      "content_type": "application/json",
+      "keys": [
+        "data",
+        "pagination"
+      ]
+    },
+    {
+      "path": "/api/internal/v1/review-campaigns",
+      "status": 200,
+      "content_type": "application/json",
+      "keys": [
+        "data",
+        "pagination"
+      ]
+    },
+    {
+      "path": "/api/internal/v1/operations/retention",
+      "status": 200,
+      "content_type": "application/json",
+      "keys": [
+        "data"
+      ]
+    },
+    {
+      "path": "/api/internal/v1/operations",
+      "status": 200
+    },
+    {
+      "path": "/api/internal/v1/policies",
+      "status": 200
+    },
+    {
+      "path": "/api/internal/v1/sampling-jobs",
+      "status": 200
+    },
+    {
+      "path": "/api/internal/v1/frame-sets",
+      "status": 200
+    },
+    {
+      "path": "/internals/",
+      "status": 200
+    },
+    {
+      "path": "/review/",
+      "status": 200
+    },
+    {
+      "path": "/adjudicate/",
+      "status": 200
+    },
+    {
+      "path": "/capsule",
+      "status": 404
+    },
+    {
+      "path": "/api/internal/v1/datasets",
+      "unauthenticated": true,
+      "status": 401
+    },
+    {
+      "path": "/api/internal/v1/models",
+      "unauthenticated": true,
+      "status": 401
+    },
+    {
+      "path": "/api/internal/v1/releases",
+      "unauthenticated": true,
+      "status": 401
+    },
+    {
+      "path": "/api/internal/v1/operations/retention",
+      "unauthenticated": true,
+      "status": 401
+    }
+  ],
+  "catalog": {
+    "version": "2026-10-19.1",
+    "source_count": 27,
+    "all_source_checksums_match_checkout": true
+  },
+  "sampling": {
+    "attempt_count": 1,
+    "dataset_id": "ds_e42e0081119b4bb2b04cb2922566ec75",
+    "dataset_version_id": "dsv_c841aed25fe049439c9a5f117172cf93",
+    "evidence_content_type": "image/jpeg",
+    "evidence_frame_id": "frame_job_862ca12c45f8439e844faf5b4ce7fc93_0_0",
+    "evidence_sha256": "fc879074807852b0144be32a373bf7c37abee8b7f13d1ae9621879725223f783",
+    "frame_count": 4,
+    "frame_set_id": "frameset_862ca12c45f8439e844faf5b4ce7fc93",
+    "heartbeat_at": "2026-10-20T14:37:53.003Z",
+    "job_id": "job_862ca12c45f8439e844faf5b4ce7fc93",
+    "manifest_etag": "\"d2fa0c7ce76002eb44b76800a86fecbc6aa89b1a5680e001e14a0269d9a0112b\"",
+    "manifest_sha256": "d2fa0c7ce76002eb44b76800a86fecbc6aa89b1a5680e001e14a0269d9a0112b",
+    "source_count": 1,
+    "source_url": "https://pub-f402b333934c4b279fdf90faf5864e0a.r2.dev/videos/sample_20.mp4",
+    "status": "passed"
+  },
+  "ground_truth": {
+    "total": 4,
+    "invalid": 4,
+    "approved": 0
+  },
+  "models": {
+    "total": 1,
+    "approved": 0
+  },
+  "releases": {
+    "total": 0
+  },
+  "product": {
+    "internals_capsule_get_status": 404,
+    "separate_service_probes": [
+      {
+        "host": "video-semantic-extractor-container.lombemuna.workers.dev",
+        "health_status": 403
+      },
+      {
+        "host": "video-semantic-extractor-gateway.lombemuna.workers.dev",
+        "health_status": 403
+      }
+    ],
+    "hosted_extraction_verified": false
+  },
+  "remaining_acceptance": [
+    "Correct policy and annotation issues; obtain genuine diagnostic approval",
+    "Evaluate and explicitly approve a compatible model/release",
+    "Hosted Product access, execution and real LLM usefulness comparison",
+    "Hosted runner crash/cancellation/load and scheduled retention verification"
+  ]
+}

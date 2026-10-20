@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import importlib
+import hashlib
 import json
 import subprocess
 import tempfile
@@ -365,6 +366,7 @@ class CapsuleBuilder:
         self.scene_threshold = scene_threshold
         self.max_keyframes = max_keyframes
         self.sampling_interval_sec = sampling_interval_sec
+        self.execution: dict[str, str | int | float | bool] = {"mode": "basic"}
 
     def build(self, input_path: str | Path) -> VideoCapsule:
         """Build a capsule from a readable local video file."""
@@ -374,6 +376,11 @@ class CapsuleBuilder:
         with tempfile.TemporaryDirectory(prefix="video-capsule-") as temp:
             temp_path = Path(temp)
             metadata = probe_video(source)
+            with source.open("rb") as handle:
+                digest = hashlib.sha256()
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+                metadata.source_sha256 = digest.hexdigest()
             keyframe_files = extract_keyframes(
                 source,
                 temp_path / "frames",
@@ -418,15 +425,27 @@ class CapsuleBuilder:
                 )
                 for index, segment in enumerate(segments)
             ]
+            for index, frame in enumerate(keyframes):
+                if frame.text_in_frame:
+                    timeline.append(TimelineEvent(start_sec=frame.timestamp_sec, end_sec=frame.timestamp_sec, event_type="visible_text", description=" ".join(frame.text_in_frame), evidence=[f"keyframes[{index}].text_observations"]))
+                if frame.objects:
+                    timeline.append(TimelineEvent(start_sec=frame.timestamp_sec, end_sec=frame.timestamp_sec, event_type="object_observations", description=", ".join(sorted({item.label for item in frame.objects})), evidence=[f"keyframes[{index}].objects"]))
+            timeline.sort(key=lambda event: event.start_sec)
+            if self.execution["mode"] == "basic":
+                warnings.append("Visual semantics were not analyzed; objects and text are unknown.")
+            else:
+                warnings.append("Visual outputs are model observations. Actions, identities, relationships and live/screen/composited origin are not inferred.")
             if not keyframes:
                 warnings.append("No keyframes were extracted.")
             return VideoCapsule(
+                version="1.1",
                 metadata=metadata,
                 transcript=transcript,
                 keyframes=keyframes,
                 timeline=timeline,
                 scene_graph=SceneGraph(),
                 warnings=warnings,
+                execution=self.execution,
             )
 
 
