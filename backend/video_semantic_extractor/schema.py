@@ -30,17 +30,31 @@ class TranscriptSegment(StrictModel):
     intent: str | None = None
 
 
+class SummaryExcerpt(StrictModel):
+    text: str
+    evidence: str
+    start_sec: float | None = Field(default=None, ge=0)
+    end_sec: float | None = Field(default=None, ge=0)
+
+
 class TranscriptSummary(StrictModel):
     abstract: str
     keywords: list[str] = Field(default_factory=list)
     method: str
     truncated: bool = False
+    excerpts: list[SummaryExcerpt] = Field(default_factory=list)
+    implementation_version: str | None = None
+    budget_chars: int | None = Field(default=None, ge=0)
+    source_units: int | None = Field(default=None, ge=0)
+    selected_units: int | None = Field(default=None, ge=0)
+    omitted_units: int | None = Field(default=None, ge=0)
 
 
 class Transcript(StrictModel):
     language: str | None = None
     summary: TranscriptSummary
     segments: list[TranscriptSegment]
+    unsegmented_text: str | None = None
 
 
 class ObjectObservation(StrictModel):

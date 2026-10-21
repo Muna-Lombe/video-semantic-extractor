@@ -9,12 +9,16 @@ from video_semantic_extractor.pipeline import summarize
 from video_semantic_extractor.schema import Keyframe, Metadata, VisualFeatures
 
 
-def test_summary_normalizes_and_marks_truncation() -> None:
-    summary = summarize("  alpha\n beta gamma ", max_chars=10)
-
-    assert summary.abstract == "alpha beta…"
-    assert summary.truncated is True
-    assert summary.method == "extractive_prefix"
+def test_summary_preserves_complete_quotes_and_never_cuts_a_claim() -> None:
+    summary = summarize("  alpha\n beta gamma ", max_chars=20)
+    assert summary.abstract == "alpha beta gamma"
+    assert summary.method == "extractive_temporal.v1"
+    assert summary.excerpts[0].text == "alpha\n beta gamma"
+    assert not summary.truncated
+    too_small = summarize("The valve must not be opened.", max_chars=10)
+    assert too_small.abstract == ""
+    assert too_small.truncated
+    assert too_small.omitted_units == 1
 
 
 def test_schema_rejects_unknown_fields() -> None:

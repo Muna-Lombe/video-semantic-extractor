@@ -1,0 +1,50 @@
+{
+  "schema_version": "capsule-question-set.v1",
+  "source_sha256": "ab50c9e6aba18e06394a82298ad62dc0328b30a07b79cdd07dd0951e5ab4b80a",
+  "provenance": {
+    "sample_id": "sample_27",
+    "authoring": "Assistant visual inspection of original media at 45.000 seconds, before consulting the new OCR/ASR/capsule output.",
+    "scope": "Three correlated visual-text diagnostic questions from one frame; not an approved corpus or a general video-understanding benchmark.",
+    "reference_frame_timestamp_sec": 45,
+    "reference_frame_sha256": "7ef7998e93aba3d55fc2e5bf508da0df1e499d83ca386a1134b8d412080baa1f",
+    "prediction_outputs_consulted": false
+  },
+  "questions": [
+    {
+      "id": "comment_username",
+      "question": "What username appears above the displayed viewer comment near 45 seconds?",
+      "accepted_answers": [
+        "@steven_chung",
+        "steven_chung"
+      ],
+      "start_sec": 43,
+      "end_sec": 47,
+      "modality": "text"
+    },
+    {
+      "id": "comment_age",
+      "question": "How many months ago does the displayed comment say it was posted near 45 seconds?",
+      "accepted_answers": [
+        "4",
+        "four",
+        "4 months",
+        "four months",
+        "4 months ago",
+        "four months ago"
+      ],
+      "start_sec": 43,
+      "end_sec": 47,
+      "modality": "text"
+    },
+    {
+      "id": "orange_word",
+      "question": "Which word in the displayed comment is highlighted in orange near 45 seconds?",
+      "accepted_answers": [
+        "recommend"
+      ],
+      "start_sec": 43,
+      "end_sec": 47,
+      "modality": "text"
+    }
+  ]
+}

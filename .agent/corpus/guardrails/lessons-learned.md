@@ -5,6 +5,24 @@
 
 # Lessons learned
 
+### Keep summary claims and comparison credit tied to visible source evidence
+
+**Date learned:** 2026-10-21
+**Category:** Product evidence
+
+ASR segments can divide a negation from its claim, and character prefixes can omit
+later changes. Group sentence fragments before selection, retain complete quoted
+units and original references, and record omissions. A quote verifies provenance,
+not speech recognition accuracy: preserve low-information real runs as well as
+better contrast cases. When comparing inputs, require citations to evidence shown
+in that variant; a correct guess citing withheld evidence earns no supported credit.
+
+**Affected files:** `backend/video_semantic_extractor/summarization.py`,
+`backend/video_semantic_extractor/capsule_comparison.py`.
+
+Use these checks for evidence compression and input comparisons. They do not
+replace independent ASR, OCR, semantic or human-review acceptance.
+
 ### Check diagnostic policy readiness before spending human review effort
 
 **Date learned:** 2026-10-20

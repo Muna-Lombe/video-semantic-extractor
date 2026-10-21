@@ -28,7 +28,7 @@ jobs:
           python -m pip wheel ./backend --no-deps --wheel-dir work/backend-wheel
           python -m venv work/wheel-smoke
           work/wheel-smoke/bin/python -m pip install work/backend-wheel/*.whl
-          work/wheel-smoke/bin/python -c "from video_semantic_extractor.object_detector import NanoDet; from video_semantic_extractor.product_execution import configured_builder; from video_semantic_extractor.capsule_evaluation import score_answers"
+          work/wheel-smoke/bin/python -c "from video_semantic_extractor.object_detector import NanoDet; from video_semantic_extractor.product_execution import configured_builder; from video_semantic_extractor.capsule_evaluation import score_answers; from video_semantic_extractor.capsule_comparison import compare_answers"
       - run: pnpm --dir workers install --frozen-lockfile
       - run: pnpm --dir workers test && pnpm --dir workers typecheck
       - run: node --check workers/control-plane/adjudication-web/theme.js && node --check workers/control-plane/adjudication-web/app.js && node --check workers/control-plane/adjudication-web/internals/app.js && node --check workers/control-plane/adjudication-web/internals/governance.js

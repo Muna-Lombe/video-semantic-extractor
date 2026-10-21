@@ -16,6 +16,28 @@ def normalize(value: str) -> str:
 
 
 def _evidence(capsule: VideoCapsule, path: str):
+    if path == "transcript.unsegmented_text" and capsule.transcript.unsegmented_text:
+        return None, None, "speech", capsule.transcript.unsegmented_text
+    excerpt_path = re.fullmatch(r"transcript\.summary\.excerpts\[(\d+)\]", path)
+    if excerpt_path:
+        try:
+            excerpt = capsule.transcript.summary.excerpts[int(excerpt_path[1])]
+            parent = (
+                _evidence(capsule, excerpt.evidence)
+                if not excerpt.evidence.startswith("transcript.summary.")
+                else None
+            )
+            if (
+                not excerpt.text.strip()
+                or not parent
+                or parent[2] != "speech"
+                or excerpt.text not in parent[3]
+                or (excerpt.start_sec, excerpt.end_sec) != parent[:2]
+            ):
+                return None
+            return excerpt.start_sec, excerpt.end_sec, "speech", excerpt.text
+        except IndexError:
+            return None
     match = re.fullmatch(
         r"(keyframes|transcript\.segments)\[(\d+)\](?:\.(objects|text_observations)\[(\d+)\])?",
         path,
@@ -43,7 +65,13 @@ def _evidence(capsule: VideoCapsule, path: str):
         return None
 
 
-def score_answers(capsule_bytes: bytes, questions: dict, answers: dict | None = None) -> dict:
+def score_answers(
+    capsule_bytes: bytes,
+    questions: dict,
+    answers: dict | None = None,
+    *,
+    allowed_evidence: set[str] | None = None,
+) -> dict:
     """Exact normalized answers use predeclared aliases; no model judges or gate changes."""
     capsule = VideoCapsule.model_validate_json(capsule_bytes)
     source_sha = capsule.metadata.source_sha256
@@ -139,20 +167,39 @@ def score_answers(capsule_bytes: bytes, questions: dict, answers: dict | None = 
         response = next(row for row in responses if row["question_id"] == question["id"])
         if (
             not isinstance(response.get("answer"), str)
+            or not response["answer"].strip()
             or not isinstance(response.get("evidence"), list)
-            or not response["evidence"]
             or any(not isinstance(path, str) for path in response["evidence"])
         ):
-            raise ValueError("Each answer requires text and explicit capsule evidence paths")
+            raise ValueError(
+                "Each answer requires text and an evidence list; unknown answers may cite no evidence"
+            )
         correct = normalize(response["answer"]) in {
             normalize(alias) for alias in question["accepted_answers"]
         }
-        observed = [_evidence(capsule, path) for path in response["evidence"]]
-        evidence_valid = all(
+        observed = [
+            _evidence(capsule, path)
+            if allowed_evidence is None or path in allowed_evidence
+            else None
+            for path in response["evidence"]
+        ]
+        evidence_valid = bool(observed) and all(
             value is not None
             and value[2] == question["modality"]
-            and value[1] >= question["start_sec"]
-            and value[0] <= question["end_sec"]
+            and (
+                (
+                    value[0] is None
+                    and value[1] is None
+                    and question["start_sec"] == 0
+                    and question["end_sec"] == capsule.metadata.duration_sec
+                )
+                or (
+                    value[0] is not None
+                    and value[1] is not None
+                    and value[1] >= question["start_sec"]
+                    and value[0] <= question["end_sec"]
+                )
+            )
             for value in observed
         )
         evidence_text = " ".join(value[3] for value in observed if value is not None)

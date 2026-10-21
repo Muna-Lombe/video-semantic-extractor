@@ -29,6 +29,7 @@ from .schema import (
     VideoCapsule,
     VisualFeatures,
 )
+from .summarization import summarize_transcript
 
 
 class ExtractionError(RuntimeError):
@@ -315,18 +316,8 @@ def whisper_transcriber(model_name: str) -> Transcriber:
 
 
 def summarize(text: str, max_chars: int = 800) -> TranscriptSummary:
-    """Apply deterministic extractive compression without inventing semantics."""
-    normalized = " ".join(text.split())
-    truncated = len(normalized) > max_chars
-    abstract = normalized[:max_chars].rstrip()
-    if truncated:
-        abstract += "…"
-    return TranscriptSummary(
-        abstract=abstract,
-        keywords=[],
-        method="extractive_prefix",
-        truncated=truncated,
-    )
+    """Compatibility entry point for untimed, whole-sentence extractive summaries."""
+    return summarize_transcript(text, max_chars=max_chars)
 
 
 def _segments(result: dict[str, object]) -> list[TranscriptSegment]:
@@ -412,9 +403,15 @@ class CapsuleBuilder:
             language = result.get("language")
             transcript = Transcript(
                 language=str(language) if language else None,
-                summary=summarize(full_text),
+                summary=summarize_transcript(full_text, segments),
                 segments=segments,
+                unsegmented_text=full_text if full_text and not segments else None,
             )
+            if transcript.summary.truncated and not transcript.summary.abstract:
+                warnings.append(
+                    "No complete transcript sentence fits the summary budget; "
+                    "use the preserved transcript evidence."
+                )
             timeline = [
                 TimelineEvent(
                     start_sec=segment.start_sec,
@@ -438,7 +435,7 @@ class CapsuleBuilder:
             if not keyframes:
                 warnings.append("No keyframes were extracted.")
             return VideoCapsule(
-                version="1.1",
+                version="1.2",
                 metadata=metadata,
                 transcript=transcript,
                 keyframes=keyframes,

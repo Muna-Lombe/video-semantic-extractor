@@ -26,9 +26,11 @@ Product extraction supports explicit `basic`, `ocr`, and `governed` modes.
 `ocr` adds timestamped Tesseract text with confidence and source-pixel boxes.
 `governed` also runs the shared NanoDet engine using a checksum-verified approved
 active Internals release. It refuses extraction when compatible eligible evidence
-is unavailable. New capsules use version `1.1`, retain source/frame hashes, and
-link visual timeline entries to their observations. No actions or relationships
-are invented. See [Product integration and acceptance](docs/product-capsule-roadmap.md).
+is unavailable. New capsules use version `1.2`, retain source/frame hashes, and
+link visual timeline entries to their observations. Transcript summaries select
+whole excerpts across the video and cite their original text and timestamps.
+No actions or relationships are invented. See
+[Product integration and acceptance](docs/product-capsule-roadmap.md).
 
 The Product extraction path is separate from an authenticated **Internals**
 workspace at `/internals`, with APIs under `/api/internal/v1`. The supported v1
@@ -167,7 +169,11 @@ API-discovery, and result-retrieval examples.
 
 ## Capsule contract
 
-New capsules use contract version `1.1`; existing `1.0` capsules remain readable.
+New capsules use contract version `1.2`; existing `1.0` and `1.1` capsules remain readable.
+Summary excerpts preserve source references; untimed speech retains its original
+text without inventing timestamps. A character budget can omit a whole sentence,
+but cannot cut it into a different claim. These are quotes of ASR output, whose
+accuracy still requires verification against the video.
 Times are seconds from the beginning of the
 video. Visual observations clearly identify the analyzer that generated them;
 empty `objects`, `actions`, or `text_in_frame` values mean “not analyzed,” not
