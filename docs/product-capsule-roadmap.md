@@ -142,6 +142,29 @@ measurements remain null. Byte reduction can be negative and establishes neither
 token savings nor accuracy. The tool records results; it does not call an LLM.
 An independently assessed original-video baseline remains future acceptance work.
 
+### Collect actual model responses
+
+With a provider credential in `OPENAI_API_KEY`, run a Chat Completions compatible
+model against an existing frozen directory:
+
+```sh
+python scripts/diagnostics/run-capsule-comparison.py \
+  work/capsule.json work/questions.json work/comparison work/llm-run \
+  --model PROVIDER_MODEL_ID
+```
+
+Use `--endpoint` and `--api-key-env` for another compatible HTTPS provider.
+All frozen inputs are checked before any request. Each variant uses the same
+requested model, temperature zero, JSON response format and output limit.
+The provider's returned model identity must match across variants. This requires
+a model that supports those parameters; unsupported requests stop the run.
+The runner saves exact requests, raw responses and measured wall time, then
+validates answers with the existing scorer. Provider token usage is retained
+when supplied; missing usage stays null. It does not repair answers, follow
+redirects, retry paid requests or overwrite existing runs. Failed runs retain
+available evidence and any partial report; inspect those before starting a new
+directory. Unit-test provider responses remain synthetic, not acceptance results.
+
 ## Local real-media evidence
 
 The [2026-10-21 verification](verification/2026-10-21-evidence-linked-summaries.json)
