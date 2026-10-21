@@ -581,3 +581,18 @@ splits using the shipped sampler. `operations/summarize-benchmarks.py` checks th
 reports share the frozen inputs and publishes compact provenance, class metrics,
 timings and prediction digests. None of these tools submits human reviews or
 approves ground truth. Frozen manifests/reports are not overwritten.
+
+## Product summary and LLM comparison
+
+`diagnostics/compare-capsule-inputs.py prepare CAPSULE QUESTIONS DIRECTORY`
+freezes transcript-only, summary-only and full-capsule inputs without exposing
+gold answers to the model. `score` accepts recorded answers via repeated
+`--answers VARIANT=FILE` arguments; without all answers it leaves the comparison
+pending. Exact source/input digests, identical model/settings and visible evidence
+are checked. Missing token and latency measurements stay null. The tool does not
+invoke a model or estimate savings from bytes.
+
+See [Product acceptance](../docs/product-capsule-roadmap.md#frozen-comparison-inputs)
+for commands and response requirements. The sample-27 question fixture contains
+three correlated facts from one original frame; it is a diagnostic example, not
+an approved evaluation corpus. Unit-test responses are explicitly synthetic.

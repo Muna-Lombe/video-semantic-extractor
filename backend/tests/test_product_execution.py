@@ -43,7 +43,7 @@ def test_real_video_ocr_preserves_late_visual_facts_and_evidence(tmp_path):
     )
     builder.execution = {"mode": "ocr"}
     capsule = builder.build(video)
-    assert capsule.version == "1.1"
+    assert capsule.version == "1.2"
     assert not capsule.transcript.segments
     assert any("SAFETY CHECK" in " ".join(frame.text_in_frame) for frame in capsule.keyframes)
     assert any(

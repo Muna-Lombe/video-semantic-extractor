@@ -1,0 +1,175 @@
+{
+  "schema_version": "product-summary-verification.v1",
+  "verified_on": "2026-10-21",
+  "base_commit": "7541d5a",
+  "scope": "Local current-source summary and comparison integration; real-media captures from 2026-10-20; authenticated read-only Internals checks on 2026-10-21. Not a hosted Product or LLM usefulness qualification.",
+  "verification": {
+    "backend_tests": 146,
+    "worker_tests": 167,
+    "typescript": "passed",
+    "focused_post_review_tests": 34,
+    "new_module_lint": "passed",
+    "engine_fingerprints": "passed",
+    "fresh_wheel_install_and_import": "passed",
+    "control_plane_worker_dry_build": {
+      "upload_kib": 456.19,
+      "gzip_kib": 96.1
+    },
+    "ui_changes": false,
+    "browser_and_image_checks": "Existing CI reruns these on the PR; local real-media runs used the previously built Product image with current Python sources mounted read-only."
+  },
+  "local_runtime": {
+    "container_image": "vse-product-readiness",
+    "memory_bytes": 2147483648,
+    "cpu_limit": 2,
+    "tmpfs_mib": 768,
+    "scope": "Explicit local test allocation, not hosted resource qualification"
+  },
+  "real_media_runs": [
+    {
+      "sample_id": "sample_27",
+      "source_sha256": "ab50c9e6aba18e06394a82298ad62dc0328b30a07b79cdd07dd0951e5ab4b80a",
+      "mode": "ocr",
+      "capture_sha256": "bb28ed60d51798bb9499d6b6d050167c0c90088184d66444e4ccf9ebedd2e2b9",
+      "elapsed_seconds_including_model_load_and_download": 39.09453018399654,
+      "execution": {
+        "mode": "ocr",
+        "qualification": "local real-media experiment; not a governed release",
+        "whisper_model": "tiny",
+        "whisper_version": "20250625",
+        "whisper_sha256": "65147644a518d12f04e32d6f3b26facc3f8dd46e5390956a9424a650c0ce22b9",
+        "torch_version": "2.14.1+cpu"
+      },
+      "transcript_segments": 2,
+      "summary_chars": 7,
+      "summary": "you you",
+      "summary_excerpts": 2,
+      "selected_units": 1,
+      "source_units": 1,
+      "keyframes": 51,
+      "ocr_words": 272,
+      "capture_summary_implementation_version": "extractive_temporal.v1@sha256:be88e1f72e05a7bc1f74b7e87488b6e9fe9927567919b2cad8a882ac5abeb1ed",
+      "current_source_produces_same_abstract": true,
+      "asr_accuracy": null,
+      "llm_accuracy": null
+    },
+    {
+      "sample_id": "sample_1",
+      "source_sha256": "bc14db678d642d02ae769c92a234ddd53c611a6bdf88ca93da97fb166bbfaa1b",
+      "mode": "basic",
+      "capture_sha256": "9c96ae2f7b883de4ab5f6014056461e641624c31fa04bee624cc4efa0a03641d",
+      "elapsed_seconds_including_model_load_and_download": 21.57440554700588,
+      "execution": {
+        "mode": "basic",
+        "qualification": "local real-media experiment; not a governed release",
+        "whisper_model": "tiny",
+        "whisper_version": "20250625",
+        "whisper_sha256": "65147644a518d12f04e32d6f3b26facc3f8dd46e5390956a9424a650c0ce22b9",
+        "torch_version": "2.14.1+cpu"
+      },
+      "transcript_segments": 24,
+      "summary_chars": 775,
+      "summary": "Would you believe that everything you to ever want to know about making 10 grand a month selling stickers, printables and other digital products can all be reversed engineered on Etsy? … Number two, then click here to look at what their best sellers are by number of reviews. … They could spend hours tweaking these one by one making him perfect. … More speed equals more listings equals more sales. Once the designs are done, list them on Etsy, Shopify, Gumroad, or any of these other options. No shipping, no inventory, just a digital product that makes money while you sleep. Don't over-complicate business. You need AI, automation, a little bit of reverse engineering and creativity. Try this for yourself with this promo code for 15% off with Pixar Pro, link in the bio.",
+      "summary_excerpts": 10,
+      "selected_units": 9,
+      "source_units": 23,
+      "keyframes": 28,
+      "ocr_words": 0,
+      "capture_summary_implementation_version": "extractive_temporal.v1@sha256:949629b0eae2a3bcf91dd21b410717d49c7776879475c93ad70ca0a40364192d",
+      "current_source_produces_same_abstract": true,
+      "asr_accuracy": null,
+      "llm_accuracy": null
+    }
+  ],
+  "selection_note": "Sample 1 was chosen for its existing talking-head/interview tag after sample 27 returned little speech. Both outcomes retained; neither is an independently measured ASR benchmark.",
+  "comparison": {
+    "status": "awaiting_model_answers",
+    "question_fixture": "scripts/fixtures/sample-27-capsule-questions.v1.json",
+    "question_fixture_sha256": "fe39d9363c2fed68bc7a562f02ef83dece0207d28d6bf3eb7bd13d55b04335ed",
+    "question_count": 3,
+    "question_scope": "Three correlated visual-text diagnostic questions from one frame; not an approved corpus or a general video-understanding benchmark.",
+    "plan": {
+      "capsule_sha256": "3fbac7f49b94c4850eb91f2c9d2a9da00089f1e865c1e5819122e6909f6d33a7",
+      "question_set_sha256": "e4b310503d48cc346e9446a7673cfdae76dad32c526fb7c52083a1eafbefed18",
+      "schema_version": "capsule-comparison-plan.v1",
+      "source_sha256": "ab50c9e6aba18e06394a82298ad62dc0328b30a07b79cdd07dd0951e5ab4b80a",
+      "variants": {
+        "capsule": {
+          "input_bytes": 55991,
+          "input_file": "capsule.input.json",
+          "input_sha256": "26bde4feb98cfc18efa4da931bb87bd9020ed734a39b3d8ed3f2b0c571afd343"
+        },
+        "summary": {
+          "input_bytes": 1363,
+          "input_file": "summary.input.json",
+          "input_sha256": "8c77335a48efc15c159cd2105e2a95dbdfe7715819085934835e677b1ed8a529"
+        },
+        "transcript": {
+          "input_bytes": 1306,
+          "input_file": "transcript.input.json",
+          "input_sha256": "4b80fd987811e13970a32051d657a42881069771632bc2073db63d7dbc9a22c9"
+        }
+      }
+    },
+    "answers_collected": 0,
+    "accuracy": null,
+    "supported_answer_accuracy": null,
+    "usage": null,
+    "notes": [
+      "Only actual UTF-8 prompt bytes are recorded. Summary input is larger than transcript input on this tiny transcript.",
+      "Model responses, token savings, latency differences and semantic benefit remain unmeasured.",
+      "Frozen original raw capture remains unchanged; comparison capsule summary was rederived from its frozen transcript after the deterministic hash-seed fix."
+    ]
+  },
+  "hosted_internals": {
+    "checked_at": "2026-10-21T09:04:45.006873+00:00",
+    "scope": "Read-only authenticated deployed Internals checks; no review or production state modified",
+    "checks": [
+      {
+        "path": "/api/internal/v1/overview",
+        "status": 200,
+        "engines": {
+          "sampler": "video-semantic-extractor@1.0.0@sha256:48b12ab68e3dd556439fe3306730cc770989497edc019ccb19f1059655897dea",
+          "evaluator": "managed-object-evaluation.v1@sha256:064703bd4685f810712173b7e2b49d2545ee3971d628b80c1f33cd049e54762f"
+        }
+      },
+      {
+        "path": "/api/internal/v1/templates/tpl_b010f28a65c3200f464d7a8830f3d22a/readiness",
+        "status": 200,
+        "data": {
+          "diagnostic_ready": false,
+          "blockers": [
+            "Register a diagnostic validation profile with the exact frame-set source SHA-256 digests."
+          ],
+          "effective_taxonomy": "coco-80",
+          "validation_profile": null,
+          "source_count": 5,
+          "notice": "Readiness checks policy configuration only. Independent review, photographic eligibility, actual coverage and approval remain required."
+        }
+      },
+      {
+        "path": "/api/internal/v1/releases/active/execution",
+        "status": 409,
+        "error": {
+          "code": "governance_failed",
+          "message": "No approved active release is available for Product extraction."
+        }
+      }
+    ]
+  },
+  "source_digests": {
+    "backend/video_semantic_extractor/summarization.py": "949629b0eae2a3bcf91dd21b410717d49c7776879475c93ad70ca0a40364192d",
+    "backend/video_semantic_extractor/capsule_comparison.py": "e4435785117d6610235806e0874c5e0a2eae14661e8705f0ac2c599db940425b",
+    "backend/video_semantic_extractor/capsule_evaluation.py": "ce5437f1e9b83f67a7c9fa53a60605b35d719f1fe60a30d29ecfd1091c2f3812",
+    "backend/video_semantic_extractor/pipeline.py": "c7967dca35c8eddf22fae5fcbf1784a5ec7c870e6c34afe7c7c9f7c5806671f4",
+    "backend/video_semantic_extractor/schema.py": "32c65658b07c2c193ca649cce58c5d5c71c3f034c1e0fa5c8b5440750c8a0716"
+  },
+  "remaining": [
+    "Independent ASR and visual gold labels and approved eligible ground truth.",
+    "Real model answers for identical frozen inputs and settings; original-video baseline.",
+    "Hosted Product extraction through its actual access boundary and resource/load acceptance.",
+    "Compatible diagnostic policy/profile and approved model/release; existing 409 remains expected.",
+    "Actions, tracking, identities and relationships; no synthetic scene graph."
+  ],
+  "excluded": "Email sender onboarding"
+}

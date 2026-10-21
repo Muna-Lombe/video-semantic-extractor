@@ -11,3 +11,10 @@ facts and timestamped evidence. Governed-execution tests reject changed inputs a
 missing releases. Question-scorer tests keep unanswered runs unscored and reject
 mismatched source/capsule/question identities. Real ONNX parity and sample-video
 integration are recorded separately in the dated verification report.
+
+Summary tests cover source-linked quotes, temporal coverage, fixed character
+budgets, sentence fragments spanning ASR segments, negation, untimed evidence and
+reproducibility across Python hash seeds. Comparison tests freeze inputs without
+gold answers, reject changed sources/settings/quotes, restrict supported-answer
+credit to visible evidence, and preserve missing results as pending. Synthetic
+answer fixtures test scoring mechanics; they are not LLM evaluation results.
