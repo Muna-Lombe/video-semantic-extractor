@@ -5,6 +5,7 @@ import { readRegisteredTemplate, templateReadiness } from "./template-registry";
 import { sha256Hex } from "./artifact-pipeline";
 import { compareReviews, type JsonRecord } from "./review-comparison";
 import { assertManagedCoverage, sameJson, validateFrameAnnotations, validateManagedSubmission } from "./managed-annotations";
+import { reviewPreflight } from "./review-preflight";
 
 type Role = "reviewer-a" | "reviewer-b" | "adjudicator";
 const ROLES: Role[] = ["reviewer-a", "reviewer-b", "adjudicator"];
@@ -69,7 +70,7 @@ async function pinnedPolicy(env: AdjudicationEnv, template: JsonRecord, requireA
   if (requireActive && row.status !== "active") fail("new campaigns require an active policy version", 409);
   const definition = JSON.parse(row.definition_json);
   if (definition.annotation_schema_version !== template.schema_version || typeof definition.document !== "string") fail("pinned policy is incompatible with the template", 422);
-  return { id: row.id, name: row.name, version: row.version, sha256: row.sha256, document: definition.document, annotation_rules: definition.annotation_rules ?? null };
+  return { id: row.id, name: row.name, version: row.version, sha256: row.sha256, document: definition.document, annotation_rules: definition.annotation_rules ?? null, validation_profile: definition.validation_profile ?? null };
 }
 function invitation(origin: string, assignmentId: string, role: Role, secret: string) {
   return { assignment_id: assignmentId, url: `${origin}/${role === "adjudicator" ? "adjudicate" : "review"}/#token=${encodeURIComponent(secret)}`, job_token: secret, api_token: secret };
@@ -141,10 +142,17 @@ async function handleAdmin(request: Request, env: AdjudicationEnv): Promise<Resp
     const hasMore = rows.length > Number(limit);
     return json({ data: await Promise.all(rows.slice(0, Number(limit)).map((row) => summary(env, row))), pagination: { limit: Number(limit), offset: Number(offset), has_more: hasMore, next_offset: hasMore ? Number(offset) + Number(limit) : null } });
   }
-  const match = path.match(/^\/api\/internal\/v1\/review-campaigns\/(campaign_[a-f0-9]{32})(?:\/(cancel|assignments\/(reviewer-a|reviewer-b|adjudicator)\/(assign|revoke|issue|reissue)))?$/);
+  const match = path.match(/^\/api\/internal\/v1\/review-campaigns\/(campaign_[a-f0-9]{32})(?:\/(preflight|cancel|assignments\/(reviewer-a|reviewer-b|adjudicator)\/(assign|revoke|issue|reissue)))?$/);
   if (!match) fail("campaign route not found", 404);
   const campaign = await env.CONTROL_DB.prepare(`${CAMPAIGN_SELECT} WHERE c.id = ?`).bind(match[1]).first<JsonRecord>();
   if (!campaign) fail("campaign not found", 404);
+  if (match[2] === "preflight") {
+    if (request.method !== "GET") fail("method not allowed", 405);
+    const loaded = await pinnedTemplate(env, campaign);
+    if (loaded instanceof Response) return loaded;
+    const policy = await pinnedPolicy(env, loaded.template);
+    return json({ data: await reviewPreflight(env, campaign, loaded.template, policy) });
+  }
   if (!match[2]) {
     if (request.method !== "GET") fail("method not allowed", 405);
     const events = (await env.CONTROL_DB.prepare("SELECT action, details_json, created_at FROM internal_audit_events WHERE resource_type = 'review_campaign' AND resource_id = ? ORDER BY id").bind(campaign.id).all<JsonRecord>()).results;

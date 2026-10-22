@@ -179,6 +179,7 @@ function apiDescription(origin: string) {
       { method: "POST", path: "/api/internal/v1/review-campaigns", auth: "administrator", input: "CreateCampaign", output: "Campaign and one-time invitations" },
       { method: "GET", path: "/api/internal/v1/review-campaigns", auth: "administrator", output: "Paginated safe progress summaries" },
       { method: "GET", path: "/api/internal/v1/review-campaigns/{id}", auth: "administrator", output: "Campaign progress and audit history" },
+      { method: "GET", path: "/api/internal/v1/review-campaigns/{id}/preflight", auth: "review coordinator", output: "Read-only policy and saved draft coverage preview; not eligibility" },
       { method: "GET", path: "/api/internal/v1/ground-truth", auth: "administrator", output: "Paginated ground-truth versions" },
       { method: "GET", path: "/api/internal/v1/ground-truth/{id}", auth: "administrator", output: "Validation and decision history" },
       { method: "POST", path: "/api/internal/v1/ground-truth/{id}/validate", auth: "administrator", input: "If-Match revision", output: "Recorded immutable validation report" },
@@ -232,6 +233,7 @@ function governedOpenApiPaths(): JsonRecord {
   for (const action of ["cancel", "retry"]) add(`evaluations/{id}/${action}`, ["post"]);
   for (const suffix of ["report", "inputs", "inputs/artifacts/{artifact_id}"]) add(`evaluations/{id}/${suffix}`, ["get"]);
   add("evaluations/compare", ["get"]);
+  add("review-campaigns/{id}/preflight", ["get"]);
   paths["/api/internal/v1/evaluations/compare"].get.parameters = ["baseline_id", "candidate_id"].map((name) => ({ in: "query", name, required: true, schema: { type: "string" } })); add("models/{id}/artifact", ["get"]);
   add("sample-library", ["get"]); add("sample-library/select", ["post"], "SampleSelection");
   add("datasets/probe", ["post"], "MediaProbe"); add("reference-benchmarks", ["get"]);

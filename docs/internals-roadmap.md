@@ -1,6 +1,17 @@
 <!-- @type documentation @purpose Track Internals implementation and separate build acceptance from production acceptance. -->
 # Internals implementation roadmap
 
+## Corpus repair — 2026-10-22
+
+The [live audit and repair](investigations/2026-10-22-review-corpus-repair.md)
+records exact validation failures and semantic annotation defects. The coordinator
+confirmed earlier completed assignments were AI/automated sessions; assignment
+completion does not establish independent humans. A replacement policy and blank
+62-frame template are registered with exact source hashes and the intended extended
+taxonomy. Hosted configuration readiness passes; reviewed adequacy and approval
+remain pending. The follow-up adds a read-only saved-draft coverage preview to
+campaign inspection, without changing approval gates or old evidence.
+
 ## Current verification — 2026-10-20
 
 Checks used the latest merged main (`80ede23`); the hosted catalog matches all 27
