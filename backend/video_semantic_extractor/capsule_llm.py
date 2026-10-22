@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 import time
 from pathlib import Path
 from urllib.parse import urlparse
@@ -9,6 +10,36 @@ from urllib.parse import urlparse
 import requests
 
 from .capsule_comparison import VARIANTS, canonical, compare_answers
+
+CLOUDFLARE_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+
+
+def provider_settings(provider="openai", *, model=None, endpoint=None, account_id=None):
+    """Resolve provider defaults without reading credentials or contacting a service."""
+    if provider == "cloudflare":
+        if not isinstance(account_id, str) or not re.fullmatch(r"[a-fA-F0-9]{32}", account_id):
+            raise ValueError("Cloudflare requires a 32-character hexadecimal account ID")
+        if endpoint is not None:
+            raise ValueError("Cloudflare builds its endpoint from the account ID")
+        model = model or CLOUDFLARE_MODEL
+        if model in ("@cf/cloudflare/clef", "@cf/cloudflare/clef-flash"):
+            raise ValueError("Clef uses typed decisions, not free-form cited chat answers")
+        if not model.startswith(("@cf/", "@hf/")):
+            raise ValueError("Use a Workers AI model identifier, such as @cf/meta/...")
+        return {
+            "model": model,
+            "endpoint": f"https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1/chat/completions",
+            "api_key_env": "CLOUDFLARE_API_TOKEN",
+        }
+    if provider != "openai":
+        raise ValueError("Unsupported model provider")
+    if not model:
+        raise ValueError("Specify --model for the OpenAI compatible provider")
+    return {
+        "model": model,
+        "endpoint": endpoint or "https://api.openai.com/v1/chat/completions",
+        "api_key_env": "OPENAI_API_KEY",
+    }
 
 
 def run_comparison(
