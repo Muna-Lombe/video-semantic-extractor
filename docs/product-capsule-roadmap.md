@@ -165,6 +165,35 @@ redirects, retry paid requests or overwrite existing runs. Failed runs retain
 available evidence and any partial report; inspect those before starting a new
 directory. Unit-test provider responses remain synthetic, not acceptance results.
 
+### Cloudflare Workers AI
+
+Configure `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` through the runtime's
+credential configuration. The token needs Workers AI execution permission for
+that account. Then run:
+
+```sh
+python scripts/diagnostics/run-capsule-comparison.py \
+  work/capsule.json work/questions.json work/comparison work/cf-llm-run \
+  --provider cloudflare
+```
+
+The default is `@cf/meta/llama-3.3-70b-instruct-fp8-fast`, using Cloudflare's
+[OpenAI-compatible endpoint](https://developers.cloudflare.com/workers-ai/configuration/open-ai-compatibility/).
+Its [model reference](https://developers.cloudflare.com/workers-ai/models/llama-3.3-70b-instruct-fp8-fast/)
+documents JSON response format, temperature and output limits. Override with
+`--model` for another Workers AI chat model supporting those parameters.
+`--account-id` overrides the account variable; `--api-key-env` selects another
+credential variable. Cloudflare constructs the endpoint from the validated
+account ID; arbitrary `--endpoint` overrides are rejected for this provider.
+
+[Clef](https://developers.cloudflare.com/workers-ai/models/clef/) accepts typed
+decision questions and returns option probabilities. It cannot produce this
+benchmark's free-form short answers and evidence citations through the chat
+contract. Clef identifiers are rejected rather than changing questions or
+exposing accepted answers as choices. Evaluating Clef requires a separately
+frozen decision benchmark. Provider tests use synthetic responses; adding the
+provider does not establish a real model score or hosted acceptance.
+
 ## Local real-media evidence
 
 The [2026-10-21 verification](verification/2026-10-21-evidence-linked-summaries.json)
