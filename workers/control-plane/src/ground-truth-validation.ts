@@ -16,11 +16,20 @@ export function parseValidationProfile(value: unknown): ValidationProfile {
 }
 
 export function validateGroundTruthContent(template: JsonRecord, candidate: JsonRecord, profile?: ValidationProfile) {
+  return analyzeGroundTruthContent(template, candidate, profile, true);
+}
+
+/** Preview current annotations without pretending adjudication or independent review is complete. */
+export function previewGroundTruthContent(template: JsonRecord, candidate: JsonRecord, profile?: ValidationProfile) {
+  return analyzeGroundTruthContent(template, candidate, profile, false);
+}
+
+function analyzeGroundTruthContent(template: JsonRecord, candidate: JsonRecord, profile: ValidationProfile | undefined, requireCompletion: boolean) {
   const errors: string[] = [];
   try { assertManagedCoverage(validateManagedSubmission(template, candidate)); }
   catch (cause) { errors.push(cause instanceof Error ? cause.message : "invalid annotation structure"); }
   const reviewComplete = candidate.review?.independent_passes === 2 && candidate.review?.adjudication_status === "complete" && candidate.review?.predictions_reviewed_before_freeze === false && Array.isArray(candidate.review?.adjudication_log);
-  if (!reviewComplete) errors.push("two completed independent passes and completed prediction-blind adjudication are required");
+  if (requireCompletion && !reviewComplete) errors.push("two completed independent passes and completed prediction-blind adjudication are required");
   const classes: Record<string, number> = {}, subsets = { live: 0, screen: 0, composited: 0 }, areas = { small: 0, medium: 0, large: 0 }, sources: Record<string, number> = {};
   const extendedClasses: Record<string, number> = {};
   let cocoObjects = 0;

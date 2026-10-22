@@ -46,6 +46,7 @@ async function contextFor(role = "internals") {
   await page.route("**/api/**", (route) => {
     const request = route.request(), url = new URL(request.url()), endpoint = url.pathname.replace("/api/internal/v1", "");
     const json = (value, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(value) });
+    if (endpoint.endsWith("/preflight")) return json({ data: { readiness: { diagnostic_ready: false, effective_taxonomy: "coco-extended.v1", blockers: ["Register a diagnostic validation profile with the exact frame-set source SHA-256 digests."] }, draft_revision: 65, annotations: { counts: { coco_objects: 118, non_person_classes: 13, subsets: { live: 118, screen: 0, composited: 0 }, area_bands: { small: 35, large: 61 } }, errors: [] }, failed_gates: ["review_complete", "frozen_sources", "subset_minimums"] } });
     if (endpoint.endsWith("/readiness")) return json({ data: { diagnostic_ready: false, effective_taxonomy: "coco-80", blockers: ["Register a frozen diagnostic profile before review."], notice: "Configuration checks do not establish annotation accuracy." } });
     if (url.pathname === "/api/v1/me") return json({ assignment_id: "assignment", actor: { role }, links: { state: role === "adjudicator" ? "/api/v1/adjudications/assignment" : "/api/v1/assignments/assignment" } });
     if (url.pathname.includes("/frames/") || url.pathname.endsWith("/evidence")) return route.fulfill({ contentType: "image/svg+xml", body: image });
@@ -151,6 +152,10 @@ try {
         const button = internals.page.locator(`.page[data-page="${pageName}"] ${selector}`).first();
         if (!await button.count()) throw new Error("Missing fixture/action " + selector);
         await button.click(); await internals.page.waitForFunction((id) => document.getElementById(id).textContent.trim() && !document.getElementById(id).textContent.includes("Loading…"), dialog);
+        if (dialog === "campaign-dialog") {
+          await internals.page.locator("#campaign-preflight").getByText("Saved draft revision 65:", { exact: false }).waitFor();
+          assert.match(await internals.page.locator("#campaign-preflight").textContent(), /Screen: 0 \/ 20/);
+        }
         await audit(internals.page, `internals/dialog-${dialog}/${width}/${theme}`);
         await internals.page.locator(`#${dialog}`).evaluate((el) => el.close());
       }

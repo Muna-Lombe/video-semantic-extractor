@@ -1,0 +1,768 @@
+{
+  "schema_version": "review-corpus-audit.v1",
+  "checked_at": "2026-10-22T09:07:30.768538+00:00",
+  "scope": "Checksum-verified hosted candidate/report bytes; 433 checksum/size-verified JPEGs across campaigns 2,6,7,8; all 433 contact-sheet thumbnails inspected with selected native-frame checks. Coordinator audit, not a new independent pass, complete box audit, licensing review or approval.",
+  "frame_files_verified": 433,
+  "frame_bytes_verified": 11016785,
+  "completed_review_origin": "AI/automated sessions confirmed by user; managed completion flags do not establish independent humans",
+  "evaluations_registered": 0,
+  "distinct_frame_sha256": 377,
+  "campaigns": [
+    {
+      "name": "sample-review-7",
+      "ground_truth_id": "gt_06d3198eab294175bc24c6e4934ae018",
+      "campaign_id": "campaign_06d3198eab294175bc24c6e4934ae018",
+      "candidate_sha256": "1e2c72a69972b3a98c51b2129c115094d1aec5f75ecb133e08bb48c852ad2919",
+      "validation_report_sha256": "c3cb4d98165eceecd36da678d3bfc7c9f857cfc3cb107b23ed5bf92be6d5beca",
+      "integrity": {
+        "valid": true,
+        "errors": [],
+        "frame_evidence_check": "registered_upload_checksum_and_current_r2_metadata"
+      },
+      "annotation_validation": {
+        "valid": true,
+        "adequate": false,
+        "errors": [],
+        "counts": {
+          "sources": 5,
+          "frames": 79,
+          "objects": 235,
+          "coco_objects": 118,
+          "extended_classes": {
+            "other": 107,
+            "watch": 6,
+            "camera": 4
+          },
+          "non_person_objects": 114,
+          "non_person_classes": 13,
+          "classes": {
+            "vase": 9,
+            "bottle": 14,
+            "other": 107,
+            "sink": 4,
+            "cup": 1,
+            "chair": 32,
+            "person": 4,
+            "watch": 6,
+            "tv": 14,
+            "keyboard": 9,
+            "laptop": 2,
+            "dining table": 11,
+            "mouse": 4,
+            "cell phone": 4,
+            "camera": 4,
+            "book": 3,
+            "car": 7
+          },
+          "subsets": {
+            "live": 118,
+            "screen": 0,
+            "composited": 0
+          },
+          "area_bands": {
+            "small": 35,
+            "medium": 22,
+            "large": 61
+          },
+          "sources_with_objects": {
+            "src_f3b3af01c813491583c2deaa0f839806": 28,
+            "src_3806faf8e81945e3894bb8947cd805f0": 59,
+            "src_df006d9c11ed4474b28b816ad6dde997": 21,
+            "src_6b90f867b5a4474da14213dc847a9ecc": 3,
+            "src_c8d7a51bed6b43c5ae45709d18f93d00": 7
+          }
+        },
+        "corpus_adequacy_gates": {
+          "review_complete": true,
+          "frozen_sources": false,
+          "fifty_non_person_instances": true,
+          "five_non_person_classes": true,
+          "subset_minimums": false,
+          "scale_minimums": true,
+          "source_concentration": true
+        },
+        "corpus_adequacy_shortfalls": {
+          "non_person_instances": {
+            "required": 50,
+            "actual": 114,
+            "remaining": 0
+          },
+          "non_person_classes": {
+            "required": 5,
+            "actual": 13,
+            "remaining": 0
+          },
+          "subsets": {
+            "live": {
+              "required": 20,
+              "actual": 118,
+              "remaining": 0
+            },
+            "screen": {
+              "required": 20,
+              "actual": 0,
+              "remaining": 20
+            },
+            "composited": {
+              "required": 10,
+              "actual": 0,
+              "remaining": 10
+            }
+          },
+          "area_bands": {
+            "small": {
+              "required": 15,
+              "actual": 35,
+              "remaining": 0
+            },
+            "large": {
+              "required": 15,
+              "actual": 61,
+              "remaining": 0
+            }
+          },
+          "source_concentration": {
+            "maximum": 0.6,
+            "actual": 0.5
+          },
+          "frozen_sources": {
+            "expected": [
+              "1d442ef0cc26937da5662505af7307996c043658e8204630846c8a5cffa2d6d2",
+              "21a762b11411009df1c223bbf3c1f878c52be46815e8b4454ceb97b4a4ef2d93",
+              "36dcc3c86410518e6c5612843fcf350c2ae2f9b9c97232689826a6d5de543b9e",
+              "a5999634bd9ffa333b07e51ec413f390d6f7fb7444c8233223d3d191185cb731",
+              "b9459524e4e7bf82e8427894181f1b9b61becb9e37af30e714124d5f1d530525"
+            ],
+            "actual": [
+              "1bc2c6e9e2f995f9bf7490b9093f81767ba5dd3d149e109acc95065e102e9ada",
+              "1facc2f7ecf41c6e5b945a3f07764b690586955a255bc525e96ebf48d7e8a7a6",
+              "36dcc3c86410518e6c5612843fcf350c2ae2f9b9c97232689826a6d5de543b9e",
+              "85f77fd41b8df296addb2e56b2a15d5ac321db5ba6a73867449a555ceeb1c142",
+              "8e8a3e619626a48f90da0718a03fc8e8a5e55f1d0396cad6fca0f8a724c80108"
+            ]
+          }
+        }
+      },
+      "review_origin": "AI/automated sessions, confirmed by user on 2026-10-22",
+      "sources": [
+        {
+          "catalog_id": "sample_8",
+          "source_id": "src_f3b3af01c813491583c2deaa0f839806",
+          "sha256": "85f77fd41b8df296addb2e56b2a15d5ac321db5ba6a73867449a555ceeb1c142",
+          "frames": 8
+        },
+        {
+          "catalog_id": "sample_12",
+          "source_id": "src_3806faf8e81945e3894bb8947cd805f0",
+          "sha256": "8e8a3e619626a48f90da0718a03fc8e8a5e55f1d0396cad6fca0f8a724c80108",
+          "frames": 57
+        },
+        {
+          "catalog_id": "sample_16",
+          "source_id": "src_df006d9c11ed4474b28b816ad6dde997",
+          "sha256": "36dcc3c86410518e6c5612843fcf350c2ae2f9b9c97232689826a6d5de543b9e",
+          "frames": 4
+        },
+        {
+          "catalog_id": "sample_15",
+          "source_id": "src_6b90f867b5a4474da14213dc847a9ecc",
+          "sha256": "1bc2c6e9e2f995f9bf7490b9093f81767ba5dd3d149e109acc95065e102e9ada",
+          "frames": 3
+        },
+        {
+          "catalog_id": "sample_9",
+          "source_id": "src_c8d7a51bed6b43c5ae45709d18f93d00",
+          "sha256": "1facc2f7ecf41c6e5b945a3f07764b690586955a255bc525e96ebf48d7e8a7a6",
+          "frames": 7
+        }
+      ]
+    },
+    {
+      "name": "sample-review-6",
+      "ground_truth_id": "gt_b828d05eac174499a8fd94e15097d810",
+      "campaign_id": "campaign_b828d05eac174499a8fd94e15097d810",
+      "candidate_sha256": "d315080782d9c5df44de0de57cde074e9375b6f80bbf4506b4ba64818e23fd1c",
+      "validation_report_sha256": "09b49b16a35681e78c1f765a370fabb473812d148caba3e2f3c8ebbca61cb5af",
+      "integrity": {
+        "valid": true,
+        "errors": [],
+        "frame_evidence_check": "registered_upload_checksum_and_current_r2_metadata"
+      },
+      "annotation_validation": {
+        "valid": true,
+        "adequate": false,
+        "errors": [],
+        "counts": {
+          "sources": 5,
+          "frames": 166,
+          "objects": 102,
+          "coco_objects": 102,
+          "extended_classes": {},
+          "non_person_objects": 100,
+          "non_person_classes": 2,
+          "classes": {
+            "person": 2,
+            "tv": 1,
+            "sports ball": 99
+          },
+          "subsets": {
+            "live": 102,
+            "screen": 0,
+            "composited": 0
+          },
+          "area_bands": {
+            "small": 61,
+            "medium": 39,
+            "large": 2
+          },
+          "sources_with_objects": {
+            "src_47702f32e6144b92a870826eaf9f065e": 1,
+            "src_486e8bfd52f84bcfa7eeea2c2d06b412": 1,
+            "src_cf2fe5c9124b4a75862a4eea2dee0b19": 0,
+            "src_af49bfe4090848ea8ba885224561bc8a": 0,
+            "src_c18da5a4ed2a46c4a37adf21c97837f3": 100
+          }
+        },
+        "corpus_adequacy_gates": {
+          "review_complete": true,
+          "frozen_sources": true,
+          "fifty_non_person_instances": true,
+          "five_non_person_classes": false,
+          "subset_minimums": false,
+          "scale_minimums": false,
+          "source_concentration": false
+        },
+        "corpus_adequacy_shortfalls": {
+          "non_person_instances": {
+            "required": 50,
+            "actual": 100,
+            "remaining": 0
+          },
+          "non_person_classes": {
+            "required": 5,
+            "actual": 2,
+            "remaining": 3
+          },
+          "subsets": {
+            "live": {
+              "required": 20,
+              "actual": 102,
+              "remaining": 0
+            },
+            "screen": {
+              "required": 20,
+              "actual": 0,
+              "remaining": 20
+            },
+            "composited": {
+              "required": 10,
+              "actual": 0,
+              "remaining": 10
+            }
+          },
+          "area_bands": {
+            "small": {
+              "required": 15,
+              "actual": 61,
+              "remaining": 0
+            },
+            "large": {
+              "required": 15,
+              "actual": 2,
+              "remaining": 13
+            }
+          },
+          "source_concentration": {
+            "maximum": 0.6,
+            "actual": 0.9803921568627451
+          },
+          "frozen_sources": {
+            "expected": [
+              "1d442ef0cc26937da5662505af7307996c043658e8204630846c8a5cffa2d6d2",
+              "21a762b11411009df1c223bbf3c1f878c52be46815e8b4454ceb97b4a4ef2d93",
+              "36dcc3c86410518e6c5612843fcf350c2ae2f9b9c97232689826a6d5de543b9e",
+              "a5999634bd9ffa333b07e51ec413f390d6f7fb7444c8233223d3d191185cb731",
+              "b9459524e4e7bf82e8427894181f1b9b61becb9e37af30e714124d5f1d530525"
+            ],
+            "actual": [
+              "1d442ef0cc26937da5662505af7307996c043658e8204630846c8a5cffa2d6d2",
+              "21a762b11411009df1c223bbf3c1f878c52be46815e8b4454ceb97b4a4ef2d93",
+              "36dcc3c86410518e6c5612843fcf350c2ae2f9b9c97232689826a6d5de543b9e",
+              "a5999634bd9ffa333b07e51ec413f390d6f7fb7444c8233223d3d191185cb731",
+              "b9459524e4e7bf82e8427894181f1b9b61becb9e37af30e714124d5f1d530525"
+            ]
+          }
+        }
+      },
+      "review_origin": "AI/automated sessions, confirmed by user on 2026-10-22",
+      "sources": [
+        {
+          "catalog_id": "sample_13",
+          "source_id": "src_47702f32e6144b92a870826eaf9f065e",
+          "sha256": "b9459524e4e7bf82e8427894181f1b9b61becb9e37af30e714124d5f1d530525",
+          "frames": 7
+        },
+        {
+          "catalog_id": "sample_16",
+          "source_id": "src_486e8bfd52f84bcfa7eeea2c2d06b412",
+          "sha256": "36dcc3c86410518e6c5612843fcf350c2ae2f9b9c97232689826a6d5de543b9e",
+          "frames": 4
+        },
+        {
+          "catalog_id": "sample_7",
+          "source_id": "src_cf2fe5c9124b4a75862a4eea2dee0b19",
+          "sha256": "a5999634bd9ffa333b07e51ec413f390d6f7fb7444c8233223d3d191185cb731",
+          "frames": 15
+        },
+        {
+          "catalog_id": "sample_5",
+          "source_id": "src_af49bfe4090848ea8ba885224561bc8a",
+          "sha256": "1d442ef0cc26937da5662505af7307996c043658e8204630846c8a5cffa2d6d2",
+          "frames": 23
+        },
+        {
+          "catalog_id": "sample_17",
+          "source_id": "src_c18da5a4ed2a46c4a37adf21c97837f3",
+          "sha256": "21a762b11411009df1c223bbf3c1f878c52be46815e8b4454ceb97b4a4ef2d93",
+          "frames": 117
+        }
+      ]
+    },
+    {
+      "name": "sample-review-2 diagnostic",
+      "ground_truth_id": "gt_a2ad286c99dc4564a0645c1a819a26f4",
+      "campaign_id": "campaign_a2ad286c99dc4564a0645c1a819a26f4",
+      "candidate_sha256": "5d5a17178bf7ed41239a1e154e23e5158d2796b9bea3321fc760c6619e2a88f9",
+      "validation_report_sha256": "9ad8f3a754438fcf831d5f61e8950b806722186ba687d8d84759094bb45d80cd",
+      "integrity": {
+        "valid": true,
+        "errors": [],
+        "frame_evidence_check": "registered_upload_checksum_and_current_r2_metadata"
+      },
+      "annotation_validation": {
+        "valid": true,
+        "adequate": false,
+        "errors": [],
+        "counts": {
+          "sources": 5,
+          "frames": 126,
+          "objects": 392,
+          "non_person_objects": 82,
+          "non_person_classes": 9,
+          "classes": {
+            "person": 310,
+            "bird": 4,
+            "sandwich": 1,
+            "cup": 1,
+            "tv": 38,
+            "chair": 6,
+            "cell phone": 10,
+            "tie": 14,
+            "handbag": 6,
+            "sports ball": 2
+          },
+          "subsets": {
+            "live": 351,
+            "screen": 0,
+            "composited": 41
+          },
+          "area_bands": {
+            "small": 105,
+            "medium": 129,
+            "large": 158
+          },
+          "sources_with_objects": {
+            "src_9dbc74146b5340ddab991eb4765eef99": 16,
+            "src_0279047ab04d4309a382ba5a5d03905f": 39,
+            "src_5421dc35862249f8b70aefcb53e93ea6": 99,
+            "src_71d14c60357c43b1aacb447ce78b6d87": 206,
+            "src_4f39b3e9f3694826933d5b4b8b9db80b": 32
+          }
+        },
+        "corpus_adequacy_gates": {
+          "review_complete": true,
+          "frozen_five_sources": true,
+          "fifty_non_person_instances": true,
+          "five_non_person_classes": true,
+          "subset_minimums": false,
+          "scale_minimums": true,
+          "source_concentration": true
+        },
+        "corpus_adequacy_shortfalls": {
+          "non_person_instances": {
+            "required": 50,
+            "actual": 82,
+            "remaining": 0
+          },
+          "non_person_classes": {
+            "required": 5,
+            "actual": 9,
+            "remaining": 0
+          },
+          "subsets": {
+            "live": {
+              "required": 20,
+              "actual": 351,
+              "remaining": 0
+            },
+            "screen": {
+              "required": 20,
+              "actual": 0,
+              "remaining": 20
+            },
+            "composited": {
+              "required": 10,
+              "actual": 41,
+              "remaining": 0
+            }
+          },
+          "area_bands": {
+            "small": {
+              "required": 15,
+              "actual": 105,
+              "remaining": 0
+            },
+            "large": {
+              "required": 15,
+              "actual": 158,
+              "remaining": 0
+            }
+          },
+          "source_concentration": {
+            "maximum": 0.6,
+            "actual": 0.5255102040816326
+          },
+          "frozen_sources": {
+            "expected": [
+              "1d442ef0cc26937da5662505af7307996c043658e8204630846c8a5cffa2d6d2",
+              "2a5b97bc6f8e711c172c1d951896f51d9b9c215075610a0259651a40a65b5d34",
+              "434295f8f59b7cce995c6a5c6311922a13165ce726d760164a3878abe5ced5ef",
+              "461207be93539144fab5b6ba8ab87848bc73b26d902035806e8fbbf76040e0bc",
+              "5eea5d3679e4524533f95eb363a23c41f35d6e691a8eb772a2df64f85b72fed3"
+            ],
+            "actual": [
+              "1d442ef0cc26937da5662505af7307996c043658e8204630846c8a5cffa2d6d2",
+              "2a5b97bc6f8e711c172c1d951896f51d9b9c215075610a0259651a40a65b5d34",
+              "434295f8f59b7cce995c6a5c6311922a13165ce726d760164a3878abe5ced5ef",
+              "461207be93539144fab5b6ba8ab87848bc73b26d902035806e8fbbf76040e0bc",
+              "5eea5d3679e4524533f95eb363a23c41f35d6e691a8eb772a2df64f85b72fed3"
+            ]
+          }
+        }
+      },
+      "review_origin": "AI/automated sessions, confirmed by user on 2026-10-22",
+      "sources": [
+        {
+          "catalog_id": "sample_6",
+          "source_id": "src_9dbc74146b5340ddab991eb4765eef99",
+          "sha256": "5eea5d3679e4524533f95eb363a23c41f35d6e691a8eb772a2df64f85b72fed3",
+          "frames": 26
+        },
+        {
+          "catalog_id": "sample_5",
+          "source_id": "src_0279047ab04d4309a382ba5a5d03905f",
+          "sha256": "1d442ef0cc26937da5662505af7307996c043658e8204630846c8a5cffa2d6d2",
+          "frames": 23
+        },
+        {
+          "catalog_id": "sample_4",
+          "source_id": "src_5421dc35862249f8b70aefcb53e93ea6",
+          "sha256": "2a5b97bc6f8e711c172c1d951896f51d9b9c215075610a0259651a40a65b5d34",
+          "frames": 29
+        },
+        {
+          "catalog_id": "sample_3",
+          "source_id": "src_71d14c60357c43b1aacb447ce78b6d87",
+          "sha256": "461207be93539144fab5b6ba8ab87848bc73b26d902035806e8fbbf76040e0bc",
+          "frames": 44
+        },
+        {
+          "catalog_id": "sample_2",
+          "source_id": "src_4f39b3e9f3694826933d5b4b8b9db80b",
+          "sha256": "434295f8f59b7cce995c6a5c6311922a13165ce726d760164a3878abe5ced5ef",
+          "frames": 4
+        }
+      ]
+    },
+    {
+      "name": "Review1",
+      "ground_truth_id": "gt_670c65d7982f45ce919df5e9879763a6",
+      "campaign_id": "campaign_670c65d7982f45ce919df5e9879763a6",
+      "candidate_sha256": "322a7e15b84accabd657af97278512e60defa4605ccc844460e4b272a141dfc4",
+      "validation_report_sha256": "0ea470b136c96db0e48aac826fd79cbeca172fdf7b9b549f690999bf4d25ffaa",
+      "integrity": {
+        "valid": true,
+        "errors": [],
+        "frame_evidence_check": "registered_upload_checksum_and_current_r2_metadata"
+      },
+      "annotation_validation": {
+        "valid": false,
+        "adequate": false,
+        "errors": [
+          "a frozen compatible validation profile is required for diagnostic approval"
+        ],
+        "counts": {
+          "sources": 1,
+          "frames": 28,
+          "objects": 29,
+          "non_person_objects": 1,
+          "non_person_classes": 1,
+          "classes": {
+            "person": 28,
+            "laptop": 1
+          },
+          "subsets": {
+            "live": 29,
+            "screen": 0,
+            "composited": 0
+          },
+          "area_bands": {
+            "small": 0,
+            "medium": 0,
+            "large": 29
+          },
+          "sources_with_objects": {
+            "src_099df7ec47a74bda985ea79242d3e8d5": 29
+          }
+        },
+        "corpus_adequacy_gates": {
+          "review_complete": true,
+          "frozen_five_sources": false,
+          "fifty_non_person_instances": false,
+          "five_non_person_classes": false,
+          "subset_minimums": false,
+          "scale_minimums": false,
+          "source_concentration": false
+        },
+        "corpus_adequacy_shortfalls": {
+          "non_person_instances": {
+            "required": 50,
+            "actual": 1,
+            "remaining": 49
+          },
+          "non_person_classes": {
+            "required": 5,
+            "actual": 1,
+            "remaining": 4
+          },
+          "subsets": {
+            "live": {
+              "required": 20,
+              "actual": 29,
+              "remaining": 0
+            },
+            "screen": {
+              "required": 20,
+              "actual": 0,
+              "remaining": 20
+            },
+            "composited": {
+              "required": 10,
+              "actual": 0,
+              "remaining": 10
+            }
+          },
+          "area_bands": {
+            "small": {
+              "required": 15,
+              "actual": 0,
+              "remaining": 15
+            },
+            "large": {
+              "required": 15,
+              "actual": 29,
+              "remaining": 0
+            }
+          },
+          "source_concentration": {
+            "maximum": 0.6,
+            "actual": 1
+          },
+          "frozen_sources": {
+            "expected": null,
+            "actual": [
+              "bc14db678d642d02ae769c92a234ddd53c611a6bdf88ca93da97fb166bbfaa1b"
+            ]
+          }
+        }
+      },
+      "review_origin": "AI/automated sessions, confirmed by user on 2026-10-22",
+      "sources": [
+        {
+          "catalog_id": "sample_1",
+          "source_id": "src_099df7ec47a74bda985ea79242d3e8d5",
+          "sha256": "bc14db678d642d02ae769c92a234ddd53c611a6bdf88ca93da97fb166bbfaa1b",
+          "frames": 28
+        }
+      ]
+    }
+  ],
+  "latest_candidate": {
+    "metadata": {
+      "id": "gt_a984a1d81c1f488d83f0bb9bf7f72627",
+      "campaign_id": "campaign_a984a1d81c1f488d83f0bb9bf7f72627",
+      "campaign_name": "sample-review-8",
+      "template_id": "tpl_b010f28a65c3200f464d7a8830f3d22a",
+      "policy_version_id": "pv_26fa652d82daa10ba7f80203b573f01f",
+      "frame_set_id": "frameset_5e6b3d08c73f4488a16e84f5396f28d5",
+      "artifact_id": "artifact_result_campaign_a984a1d81c1f488d83f0bb9bf7f72627",
+      "sha256": "79ecf09bf651627db89b4f20744e2568b80e1c4da71d95ad7090eadac505ad88",
+      "status": "candidate",
+      "approval_status": "pending",
+      "approval_scope": null,
+      "revision": 0,
+      "latest_validation_id": null,
+      "superseded_by_id": null,
+      "created_at": "2026-10-22T08:44:56.990Z",
+      "approved_at": null
+    },
+    "local_content_analysis": {
+      "valid": false,
+      "adequate": false,
+      "errors": [
+        "a frozen compatible validation profile is required for diagnostic approval"
+      ],
+      "counts": {
+        "sources": 5,
+        "frames": 62,
+        "objects": 231,
+        "coco_objects": 231,
+        "extended_classes": {},
+        "non_person_objects": 186,
+        "non_person_classes": 17,
+        "classes": {
+          "person": 45,
+          "cell phone": 23,
+          "car": 2,
+          "bottle": 7,
+          "tv": 29,
+          "potted plant": 19,
+          "chair": 22,
+          "keyboard": 9,
+          "dining table": 8,
+          "vase": 19,
+          "mouse": 10,
+          "book": 8,
+          "remote": 5,
+          "cup": 8,
+          "bird": 1,
+          "bowl": 4,
+          "backpack": 8,
+          "laptop": 4
+        },
+        "subsets": {
+          "live": 171,
+          "screen": 13,
+          "composited": 47
+        },
+        "area_bands": {
+          "small": 89,
+          "medium": 98,
+          "large": 44
+        },
+        "sources_with_objects": {
+          "src_676ce9db723c4ffeb4d4dda7a0d1d479": 11,
+          "src_aedd13dee01f43c3beb62dd69868d921": 5,
+          "src_ea7b74161ef54250b09e2f5c2eb748a6": 100,
+          "src_355f82ef4a6a4e91b97855497c1173b9": 49,
+          "src_8f7fdc280ae6417d91f25e83ebce731d": 66
+        }
+      },
+      "corpus_adequacy_gates": {
+        "review_complete": true,
+        "frozen_five_sources": false,
+        "fifty_non_person_instances": true,
+        "five_non_person_classes": true,
+        "subset_minimums": false,
+        "scale_minimums": true,
+        "source_concentration": true
+      },
+      "corpus_adequacy_shortfalls": {
+        "non_person_instances": {
+          "required": 50,
+          "actual": 186,
+          "remaining": 0
+        },
+        "non_person_classes": {
+          "required": 5,
+          "actual": 17,
+          "remaining": 0
+        },
+        "subsets": {
+          "live": {
+            "required": 20,
+            "actual": 171,
+            "remaining": 0
+          },
+          "screen": {
+            "required": 20,
+            "actual": 13,
+            "remaining": 7
+          },
+          "composited": {
+            "required": 10,
+            "actual": 47,
+            "remaining": 0
+          }
+        },
+        "area_bands": {
+          "small": {
+            "required": 15,
+            "actual": 89,
+            "remaining": 0
+          },
+          "large": {
+            "required": 15,
+            "actual": 44,
+            "remaining": 0
+          }
+        },
+        "source_concentration": {
+          "maximum": 0.6,
+          "actual": 0.4329004329004329
+        },
+        "frozen_sources": {
+          "expected": null,
+          "actual": [
+            "02cb08df60b2b761d7d87d2d5c23231ce95bd107c8c04f930f9dcb8d28c61da8",
+            "2a5b97bc6f8e711c172c1d951896f51d9b9c215075610a0259651a40a65b5d34",
+            "60202c74d1ed63607d24b85b218c683129d9b563a1f3cd663372584489541708",
+            "e0b9a88a5f0fa606801919f6397af9c1f7f6ecae69d23bd19b419677cf69f0d2",
+            "ee3526bcb23cbe38aa7d87575da77c4d05905f31801dc48e0eba4db5afd5a458"
+          ]
+        }
+      }
+    },
+    "analysis_scope": "Local current-source content analysis only; hosted validation has not run for this candidate. Its 13 screen labels comprise 10 physical monitors mislabeled screen, two game cars and a sticker graphic. It is not approved ground truth."
+  },
+  "post_repair_verification": {
+    "old_four_ground_truth_records_unchanged": true,
+    "new_template_objects": 0,
+    "new_template_independent_passes": 0,
+    "new_template_reviewed_frames": 0,
+    "new_candidate_count": 5,
+    "evaluation_count": 0
+  },
+  "replacement_template": {
+    "id": "tpl_a1c5fff668687c6533df550a2b7503af",
+    "frame_set_id": "frameset_5e6b3d08c73f4488a16e84f5396f28d5",
+    "policy_version_id": "pv_45a90738af2a83283ec63d771d8e0d8e",
+    "artifact_id": "artifact_tpl_a1c5fff668687c6533df550a2b7503af",
+    "schema_version": "object-annotations.v1",
+    "status": "ready",
+    "frame_count": 62,
+    "sha256": "b1e9c8f8c2943d25a094b853e830287bd68479e1176ed495d4c5aee9d189520f",
+    "created_at": "2026-10-22T09:00:03.439Z"
+  },
+  "configuration_readiness": {
+    "diagnostic_ready": true,
+    "blockers": [],
+    "effective_taxonomy": "coco-extended.v1",
+    "validation_profile": "video-object-diagnostic.v2",
+    "source_count": 5,
+    "notice": "Readiness checks policy configuration only. Independent review, photographic eligibility, actual coverage and approval remain required."
+  },
+  "production_changes": [
+    "Registered new immutable policy and blank replacement template on existing frame set. No old policy/campaign/annotation was rewritten. No invitations, passes, adjudication completion, approval, evaluation or deployment performed."
+  ]
+}
