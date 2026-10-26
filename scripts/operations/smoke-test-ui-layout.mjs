@@ -34,12 +34,14 @@ const truth = { id: id("gt"), campaign_id: campaign.id, campaign_name: long, tem
 const pipeline = { id: id("pipeline"), name: long, description: long.repeat(8), status: "active", progress: { status: "in_progress", completed_count: 2, total_count: 3, percentage: 66 }, updated_at: date, resources: [{ resource_type: "sampling_job", resource_id: job.id, label: long, status: "failed", lineage: { dataset_version_id: id("dsv") } }] };
 const model = { id: id("mv"), name: long, version: "v".repeat(80), status: "candidate", revision: 0, history: [], provenance_json: JSON.stringify({ source: long.repeat(10) }), created_at: date };
 const release = { id: id("release"), version: "v".repeat(80), status: "candidate", revision: 0, history: [], configuration_json: JSON.stringify({ source: long }), created_at: date };
-const evaluation = { id: id("evaluation"), status: "succeeded", model_version_id: model.id, ground_truth_version_id: truth.id, configuration: { implementation_version: long }, created_at: date };
+const evaluation = { id: id("evaluation"), status: "succeeded", model_version_id: model.id, ground_truth_version_id: truth.id, pipeline_release_id: release.id, configuration: { implementation_version: long }, created_at: date };
 const runners = { available_count: 1, busy_count: 1, total_count: 2, heartbeat_ttl_seconds: 360, runners: [{ runner_id: id("runner"), status: "busy", current_job_id: job.id, last_seen_at: date }] };
 const image = '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="640" height="360" fill="#264f43"/></svg>';
 const annotationFrame = { filename: "FrameFilenameWithoutSpaces".repeat(8) + ".jpg", frame_id: frame.id, width: 640, height: 360, objects: Array.from({ length: 8 }, (_, i) => ({ id: "object-" + i, label: "traffic light", subset: "composited", region: [1, 2, 120.12345, 100.56789] })), out_of_taxonomy: ["VisibleConcept".repeat(70)] };
 const annotations = { sources: [{ source: id("src"), frames: [annotationFrame] }], review: { reviewed_frames: [], adjudication_log: [] } };
 const failures = [], cases = [], runtimeErrors = [];
+const governanceDecisions = [];
+let governanceFailure = null;
 async function contextFor(role = "internals") {
   const context = await browser.newContext(), page = await context.newPage();
   page.on("pageerror", (error) => { runtimeErrors.push(error.message); console.log("RUNTIME " + error.message); });
@@ -64,6 +66,14 @@ async function contextFor(role = "internals") {
     if (endpoint === "/sample-library/select") { const value=request.postDataJSON(); const sources=sampleCatalog.sources.map(source=>({source,rank:createHash('sha256').update(JSON.stringify([sampleCatalog.version,value.seed,source.id])).digest('hex')})).sort((a,b)=>a.rank.localeCompare(b.rank)).slice(0,value.count).map(item=>item.source);return json({data:{catalog_version:sampleCatalog.version,seed:value.seed,source_ids:sources.map(source=>source.id),sources}}); }
     if (endpoint === "/datasets/probe") return json({data:request.postDataJSON().urls.map(url=>({url,status:200,media_type:"video/mp4",size_bytes:1000,reachable:true}))});
     if (endpoint === "/datasets" && request.method()==="POST") {submittedDatasets.push(request.postDataJSON());return json({data:dataset},201);}
+    if (/^\/(models|releases)\/[^/]+\/(approve|reject)$/.test(endpoint) && request.method() === "POST") {
+      governanceDecisions.push({ endpoint, headers: request.headers(), body: request.postDataJSON() });
+      if (governanceFailure) {
+        const failure = governanceFailure; governanceFailure = null;
+        return json({ error: { message: failure.message } }, failure.status);
+      }
+      return json({ data: { id: endpoint.split("/")[2], status: "approved", revision: 1 } });
+    }
     const resources = { datasets: dataset, "sampling-jobs": job, "frame-sets": frameSet, policies: policy, templates: template, "review-campaigns": campaign, "ground-truth": truth, pipelines: pipeline, models: model, releases: release, evaluations: evaluation, users: user, reviewers: user };
     const [collection, resourceId, action] = endpoint.replace(/^\//, "").split("/");
     if (resources[collection]) return json({ data: resourceId ? resources[collection] : [resources[collection], { ...resources[collection], id: resources[collection].id + "b" }], pagination: { has_more: false } });
@@ -124,6 +134,44 @@ async function audit(page, name) {
 }
 try {
   const internals = await contextFor();
+  // Exercise actual browser form submission: a control named "id" masks form.id.
+  // Layout-only inspection previously missed that every governance submit was ignored.
+  for (const collection of ["models", "releases"]) {
+    await internals.page.evaluate((name) => { location.hash = name; }, collection);
+    const openDecision = async () => {
+      await internals.page.locator(`.page[data-page="${collection}"] [data-governance-inspect]`).first().click();
+      const decision = internals.page.locator(`#${collection}-inspection #governance-decision`);
+      await decision.waitFor({ state: "visible" });
+      assert.equal(await decision.getAttribute("id"), "governance-decision");
+      assert.equal(await decision.evaluate((form) => form.id.tagName), "INPUT");
+      await decision.locator('[name="evaluation_run_id"]').selectOption(evaluation.id);
+      await decision.locator('[name="reason"]').fill("Reviewed the diagnostic evaluation evidence.");
+      return decision;
+    };
+    const decision = await openDecision(), beforeUrl = internals.page.url();
+    governanceFailure = { status: 412, message: "resource changed; reload before deciding" };
+    await decision.locator('[type="submit"]').click();
+    await internals.page.waitForFunction((collection) => document.querySelector(`#${collection}-inspection .form-status`)?.textContent.includes("resource changed"), collection, { timeout: 5000 });
+    assert.equal(await decision.locator('[type="submit"]').isDisabled(), false);
+    assert.equal(await decision.locator('[name="reason"]').inputValue(), "Reviewed the diagnostic evaluation evidence.");
+    assert.equal(internals.page.url(), beforeUrl, "A failed decision must not navigate or leak form values into the URL");
+    for (const action of ["approve", "reject"]) {
+      const active = action === "approve" ? decision : await openDecision();
+      await active.locator('[name="action"]').selectOption(action);
+      const count = governanceDecisions.length;
+      await active.locator('[type="submit"]').click();
+      await internals.page.locator(`#${collection}-inspection article`).waitFor({ state: "detached" });
+      assert.equal(governanceDecisions.length, count + 1, "Each decision must send exactly one API request");
+      const sent = governanceDecisions.at(-1), resource = collection === "models" ? model : release;
+      assert.equal(sent.endpoint, `/${collection}/${resource.id}/${action}`);
+      assert.equal(sent.headers["if-match"], "0");
+      assert.equal(sent.headers["content-type"], "application/json");
+      assert.deepEqual(sent.body, { reason: "Reviewed the diagnostic evaluation evidence.", evaluation_run_id: evaluation.id });
+      assert.equal(internals.page.url(), beforeUrl, "Decision submission must stay in the workspace");
+      cases.push(`internals/${collection}/${action}-submission`);
+    }
+    cases.push(`internals/${collection}/stale-decision-error`);
+  }
   await internals.page.locator('#campaign-create-dialog').evaluate(dialog=>dialog.showModal());
   await internals.page.waitForFunction(()=>document.querySelector('#campaign-readiness').textContent.includes('Register a frozen diagnostic profile'));
   assert.equal(await internals.page.locator('#campaign-form [type="submit"]').isDisabled(),true);
