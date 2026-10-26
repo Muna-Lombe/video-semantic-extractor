@@ -5,6 +5,22 @@
 
 # Lessons learned
 
+### Read form identity without named-control shadowing
+
+**Date learned:** 2026-10-26
+**Category:** Browser forms
+
+A form control named `id` shadows `HTMLFormElement.id`. The model/release
+decision form used that name for its resource identifier, so the delegated
+submit handler ignored the form and the browser performed a native submission.
+Read the form identifier with `getAttribute("id")` before routing a submit.
+Browser regression checks must submit populated decisions, verify the POST body
+and revision header, and exercise API errors; rendering the controls alone misses
+this failure. Use this check for forms with named controls, including hidden ones.
+
+**Affected files:** `workers/control-plane/adjudication-web/internals/governance.js`,
+`scripts/operations/smoke-test-ui-layout.mjs`.
+
 ### Keep summary claims and comparison credit tied to visible source evidence
 
 **Date learned:** 2026-10-21

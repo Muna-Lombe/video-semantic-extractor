@@ -74,32 +74,34 @@ async function inspect(collection, id) {
 }
 document.addEventListener("submit", async (event) => {
   const form = event.target;
-  if (!["model-register", "evaluation-create", "evaluation-compare", "release-create", "governance-decision", "retention-settings", "retention-pin"].includes(form.id)) return;
+  // Named controls (including the resource's hidden "id") shadow form properties.
+  const formId = form.getAttribute("id");
+  if (!["model-register", "evaluation-create", "evaluation-compare", "release-create", "governance-decision", "retention-settings", "retention-pin"].includes(formId)) return;
   event.preventDefault();
   const status = form.querySelector(".form-status"), button = form.querySelector('[type="submit"]'); button.disabled = true;
   try {
     const value = Object.fromEntries(new FormData(form));
-    if (form.id.startsWith("retention-")) {
-      const isSettings = form.id === "retention-settings";
+    if (formId.startsWith("retention-")) {
+      const isSettings = formId === "retention-settings";
       const payload = isSettings ? { stale_days: Number(value.stale_days), grace_days: Number(value.grace_days) } : value;
       await context.api(`/operations/retention/${isSettings ? "settings" : "pins"}`, { method: isSettings ? "PUT" : "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
       context.toast("Retention updated."); await loadRetention(); return;
     }
-    if (form.id === "evaluation-compare") {
+    if (formId === "evaluation-compare") {
       const result = await context.api(`/evaluations/compare?${new URLSearchParams(value)}`);
       $("evaluation-comparison").innerHTML = jsonView(result.data);
       return;
     }
     let path, payload, headers = { "content-type": "application/json" };
-    if (form.id === "model-register") {
+    if (formId === "model-register") {
       const file = form.querySelector('[type="file"]').files[0];
       if (!file || !file.size || file.size > 16 * 1024 * 1024) throw new Error("Choose an ONNX model up to 16 MiB.");
       const bytes = new Uint8Array(await file.arrayBuffer()); let binary = "";
       for (let offset = 0; offset < bytes.length; offset += 8192) binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
       payload = { name: value.name, version: value.version, license: value.license, provenance: { source: value.source, implementation_version: value.implementation_version }, configuration: { architecture: "nanodet-plus-1.5x-416" }, model_base64: btoa(binary) }; path = "/models";
-    } else if (form.id === "evaluation-create") {
+    } else if (formId === "evaluation-create") {
       payload = { ground_truth_version_id: value.ground_truth_version_id, model_version_id: value.model_version_id, ...(value.pipeline_release_id ? { pipeline_release_id: value.pipeline_release_id } : {}), configuration: Object.fromEntries(["minimum_confidence", "nms_threshold", "minimum_iou"].map((key) => [key, Number(value[key])])), idempotency_key: form.dataset.operationId || crypto.randomUUID() }; form.dataset.operationId = payload.idempotency_key; path = "/evaluations";
-    } else if (form.id === "release-create") {
+    } else if (formId === "release-create") {
       payload = { version: value.version, model_version_id: value.model_version_id, components: { sampler: value.sampler, annotation_schema: "object-annotations.v1", evaluator: context.engines.evaluator }, thresholds: Object.fromEntries(["minimum_confidence", "nms_threshold", "minimum_iou"].map((key) => [key, Number(value[key])])), acceptance: { minimum_f1: Number(value.minimum_f1), maximum_p95_inference_ms: Number(value.maximum_p95_inference_ms) } }; path = "/releases";
     } else {
       path = `/${value.collection}/${value.id}/${value.action}`; headers["if-match"] = value.revision;
